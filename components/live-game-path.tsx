@@ -1,16 +1,18 @@
 "use client"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, memo } from "react"
 import type { GameItem } from "@/lib/types"
 import { ArrowRight, Film, User } from "lucide-react"
 import Image from "next/image"
 import React from "react"
+import { RarityOverlay } from "./rarity-overlay"
 
 interface LiveGamePathProps {
   history: GameItem[]
   difficulty: string
 }
 
-export default function LiveGamePath({ history, difficulty }: LiveGamePathProps) {
+// Memoize the LiveGamePath component to prevent unnecessary re-renders
+const LiveGamePath = memo(function LiveGamePath({ history, difficulty }: LiveGamePathProps) {
   // Reference to the scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -75,7 +77,13 @@ export default function LiveGamePath({ history, difficulty }: LiveGamePathProps)
                       aria-label={`${item.name} (${item.type})`}
                     >
                       {showImages && item.image ? (
-                        <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                        <Image
+                          src={item.image || "/placeholder.svg"}
+                          alt={item.name}
+                          fill
+                          className="object-cover"
+                          loading="lazy"
+                        />
                       ) : (
                         <div className="h-full w-full bg-muted flex items-center justify-center">
                           {item.type === "movie" ? (
@@ -85,6 +93,11 @@ export default function LiveGamePath({ history, difficulty }: LiveGamePathProps)
                           )}
                         </div>
                       )}
+
+                      {/* Only show rarity overlay for player selections */}
+                      {item.selectedBy === "player" && item.rarity && (
+                        <RarityOverlay rarity={item.rarity} showLabel={true} size="sm" />
+                      )}
                     </div>
                     {/* Improved tooltip implementation */}
                     <div
@@ -93,6 +106,11 @@ export default function LiveGamePath({ history, difficulty }: LiveGamePathProps)
                     >
                       <p className="font-medium">{item.name}</p>
                       <p className="text-xs text-gray-300 capitalize">{item.type}</p>
+                      {item.selectedBy === "player" && item.rarity && item.rarity !== "common" && (
+                        <p className="text-xs font-semibold mt-1" style={{ color: getRarityColor(item.rarity) }}>
+                          {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -110,4 +128,22 @@ export default function LiveGamePath({ history, difficulty }: LiveGamePathProps)
       </div>
     </div>
   )
+})
+
+// Helper function to get color for rarity
+function getRarityColor(rarity: string): string {
+  switch (rarity) {
+    case "legendary":
+      return "#F59E0B" // amber-500
+    case "epic":
+      return "#9333EA" // purple-600
+    case "rare":
+      return "#4F46E5" // indigo-600
+    case "uncommon":
+      return "#10B981" // emerald-500
+    default:
+      return "#6B7280" // gray-500
+  }
 }
+
+export default LiveGamePath

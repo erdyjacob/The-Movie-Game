@@ -1,5 +1,8 @@
 export type ItemType = "movie" | "actor"
 export type Difficulty = "easy" | "medium" | "hard"
+export type GameMode = "classic" | "timed"
+export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary"
+export type AccountRank = "S" | "A" | "B" | "C" | "D" | "F"
 
 export interface GameFilters {
   includeAnimated: boolean
@@ -13,6 +16,28 @@ export interface GameItem {
   image: string | null
   type: ItemType
   details: any
+  // Track who made this selection (player or computer)
+  selectedBy?: "player" | "computer"
+  // Track if this was newly unlocked in this game
+  isNewUnlock?: boolean
+  // Item rarity
+  rarity?: Rarity
+  // Is this a daily challenge item
+  isDailyChallenge?: boolean
+}
+
+export interface PlayerHistoryItem {
+  id: number
+  name: string
+  date: string
+  count: number
+  image: string | null
+  rarity?: Rarity
+}
+
+export interface PlayerHistory {
+  movies: PlayerHistoryItem[]
+  actors: PlayerHistoryItem[]
 }
 
 export interface GameState {
@@ -23,6 +48,7 @@ export interface GameState {
   score: number
   highScore: number
   difficulty: Difficulty
+  gameMode: GameMode
   filters: GameFilters
   isComputerTurn: boolean
   strikes: number
@@ -32,6 +58,14 @@ export interface GameState {
   // computer-pick-actor: Computer picks an actor from a movie
   // computer-pick-movie: Computer picks a movie an actor was in
   turnPhase: "player-pick-actor" | "player-pick-movie" | "computer-pick-actor" | "computer-pick-movie"
+  timeRemaining?: number // For timed mode
+  // Track newly unlocked items
+  newUnlocks: {
+    actors: GameItem[]
+    movies: GameItem[]
+  }
+  // Track if daily challenge was completed
+  dailyChallengeCompleted?: boolean
 }
 
 export interface TMDBMovie {
@@ -55,4 +89,16 @@ export interface TMDBActor {
   character?: string
   popularity?: number
   [key: string]: any
+}
+
+export interface AccountScore {
+  rank: AccountRank
+  points: number
+  legendaryCount: number
+  epicCount: number
+  rareCount: number
+  uncommonCount: number
+  commonCount: number
+  totalItems: number
+  dailyChallengesCompleted: number
 }

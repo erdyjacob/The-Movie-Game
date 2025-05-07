@@ -1,4 +1,20 @@
 import GameContainer from "@/components/game-container"
+import { prefetchGameData } from "@/lib/tmdb-api"
+
+// Prefetch data for the game
+export async function generateMetadata() {
+  try {
+    // Prefetch data in the background
+    prefetchGameData()
+  } catch (error) {
+    console.error("Error prefetching game data:", error)
+  }
+
+  return {
+    title: "The Movie Game",
+    description: "Test your movie knowledge by connecting actors to movies they starred in",
+  }
+}
 
 export default function Home() {
   return (
