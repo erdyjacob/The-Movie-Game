@@ -12,7 +12,6 @@ import { Loader2, Film, User, Info, AlertTriangle } from "lucide-react"
 import LiveGamePath from "./live-game-path"
 import { toast } from "@/components/ui/use-toast"
 import Image from "next/image"
-import { TooltipProvider } from "@/components/ui/tooltip"
 
 // Function to calculate string similarity (Levenshtein distance)
 function stringSimilarity(s1: string, s2: string): number {
@@ -270,110 +269,108 @@ export default function GameScreen({
   const showImages = difficulty === "easy"
 
   return (
-    <TooltipProvider>
-      <Card className="w-full">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-center">
-            Score: {score} {score > highScore && "(New High Score!)"}
-          </CardTitle>
-          <div className="flex justify-center items-center gap-2 mt-3">
-            <span className="text-sm text-muted-foreground">Strikes:</span>
-            <div className="flex gap-1">
-              {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-3 h-3 rounded-full ${i < strikes ? "bg-destructive" : "bg-muted"}`}
-                  aria-label={i < strikes ? "Strike" : "No strike"}
-                />
-              ))}
-            </div>
-            <span className="text-sm text-muted-foreground ml-1">({3 - strikes} remaining)</span>
+    <Card className="w-full">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-center">
+          Score: {score} {score > highScore && "(New High Score!)"}
+        </CardTitle>
+        <div className="flex justify-center items-center gap-2 mt-3">
+          <span className="text-sm text-muted-foreground">Strikes:</span>
+          <div className="flex gap-1">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className={`w-3 h-3 rounded-full ${i < strikes ? "bg-destructive" : "bg-muted"}`}
+                aria-label={i < strikes ? "Strike" : "No strike"}
+              />
+            ))}
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6 px-6">
-          {isComputerTurn ? (
-            <div className="text-center p-6">
-              <Loader2 size={24} className="animate-spin mx-auto mb-3" />
-              <p>Computer is thinking...</p>
+          <span className="text-sm text-muted-foreground ml-1">({3 - strikes} remaining)</span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6 px-6">
+        {isComputerTurn ? (
+          <div className="text-center p-6">
+            <Loader2 size={24} className="animate-spin mx-auto mb-3" />
+            <p>Computer is thinking...</p>
+          </div>
+        ) : (
+          <>
+            <div className="text-center mb-5">
+              <p>{getInstructionText()}</p>
             </div>
-          ) : (
-            <>
-              <div className="text-center mb-5">
-                <p>{getInstructionText()}</p>
+
+            <div className="flex flex-col items-center justify-center gap-4">
+              {showImages && currentItem.image ? (
+                <div className="relative h-40 w-28 overflow-hidden rounded-lg shadow-md">
+                  <Image
+                    src={currentItem.image || "/placeholder.svg"}
+                    alt={currentItem.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="h-40 w-28 rounded-lg bg-muted flex items-center justify-center">
+                  {currentItem.type === "movie" ? (
+                    <Film size={36} className="text-muted-foreground" />
+                  ) : (
+                    <User size={36} className="text-muted-foreground" />
+                  )}
+                </div>
+              )}
+              <h3 className="text-xl font-semibold">{currentItem.name}</h3>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3 mt-2">
+              <Input
+                type="text"
+                placeholder={`Enter ${expectedType === "actor" ? "an actor" : "a movie"}...`}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                disabled={loading || isComputerTurn}
+                className="text-center py-5 text-lg"
+              />
+
+              <div className="flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Info size={12} />
+                  <span>Enter the name - spelling doesn't have to be perfect</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  <span>Using the same answer twice will count as a strike!</span>
+                </div>
               </div>
 
-              <div className="flex flex-col items-center justify-center gap-4">
-                {showImages && currentItem.image ? (
-                  <div className="relative h-40 w-28 overflow-hidden rounded-lg shadow-md">
-                    <Image
-                      src={currentItem.image || "/placeholder.svg"}
-                      alt={currentItem.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="h-40 w-28 rounded-lg bg-muted flex items-center justify-center">
-                    {currentItem.type === "movie" ? (
-                      <Film size={36} className="text-muted-foreground" />
-                    ) : (
-                      <User size={36} className="text-muted-foreground" />
-                    )}
-                  </div>
-                )}
-                <h3 className="text-xl font-semibold">{currentItem.name}</h3>
+              {error && <p className="text-destructive text-center text-sm mt-2">{error}</p>}
+
+              <div className="flex justify-center gap-4 mt-5">
+                <Button type="submit" disabled={loading || isComputerTurn} size="lg">
+                  {loading ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Checking...
+                    </>
+                  ) : (
+                    "Submit"
+                  )}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleGiveUp} size="lg">
+                  Give Up
+                </Button>
               </div>
+            </form>
+          </>
+        )}
 
-              <form onSubmit={handleSubmit} className="space-y-3 mt-2">
-                <Input
-                  type="text"
-                  placeholder={`Enter ${expectedType === "actor" ? "an actor" : "a movie"}...`}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  disabled={loading || isComputerTurn}
-                  className="text-center py-5 text-lg"
-                />
-
-                <div className="flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Info size={12} />
-                    <span>Enter the name - spelling doesn't have to be perfect</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <AlertTriangle size={12} />
-                    <span>Using the same answer twice will count as a strike!</span>
-                  </div>
-                </div>
-
-                {error && <p className="text-destructive text-center text-sm mt-2">{error}</p>}
-
-                <div className="flex justify-center gap-4 mt-5">
-                  <Button type="submit" disabled={loading || isComputerTurn} size="lg">
-                    {loading ? (
-                      <>
-                        <Loader2 size={18} className="mr-2 animate-spin" />
-                        Checking...
-                      </>
-                    ) : (
-                      "Submit"
-                    )}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleGiveUp} size="lg">
-                    Give Up
-                  </Button>
-                </div>
-              </form>
-            </>
-          )}
-
-          {/* Add the live game path visualization */}
-          {history.length > 1 && (
-            <div className="mt-8 pt-5 border-t">
-              <LiveGamePath history={history} difficulty={difficulty} />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </TooltipProvider>
+        {/* Add the live game path visualization */}
+        {history.length > 1 && (
+          <div className="mt-8 pt-5 border-t">
+            <LiveGamePath history={history} difficulty={difficulty} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
