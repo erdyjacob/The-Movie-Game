@@ -282,6 +282,7 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
     epic: collectionItems.filter((item) => item.rarity === "epic").length,
     rare: collectionItems.filter((item) => item.rarity === "rare").length,
     uncommon: collectionItems.filter((item) => item.rarity === "uncommon").length,
+    common: collectionItems.filter((item) => item.rarity === "common" || !item.rarity).length,
     all: collectionItems.length,
   }
 
