@@ -24,6 +24,11 @@ import {
 import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
 
+// Add these constants at the top of the file, after the imports
+// These represent estimated totals of collectible items in the game
+const TOTAL_COLLECTIBLE_MOVIES = 10000
+const TOTAL_COLLECTIBLE_ACTORS = 5000
+
 export default function PlayerStats() {
   const [activeTab, setActiveTab] = useState<"recent" | "most-used" | "collection" | "challenges">("recent")
   const [activeType, setActiveType] = useState<"movie" | "actor">("movie")
@@ -41,6 +46,11 @@ export default function PlayerStats() {
     commonCount: 0,
     totalItems: 0,
     dailyChallengesCompleted: 0,
+    moviesPercentage: 0,
+    actorsPercentage: 0,
+    totalPercentage: 0,
+    moviesCount: 0,
+    actorsCount: 0,
   })
   const [dailyChallenges, setDailyChallenges] = useState<Record<string, GameItem>>({})
   const { toast } = useToast()
@@ -67,7 +77,7 @@ export default function PlayerStats() {
     loadData()
   }, [activeTab, activeType])
 
-  // Calculate account score based on collection
+  // Update the calculateAccountScore function to include collection percentages
   const calculateAccountScore = async () => {
     const movies = getItemsByRarity("movie")
     const actors = getItemsByRarity("actor")
@@ -79,6 +89,14 @@ export default function PlayerStats() {
     const uncommonCount = allItems.filter((item) => item.rarity === "uncommon").length
     const commonCount = allItems.filter((item) => item.rarity === "common").length
     const totalItems = allItems.length
+
+    // Calculate collection percentages
+    const moviesPercentage = ((movies.length / TOTAL_COLLECTIBLE_MOVIES) * 100).toFixed(2)
+    const actorsPercentage = ((actors.length / TOTAL_COLLECTIBLE_ACTORS) * 100).toFixed(2)
+    const totalPercentage = (
+      ((movies.length + actors.length) / (TOTAL_COLLECTIBLE_MOVIES + TOTAL_COLLECTIBLE_ACTORS)) *
+      100
+    ).toFixed(2)
 
     // Calculate points
     const points = legendaryCount * 100 + epicCount * 50 + rareCount * 25 + uncommonCount * 10 + commonCount * 1
@@ -108,6 +126,11 @@ export default function PlayerStats() {
       commonCount,
       totalItems,
       dailyChallengesCompleted,
+      moviesPercentage: Number.parseFloat(moviesPercentage),
+      actorsPercentage: Number.parseFloat(actorsPercentage),
+      totalPercentage: Number.parseFloat(totalPercentage),
+      moviesCount: movies.length,
+      actorsCount: actors.length,
     })
   }
 
@@ -142,7 +165,6 @@ export default function PlayerStats() {
     epic: collectionItems.filter((item) => item.rarity === "epic").length,
     rare: collectionItems.filter((item) => item.rarity === "rare").length,
     uncommon: collectionItems.filter((item) => item.rarity === "uncommon").length,
-    common: collectionItems.filter((item) => item.rarity === "common").length,
     all: collectionItems.length,
   }
 
@@ -215,16 +237,63 @@ export default function PlayerStats() {
               <p className="text-xl font-semibold">{accountScore.points}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Items</p>
+              <p className="text-sm text-muted-foreground">Total Pulls</p>
               <p className="text-xl font-semibold">{accountScore.totalItems}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Legendary Items</p>
+              <p className="text-sm text-muted-foreground">Legendary Pulls</p>
               <p className="text-xl font-semibold text-amber-500">{accountScore.legendaryCount}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Daily Challenges</p>
               <p className="text-xl font-semibold text-red-500">{accountScore.dailyChallengesCompleted}</p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t">
+            <h4 className="text-sm font-medium mb-2">Collection Progress</h4>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span>Total Collection ({accountScore.totalPercentage}%)</span>
+                  <span>
+                    {accountScore.totalItems} / {TOTAL_COLLECTIBLE_MOVIES + TOTAL_COLLECTIBLE_ACTORS}
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
+                    style={{ width: `${accountScore.totalPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span>Movies ({accountScore.moviesPercentage}%)</span>
+                  <span>
+                    {accountScore.moviesCount} / {TOTAL_COLLECTIBLE_MOVIES}
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-500 to-red-500"
+                    style={{ width: `${accountScore.moviesPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span>Actors ({accountScore.actorsPercentage}%)</span>
+                  <span>
+                    {accountScore.actorsCount} / {TOTAL_COLLECTIBLE_ACTORS}
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-500 to-emerald-600"
+                    style={{ width: `${accountScore.actorsPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -245,7 +314,7 @@ export default function PlayerStats() {
               </TabsTrigger>
               <TabsTrigger value="collection" className="flex items-center gap-1">
                 <Star className="h-4 w-4" />
-                <span>Collection</span>
+                <span>Pulls</span>
               </TabsTrigger>
               <TabsTrigger value="challenges" className="flex items-center gap-1">
                 <Target className="h-4 w-4" />
@@ -450,7 +519,7 @@ export default function PlayerStats() {
                 <p>
                   No {activeRarity !== "all" ? getRarityDisplayName(activeRarity as Rarity) : ""} {activeType}s found.
                 </p>
-                <p className="text-sm mt-2">Play more games to discover new {activeType}s!</p>
+                <p className="text-sm mt-2">Play more games to discover new {activeType} pulls!</p>
               </div>
             )}
           </TabsContent>

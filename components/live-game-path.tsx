@@ -66,6 +66,31 @@ const LiveGamePath = memo(function LiveGamePath({ history, difficulty }: LiveGam
           .hide-scrollbar::-webkit-scrollbar {
             display: none;
           }
+          
+          /* Tooltip styles */
+          .game-item-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 50;
+            min-width: 100px;
+            text-align: center;
+          }
+          
+          .game-item:hover .game-item-tooltip {
+            opacity: 1;
+          }
         `}</style>
         <div className="flex flex-nowrap items-center min-w-max mx-auto justify-center">
           {groupedItems.map((group, groupIndex) => (
@@ -73,7 +98,7 @@ const LiveGamePath = memo(function LiveGamePath({ history, difficulty }: LiveGam
               {/* Render the group of items */}
               <div className="flex items-center">
                 {group.map((item, itemIndex) => (
-                  <div key={`${item.id}-${groupIndex}-${itemIndex}`} className="relative group">
+                  <div key={`${item.id}-${groupIndex}-${itemIndex}`} className="relative game-item">
                     <div
                       className="relative h-16 w-12 sm:h-20 sm:w-16 rounded-lg overflow-hidden shadow-md mx-1 cursor-pointer transition-transform hover:scale-105"
                       aria-label={`${item.name} (${item.type})`}
@@ -101,20 +126,15 @@ const LiveGamePath = memo(function LiveGamePath({ history, difficulty }: LiveGam
                         <RarityOverlay rarity={item.rarity} showLabel={true} size={isMobile ? "xs" : "sm"} />
                       )}
                     </div>
-                    {/* Improved tooltip implementation */}
-                    <div
-                      className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 sm:px-3 py-1 sm:py-2 bg-black/80 text-white text-xs rounded shadow-lg invisible group-hover:visible transition-opacity duration-100 whitespace-nowrap z-50 pointer-events-none"
-                      style={{ minWidth: isMobile ? "100px" : "120px", textAlign: "center" }}
-                    >
-                      <p className="font-medium text-xs sm:text-sm">{item.name}</p>
-                      <p className="text-[10px] sm:text-xs text-gray-300 capitalize">{item.type}</p>
+
+                    {/* Tooltip with item information */}
+                    <div className="game-item-tooltip">
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-gray-300 capitalize text-xs">{item.type}</div>
                       {item.selectedBy === "player" && item.rarity && item.rarity !== "common" && (
-                        <p
-                          className="text-[10px] sm:text-xs font-semibold mt-1"
-                          style={{ color: getRarityColor(item.rarity) }}
-                        >
+                        <div className="font-semibold text-xs mt-1" style={{ color: getRarityColor(item.rarity) }}>
                           {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
-                        </p>
+                        </div>
                       )}
                     </div>
                   </div>

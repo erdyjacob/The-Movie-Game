@@ -9,11 +9,54 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import type { GameItem, ItemType, GameFilters, Difficulty, GameMode } from "@/lib/types"
 import { searchMoviesByActor, searchActorsByMovie } from "@/lib/tmdb-api"
-import { Loader2, Film, User, Info, AlertTriangle, Clock, Target } from "lucide-react"
+import { Film, User, Info, AlertTriangle, Clock, Target } from "lucide-react"
 import LiveGamePath from "./live-game-path"
 import { toast } from "@/components/ui/use-toast"
 import Image from "next/image"
 import { useMobile } from "@/hooks/use-mobile"
+import { cn } from "@/lib/utils"
+
+// Import the PopcornLoader at the top of the file
+import { PopcornLoader } from "./popcorn-loader"
+import { Loader2 } from "lucide-react"
+
+// Custom animated button component
+const AnimatedButton = ({
+  children,
+  onClick,
+  variant = "default",
+  size = "default",
+  className,
+  disabled = false,
+  type = "button",
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive"
+  size?: "default" | "sm" | "lg" | "icon"
+  className?: string
+  disabled?: boolean
+  type?: "button" | "submit" | "reset"
+}) => {
+  return (
+    <Button
+      onClick={onClick}
+      variant={variant}
+      size={size}
+      disabled={disabled}
+      type={type}
+      className={cn(
+        "transition-all duration-200",
+        "hover:shadow-sm hover:brightness-105",
+        "active:brightness-95",
+        "focus:ring-2 focus:ring-offset-1 focus:ring-primary/40",
+        className,
+      )}
+    >
+      {children}
+    </Button>
+  )
+}
 
 // Function to calculate string similarity (Levenshtein distance)
 function stringSimilarity(s1: string, s2: string): number {
@@ -513,8 +556,8 @@ const GameScreen = memo(function GameScreen({
       <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
         {isComputerTurn ? (
           <div className="text-center p-4 sm:p-6">
-            <Loader2 size={isMobile ? 20 : 24} className="animate-spin mx-auto mb-2 sm:mb-3" />
-            <p className="text-sm sm:text-base">Computer is thinking...</p>
+            <PopcornLoader size={isMobile ? "sm" : "md"} />
+            <p className="text-sm sm:text-base mt-2 text-muted-foreground">Computer is thinking...</p>
           </div>
         ) : (
           <>
@@ -614,7 +657,7 @@ const GameScreen = memo(function GameScreen({
               {error && <p className="text-destructive text-center text-xs sm:text-sm mt-1 sm:mt-2">{error}</p>}
 
               <div className="flex justify-center gap-2 sm:gap-4 mt-3 sm:mt-5">
-                <Button type="submit" disabled={loading || isComputerTurn} size={isMobile ? "sm" : "lg"}>
+                <AnimatedButton type="submit" disabled={loading || isComputerTurn} size={isMobile ? "sm" : "lg"}>
                   {loading ? (
                     <>
                       <Loader2 size={isMobile ? 14 : 18} className="mr-1 sm:mr-2 animate-spin" />
@@ -623,10 +666,10 @@ const GameScreen = memo(function GameScreen({
                   ) : (
                     "Submit"
                   )}
-                </Button>
-                <Button type="button" variant="outline" onClick={handleGiveUp} size={isMobile ? "sm" : "lg"}>
+                </AnimatedButton>
+                <AnimatedButton variant="outline" onClick={handleGiveUp} size={isMobile ? "sm" : "lg"}>
                   Give Up
-                </Button>
+                </AnimatedButton>
               </div>
             </form>
           </>

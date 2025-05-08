@@ -5,6 +5,120 @@ import { Film, User, ArrowDown } from "lucide-react"
 import Image from "next/image"
 import { RarityOverlay } from "./rarity-overlay"
 
+// Replace the LegendaryCard component with this enhanced version that supports all rarities:
+const EnhancedRarityCard = ({ item }: { item: GameItem }) => {
+  // Get the appropriate colors based on rarity
+  const getRarityColors = (rarity: string) => {
+    switch (rarity) {
+      case "legendary":
+        return {
+          border: "#f7c52b", // amber-500
+          glow: "rgba(247, 197, 43, 0.6)",
+          background: "linear-gradient(135deg, rgba(247, 197, 43, 0.3), transparent 60%)",
+        }
+      case "epic":
+        return {
+          border: "#9333ea", // purple-600
+          glow: "rgba(147, 51, 234, 0.6)",
+          background: "linear-gradient(135deg, rgba(147, 51, 234, 0.3), transparent 60%)",
+        }
+      case "rare":
+        return {
+          border: "#4f46e5", // indigo-600
+          glow: "rgba(79, 70, 229, 0.6)",
+          background: "linear-gradient(135deg, rgba(79, 70, 229, 0.3), transparent 60%)",
+        }
+      case "uncommon":
+        return {
+          border: "#10b981", // emerald-500
+          glow: "rgba(16, 185, 129, 0.6)",
+          background: "linear-gradient(135deg, rgba(16, 185, 129, 0.3), transparent 60%)",
+        }
+      default:
+        return {
+          border: "#6b7280", // gray-500
+          glow: "rgba(107, 114, 128, 0.3)",
+          background: "none",
+        }
+    }
+  }
+
+  const colors = getRarityColors(item.rarity || "common")
+  const showBadge = item.rarity === "legendary" || item.rarity === "epic"
+
+  return (
+    <div
+      className="rarity-card"
+      style={{
+        boxShadow: `0 0 10px ${colors.glow}`,
+        borderColor: colors.border,
+      }}
+    >
+      <div className="rarity-card-content">
+        {item.image ? (
+          <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+        ) : (
+          <div className="h-full w-full bg-muted flex items-center justify-center">
+            {item.type === "movie" ? (
+              <Film size={24} className="text-muted-foreground" />
+            ) : (
+              <User size={24} className="text-muted-foreground" />
+            )}
+          </div>
+        )}
+        {showBadge && (
+          <div className="rarity-badge" style={{ backgroundColor: colors.border }}>
+            <div className="rarity-star"></div>
+          </div>
+        )}
+        <div className="rarity-glow" style={{ background: colors.background }}></div>
+      </div>
+
+      <style jsx>{`
+        .rarity-card {
+          width: 100%;
+          height: 100%;
+          position: relative;
+          border-radius: 10px;
+          overflow: hidden;
+          border: 2px solid;
+        }
+        .rarity-card-content {
+          width: 100%;
+          height: 100%;
+          position: relative;
+        }
+        .rarity-badge {
+          position: absolute;
+          bottom: 4px;
+          right: 4px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+        }
+        .rarity-star {
+          width: 12px;
+          height: 12px;
+          background-color: white;
+          clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+        }
+        .rarity-glow {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          pointer-events: none;
+        }
+      `}</style>
+    </div>
+  )
+}
+
 interface GamePathProps {
   history: GameItem[]
 }
@@ -51,22 +165,28 @@ export default function GamePath({ history }: GamePathProps) {
                 <div className="flex justify-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="relative h-32 w-24 rounded-lg overflow-hidden shadow-md">
-                      {group[0].image ? (
-                        <Image
-                          src={group[0].image || "/placeholder.svg"}
-                          alt={group[0].name}
-                          fill
-                          className="object-cover"
-                        />
+                      {group[0].selectedBy === "player" && group[0].rarity && group[0].rarity !== "common" ? (
+                        <EnhancedRarityCard item={group[0]} />
                       ) : (
-                        <div className="h-full w-full bg-muted flex items-center justify-center">
-                          {group[0].type === "movie" ? <Film size={24} /> : <User size={24} />}
-                        </div>
-                      )}
+                        <>
+                          {group[0].image ? (
+                            <Image
+                              src={group[0].image || "/placeholder.svg"}
+                              alt={group[0].name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-muted flex items-center justify-center">
+                              {group[0].type === "movie" ? <Film size={24} /> : <User size={24} />}
+                            </div>
+                          )}
 
-                      {/* Only show rarity overlay for player selections */}
-                      {group[0].selectedBy === "player" && group[0].rarity && (
-                        <RarityOverlay rarity={group[0].rarity} showLabel={true} />
+                          {/* Only show rarity overlay for player selections */}
+                          {group[0].selectedBy === "player" && group[0].rarity && (
+                            <RarityOverlay rarity={group[0].rarity} showLabel={true} />
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="flex flex-col items-center">
@@ -84,17 +204,28 @@ export default function GamePath({ history }: GamePathProps) {
                   {group.map((item, itemIndex) => (
                     <div key={`${item.id}-${groupIndex}-${itemIndex}`} className="flex flex-col items-center gap-2">
                       <div className="relative h-32 w-24 rounded-lg overflow-hidden shadow-md">
-                        {item.image ? (
-                          <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                        {item.selectedBy === "player" && item.rarity && item.rarity !== "common" ? (
+                          <EnhancedRarityCard item={item} />
                         ) : (
-                          <div className="h-full w-full bg-muted flex items-center justify-center">
-                            {item.type === "movie" ? <Film size={24} /> : <User size={24} />}
-                          </div>
-                        )}
+                          <>
+                            {item.image ? (
+                              <Image
+                                src={item.image || "/placeholder.svg"}
+                                alt={item.name}
+                                fill
+                                className="object-cover"
+                              />
+                            ) : (
+                              <div className="h-full w-full bg-muted flex items-center justify-center">
+                                {item.type === "movie" ? <Film size={24} /> : <User size={24} />}
+                              </div>
+                            )}
 
-                        {/* Only show rarity overlay for player selections */}
-                        {item.selectedBy === "player" && item.rarity && (
-                          <RarityOverlay rarity={item.rarity} showLabel={true} />
+                            {/* Only show rarity overlay for player selections */}
+                            {item.selectedBy === "player" && item.rarity && (
+                              <RarityOverlay rarity={item.rarity} showLabel={true} />
+                            )}
+                          </>
                         )}
                       </div>
                       <div className="flex flex-col items-center">

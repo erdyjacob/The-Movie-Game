@@ -22,7 +22,7 @@ export function DailyChallengeToast({ item, show }: DailyChallengeToastProps) {
         ),
         description: (
           <div className="mt-2">
-            <p className="mb-1">You found today's challenge item!</p>
+            <p className="mb-1">You found today's challenge pull!</p>
             <div className="flex items-center gap-2 text-green-600 font-medium">
               <Trophy className="h-4 w-4" />
               <span>+50 bonus points added to your account score</span>

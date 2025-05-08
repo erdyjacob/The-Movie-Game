@@ -1,7 +1,7 @@
 "use server"
 
 import type { GameItem } from "@/lib/types"
-import { getRandomMovie, getRandomActor } from "@/lib/tmdb-api"
+import { getRandomMovie, getRandomActor, searchActorsByMovie } from "@/lib/tmdb-api"
 import { calculateMovieRarity, calculateActorRarity } from "@/lib/rarity"
 
 // In-memory cache for the daily challenge
@@ -126,6 +126,24 @@ export async function getCompletedDailyChallenges(): Promise<string[]> {
   }
 }
 
+// Helper function to check if a movie has at least two rare actors
+async function hasAtLeastTwoRareActors(movieId: number): Promise<boolean> {
+  try {
+    const actors = await searchActorsByMovie(movieId)
+
+    // Calculate rarity for each actor
+    const rareActors = actors.filter((actor) => {
+      const rarity = calculateActorRarity(actor)
+      return rarity === "rare" || rarity === "epic" || rarity === "legendary"
+    })
+
+    return rareActors.length >= 2
+  } catch (error) {
+    console.error("Error checking movie for rare actors:", error)
+    return false
+  }
+}
+
 // Function to get the daily challenge
 export async function getDailyChallenge(): Promise<GameItem> {
   const today = getTodayDateString()
@@ -144,11 +162,35 @@ export async function getDailyChallenge(): Promise<GameItem> {
     let item: GameItem
 
     if (isMovie) {
-      const movie = await getRandomMovie("medium", {
-        includeAnimated: true,
-        includeSequels: true,
-        includeForeign: true,
-      })
+      // For movies, we now need to find one with at least two rare actors
+      let movie = null
+      let attempts = 0
+      const maxAttempts = 5 // Limit attempts to avoid infinite loops
+
+      while (!movie && attempts < maxAttempts) {
+        attempts++
+        const candidateMovie = await getRandomMovie("medium", {
+          includeAnimated: true,
+          includeSequels: true,
+          includeForeign: true,
+        })
+
+        // Check if this movie has at least two rare actors
+        const hasRareActors = await hasAtLeastTwoRareActors(candidateMovie.id)
+
+        if (hasRareActors) {
+          movie = candidateMovie
+        }
+      }
+
+      // If we couldn't find a suitable movie after max attempts, just use the last one we tried
+      if (!movie) {
+        movie = await getRandomMovie("medium", {
+          includeAnimated: true,
+          includeSequels: true,
+          includeForeign: true,
+        })
+      }
 
       item = {
         id: movie.id,
@@ -160,6 +202,7 @@ export async function getDailyChallenge(): Promise<GameItem> {
         isDailyChallenge: true,
       }
     } else {
+      // For actors, keep the existing logic
       const actor = await getRandomActor("medium")
 
       item = {

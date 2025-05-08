@@ -101,4 +101,10 @@ export interface AccountScore {
   commonCount: number
   totalItems: number
   dailyChallengesCompleted: number
+  // Add these new properties
+  moviesPercentage?: number
+  actorsPercentage?: number
+  totalPercentage?: number
+  moviesCount?: number
+  actorsCount?: number
 }

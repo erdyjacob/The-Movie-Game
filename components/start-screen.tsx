@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,9 +14,45 @@ import Image from "next/image"
 import { getDailyChallenge } from "@/lib/daily-challenge"
 import Link from "next/link"
 import { useMobile } from "@/hooks/use-mobile"
+import { cn } from "@/lib/utils"
+
+// Custom animated button component
+const AnimatedButton = ({
+  children,
+  onClick,
+  variant = "default",
+  size = "default",
+  className,
+  disabled = false,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive"
+  size?: "default" | "sm" | "lg" | "icon"
+  className?: string
+  disabled?: boolean
+}) => {
+  return (
+    <Button
+      onClick={onClick}
+      variant={variant}
+      size={size}
+      disabled={disabled}
+      className={cn(
+        "transition-all duration-200",
+        "hover:shadow-sm hover:brightness-105",
+        "active:brightness-95",
+        "focus:ring-2 focus:ring-offset-1 focus:ring-primary/40",
+        className,
+      )}
+    >
+      {children}
+    </Button>
+  )
+}
 
 interface StartScreenProps {
-  onStart: (difficulty: Difficulty, filters: GameFilters, gameMode: string) => void
+  onStart: (difficulty: Difficulty, GameFilters, gameMode: string) => void
   highScore: number
   loading?: boolean
 }
@@ -130,10 +168,10 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                 <p>
                   The game starts with a movie. You name an actor from that movie, then a movie the actor was in. The
                   computer then continues by naming an actor from that movie and another movie they were in. This
-                  continues until the 2-minute timer runs out. Try to make as many connections as possible!
+                  continues until the 2-minute timer runs out!
                 </p>
                 <p>
-                  <strong>Collect Rare Items:</strong> Discover and collect actors and movies of different rarities to
+                  <strong>Collect Rare Pulls:</strong> Discover and collect actors and movies of different rarities to
                   build your collection!
                 </p>
                 <p>
@@ -199,14 +237,14 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                       Unlimited time, 3 strikes, 1 attempt per day
                     </p>
 
-                    <Button
+                    <AnimatedButton
                       onClick={startDailyChallenge}
                       disabled={dailyChallengeAttempted || loading}
                       className="w-full mt-1 sm:mt-2 bg-gradient-to-r from-red-500 to-amber-600 hover:from-red-600 hover:to-amber-700"
                       size={isMobile ? "sm" : "default"}
                     >
                       {dailyChallengeAttempted ? "Already Attempted Today" : "Start Daily Challenge"}
-                    </Button>
+                    </AnimatedButton>
                   </div>
                 </div>
               </div>
@@ -225,7 +263,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
           {/* Difficulty Selector */}
           <div className="space-y-2 sm:space-y-3">
             <div className="grid grid-cols-3 gap-1 sm:gap-2 w-full">
-              <Button
+              <AnimatedButton
                 variant={difficulty === "easy" ? "default" : "outline"}
                 onClick={() => setDifficulty("easy")}
                 disabled={loading}
@@ -233,8 +271,8 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                 className="px-1 sm:px-4 text-sm sm:text-base"
               >
                 Easy
-              </Button>
-              <Button
+              </AnimatedButton>
+              <AnimatedButton
                 variant={difficulty === "medium" ? "default" : "outline"}
                 onClick={() => setDifficulty("medium")}
                 disabled={loading}
@@ -242,8 +280,8 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                 className="px-1 sm:px-4 text-sm sm:text-base"
               >
                 Medium
-              </Button>
-              <Button
+              </AnimatedButton>
+              <AnimatedButton
                 variant={difficulty === "hard" ? "default" : "outline"}
                 onClick={() => setDifficulty("hard")}
                 disabled={loading}
@@ -251,7 +289,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                 className="px-1 sm:px-4 text-sm sm:text-base"
               >
                 Hard
-              </Button>
+              </AnimatedButton>
             </div>
           </div>
 
@@ -316,7 +354,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
 
           {/* Start Regular Game Button */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-3 mt-4 sm:mt-6">
-            <Button
+            <AnimatedButton
               variant="outline"
               className="w-full sm:w-auto flex items-center gap-2"
               onClick={openStats}
@@ -324,9 +362,9 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
             >
               <BarChart size={isMobile ? 14 : 16} />
               <span>View Your Stats</span>
-            </Button>
+            </AnimatedButton>
 
-            <Button
+            <AnimatedButton
               onClick={startRegularGame}
               size={isMobile ? "sm" : "lg"}
               disabled={loading}
@@ -340,7 +378,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
               ) : (
                 "Start Game"
               )}
-            </Button>
+            </AnimatedButton>
           </div>
         </div>
       </CardContent>

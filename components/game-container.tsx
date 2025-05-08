@@ -571,6 +571,9 @@ export default function GameContainer() {
         <StartScreen onStart={startGame} highScore={gameState.highScore} loading={loading} />
       )}
 
+      {/* Remove or comment out this line: */}
+      {/* {loading && <PopcornLoader />} */}
+
       {gameState.status === "playing" && gameState.currentItem && (
         <GameScreen
           currentItem={gameState.currentItem}
