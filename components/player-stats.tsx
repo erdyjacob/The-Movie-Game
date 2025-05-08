@@ -130,11 +130,24 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
 
     // Determine rank
     let rank: AccountRank = "F"
-    if (totalPoints >= 2000) rank = "S"
-    else if (totalPoints >= 1000) rank = "A"
-    else if (totalPoints >= 500) rank = "B"
-    else if (totalPoints >= 250) rank = "C"
-    else if (totalPoints >= 100) rank = "D"
+    if (totalPoints >= 10000) rank = "SS"
+    else if (totalPoints >= 7500) rank = "S+"
+    else if (totalPoints >= 5000) rank = "S"
+    else if (totalPoints >= 4000) rank = "S-"
+    else if (totalPoints >= 3000) rank = "A+"
+    else if (totalPoints >= 2000) rank = "A"
+    else if (totalPoints >= 1500) rank = "A-"
+    else if (totalPoints >= 1200) rank = "B+"
+    else if (totalPoints >= 900) rank = "B"
+    else if (totalPoints >= 750) rank = "B-"
+    else if (totalPoints >= 600) rank = "C+"
+    else if (totalPoints >= 450) rank = "C"
+    else if (totalPoints >= 350) rank = "C-"
+    else if (totalPoints >= 250) rank = "D+"
+    else if (totalPoints >= 200) rank = "D"
+    else if (totalPoints >= 150) rank = "D-"
+    else if (totalPoints >= 100) rank = "F+"
+    else if (totalPoints >= 50) rank = "F"
 
     setAccountScore({
       rank,
@@ -190,19 +203,34 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
 
   // Get rank color
   const getRankColor = (rank: AccountRank): string => {
+    // Base colors for each rank tier
     switch (rank) {
+      case "SS":
+        return "text-rose-400 border-rose-400" // Special color for SS rank
+      case "S+":
       case "S":
-        return "text-amber-500 border-amber-500"
+      case "S-":
+        return "text-amber-500 border-amber-500" // Gold for S ranks
+      case "A+":
       case "A":
-        return "text-purple-500 border-purple-500"
+      case "A-":
+        return "text-purple-500 border-purple-500" // Purple for A ranks
+      case "B+":
       case "B":
-        return "text-blue-500 border-blue-500"
+      case "B-":
+        return "text-blue-500 border-blue-500" // Blue for B ranks
+      case "C+":
       case "C":
-        return "text-green-500 border-green-500"
+      case "C-":
+        return "text-green-500 border-green-500" // Green for C ranks
+      case "D+":
       case "D":
-        return "text-orange-500 border-orange-500"
+      case "D-":
+        return "text-orange-500 border-orange-500" // Orange for D ranks
+      case "F+":
       case "F":
-        return "text-gray-500 border-gray-500"
+      case "F-":
+        return "text-gray-500 border-gray-500" // Gray for F ranks
       default:
         return "text-gray-500 border-gray-500"
     }
@@ -253,8 +281,25 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
             </div>
             <div
               className={`text-4xl font-bold w-14 h-14 rounded-full border-4 flex items-center justify-center ${getRankColor(accountScore.rank)}`}
+              style={{
+                background: accountScore.rank === "SS" ? "linear-gradient(135deg, #fef3c7, #f87171)" : "",
+                boxShadow:
+                  accountScore.rank === "SS" || accountScore.rank === "S+" ? "0 0 10px rgba(251, 191, 36, 0.6)" : "",
+              }}
             >
-              {accountScore.rank}
+              {accountScore.rank.includes("+") ? (
+                <>
+                  {accountScore.rank.charAt(0)}
+                  <sup className="text-lg">+</sup>
+                </>
+              ) : accountScore.rank.includes("-") ? (
+                <>
+                  {accountScore.rank.charAt(0)}
+                  <sup className="text-lg">-</sup>
+                </>
+              ) : (
+                accountScore.rank
+              )}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-4">
