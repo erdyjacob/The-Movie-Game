@@ -13,6 +13,7 @@ import { Loader2, Film, User, Info, AlertTriangle, Clock, Target } from "lucide-
 import LiveGamePath from "./live-game-path"
 import { toast } from "@/components/ui/use-toast"
 import Image from "next/image"
+import { useMobile } from "@/hooks/use-mobile"
 
 // Function to calculate string similarity (Levenshtein distance)
 function stringSimilarity(s1: string, s2: string): number {
@@ -116,6 +117,7 @@ const GameScreen = memo(function GameScreen({
   dailyChallenge,
   dailyChallengeCompleted,
 }: GameScreenProps) {
+  const isMobile = useMobile()
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -454,51 +456,51 @@ const GameScreen = memo(function GameScreen({
 
   return (
     <Card className="w-full">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-center">
+      <CardHeader className="pb-2 sm:pb-4">
+        <CardTitle className="text-center text-lg sm:text-xl">
           Score: {score} {score > highScore && "(New High Score!)"}
         </CardTitle>
 
         {/* Show timer for timed mode */}
         {gameMode === "timed" && timeRemaining !== undefined && (
-          <div className="mt-3">
+          <div className="mt-2 sm:mt-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium flex items-center">
-                <Clock size={14} className="mr-1" /> Time Remaining: {formatTime(timeRemaining)}
+              <span className="text-xs sm:text-sm font-medium flex items-center">
+                <Clock size={isMobile ? 12 : 14} className="mr-1" /> Time Remaining: {formatTime(timeRemaining)}
               </span>
             </div>
-            <Progress value={timeProgress} className="h-2" />
+            <Progress value={timeProgress} className="h-1.5 sm:h-2" />
           </div>
         )}
 
         {/* Show strikes for classic and daily challenge modes */}
         {(gameMode === "classic" || gameMode === "dailyChallenge") && (
-          <div className="flex justify-center items-center gap-2 mt-3">
-            <span className="text-sm text-muted-foreground">Strikes:</span>
+          <div className="flex justify-center items-center gap-1 sm:gap-2 mt-2 sm:mt-3">
+            <span className="text-xs sm:text-sm text-muted-foreground">Strikes:</span>
             <div className="flex gap-1">
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className={`w-3 h-3 rounded-full ${i < strikes ? "bg-destructive" : "bg-muted"}`}
+                  className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${i < strikes ? "bg-destructive" : "bg-muted"}`}
                   aria-label={i < strikes ? "Strike" : "No strike"}
                 />
               ))}
             </div>
-            <span className="text-sm text-muted-foreground ml-1">({3 - strikes} remaining)</span>
+            <span className="text-xs sm:text-sm text-muted-foreground ml-1">({3 - strikes} remaining)</span>
           </div>
         )}
 
         {/* Daily Challenge Indicator */}
         {gameMode === "dailyChallenge" && dailyChallenge && (
-          <div className="mt-3 flex justify-center">
+          <div className="mt-2 sm:mt-3 flex justify-center">
             <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium ${
                 dailyChallengeCompleted
                   ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                   : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
               }`}
             >
-              <Target size={12} />
+              <Target size={isMobile ? 10 : 12} />
               <span>
                 {dailyChallengeCompleted
                   ? "Daily Challenge Completed!"
@@ -508,21 +510,21 @@ const GameScreen = memo(function GameScreen({
           </div>
         )}
       </CardHeader>
-      <CardContent className="space-y-6 px-6">
+      <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
         {isComputerTurn ? (
-          <div className="text-center p-6">
-            <Loader2 size={24} className="animate-spin mx-auto mb-3" />
-            <p>Computer is thinking...</p>
+          <div className="text-center p-4 sm:p-6">
+            <Loader2 size={isMobile ? 20 : 24} className="animate-spin mx-auto mb-2 sm:mb-3" />
+            <p className="text-sm sm:text-base">Computer is thinking...</p>
           </div>
         ) : (
           <>
-            <div className="text-center mb-5">
-              <p>{getInstructionText()}</p>
+            <div className="text-center mb-3 sm:mb-5">
+              <p className="text-sm sm:text-base">{getInstructionText()}</p>
             </div>
 
-            <div className="flex flex-col items-center justify-center gap-4">
+            <div className="flex flex-col items-center justify-center gap-3 sm:gap-4">
               {showImages && currentItem.image ? (
-                <div className="relative h-40 w-28 overflow-hidden rounded-lg shadow-md">
+                <div className="relative h-32 w-24 sm:h-40 sm:w-28 overflow-hidden rounded-lg shadow-md">
                   <Image
                     src={currentItem.image || "/placeholder.svg"}
                     alt={currentItem.name}
@@ -533,18 +535,18 @@ const GameScreen = memo(function GameScreen({
                   />
                 </div>
               ) : (
-                <div className="h-40 w-28 rounded-lg bg-muted flex items-center justify-center">
+                <div className="h-32 w-24 sm:h-40 sm:w-28 rounded-lg bg-muted flex items-center justify-center">
                   {currentItem.type === "movie" ? (
-                    <Film size={36} className="text-muted-foreground" />
+                    <Film size={isMobile ? 28 : 36} className="text-muted-foreground" />
                   ) : (
-                    <User size={36} className="text-muted-foreground" />
+                    <User size={isMobile ? 28 : 36} className="text-muted-foreground" />
                   )}
                 </div>
               )}
-              <h3 className="text-xl font-semibold">{currentItem.name}</h3>
+              <h3 className="text-base sm:text-xl font-semibold">{currentItem.name}</h3>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 mt-2">
+            <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3 mt-1 sm:mt-2">
               <div className="relative">
                 <Input
                   ref={inputRef}
@@ -553,7 +555,7 @@ const GameScreen = memo(function GameScreen({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   disabled={loading || isComputerTurn}
-                  className="text-center py-5 text-lg"
+                  className="text-center py-3 sm:py-5 text-base sm:text-lg"
                   onFocus={() => {
                     if (suggestionsEnabled && suggestions.length > 0) {
                       setShowSuggestions(true)
@@ -565,15 +567,15 @@ const GameScreen = memo(function GameScreen({
                 {suggestionsEnabled && showSuggestions && (
                   <div
                     ref={suggestionsRef}
-                    className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-60 overflow-auto"
+                    className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-48 sm:max-h-60 overflow-auto"
                   >
                     {suggestions.map((suggestion) => (
                       <div
                         key={suggestion.id}
-                        className="flex items-center gap-3 p-2 hover:bg-muted cursor-pointer"
+                        className="flex items-center gap-2 sm:gap-3 p-2 hover:bg-muted cursor-pointer"
                         onClick={() => handleSuggestionClick(suggestion)}
                       >
-                        <div className="relative h-10 w-10 overflow-hidden rounded">
+                        <div className="relative h-8 w-8 sm:h-10 sm:w-10 overflow-hidden rounded">
                           {suggestion.image ? (
                             <Image
                               src={suggestion.image || "/placeholder.svg"}
@@ -584,45 +586,45 @@ const GameScreen = memo(function GameScreen({
                           ) : (
                             <div className="h-full w-full bg-muted flex items-center justify-center">
                               {expectedType === "movie" ? (
-                                <Film size={16} className="text-muted-foreground" />
+                                <Film size={isMobile ? 12 : 16} className="text-muted-foreground" />
                               ) : (
-                                <User size={16} className="text-muted-foreground" />
+                                <User size={isMobile ? 12 : 16} className="text-muted-foreground" />
                               )}
                             </div>
                           )}
                         </div>
-                        <span>{suggestion.name}</span>
+                        <span className="text-sm sm:text-base truncate">{suggestion.name}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
+              <div className="flex flex-col items-center justify-center gap-1 sm:gap-2 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1">
-                  <Info size={12} />
+                  <Info size={10} className="hidden sm:inline" />
                   <span>Enter the name - spelling doesn't have to be perfect</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <AlertTriangle size={12} />
+                  <AlertTriangle size={10} className="hidden sm:inline" />
                   <span>Using the same answer twice will count as a strike!</span>
                 </div>
               </div>
 
-              {error && <p className="text-destructive text-center text-sm mt-2">{error}</p>}
+              {error && <p className="text-destructive text-center text-xs sm:text-sm mt-1 sm:mt-2">{error}</p>}
 
-              <div className="flex justify-center gap-4 mt-5">
-                <Button type="submit" disabled={loading || isComputerTurn} size="lg">
+              <div className="flex justify-center gap-2 sm:gap-4 mt-3 sm:mt-5">
+                <Button type="submit" disabled={loading || isComputerTurn} size={isMobile ? "sm" : "lg"}>
                   {loading ? (
                     <>
-                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      <Loader2 size={isMobile ? 14 : 18} className="mr-1 sm:mr-2 animate-spin" />
                       Checking...
                     </>
                   ) : (
                     "Submit"
                   )}
                 </Button>
-                <Button type="button" variant="outline" onClick={handleGiveUp} size="lg">
+                <Button type="button" variant="outline" onClick={handleGiveUp} size={isMobile ? "sm" : "lg"}>
                   Give Up
                 </Button>
               </div>
@@ -632,7 +634,7 @@ const GameScreen = memo(function GameScreen({
 
         {/* Add the live game path visualization */}
         {history.length > 1 && (
-          <div className="mt-8 pt-5 border-t">
+          <div className="mt-4 sm:mt-8 pt-3 sm:pt-5 border-t">
             <LiveGamePath history={history} difficulty={difficulty} />
           </div>
         )}

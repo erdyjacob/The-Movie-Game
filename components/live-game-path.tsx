@@ -5,6 +5,7 @@ import { ArrowRight, Film, User } from "lucide-react"
 import Image from "next/image"
 import React from "react"
 import { RarityOverlay } from "./rarity-overlay"
+import { useMobile } from "@/hooks/use-mobile"
 
 interface LiveGamePathProps {
   history: GameItem[]
@@ -13,6 +14,7 @@ interface LiveGamePathProps {
 
 // Memoize the LiveGamePath component to prevent unnecessary re-renders
 const LiveGamePath = memo(function LiveGamePath({ history, difficulty }: LiveGamePathProps) {
+  const isMobile = useMobile()
   // Reference to the scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -49,8 +51,8 @@ const LiveGamePath = memo(function LiveGamePath({ history, difficulty }: LiveGam
   const showImages = true // Show images for all guessed items regardless of difficulty
 
   return (
-    <div className="w-full mt-4">
-      <h3 className="text-sm font-medium text-center mb-4">Game Progress:</h3>
+    <div className="w-full mt-2 sm:mt-4">
+      <h3 className="text-xs sm:text-sm font-medium text-center mb-2 sm:mb-4">Game Progress:</h3>
       <div
         ref={scrollContainerRef}
         className="w-full overflow-x-auto pb-2 scroll-smooth hide-scrollbar"
@@ -73,7 +75,7 @@ const LiveGamePath = memo(function LiveGamePath({ history, difficulty }: LiveGam
                 {group.map((item, itemIndex) => (
                   <div key={`${item.id}-${groupIndex}-${itemIndex}`} className="relative group">
                     <div
-                      className="relative h-20 w-16 rounded-lg overflow-hidden shadow-md mx-1 cursor-pointer transition-transform hover:scale-105"
+                      className="relative h-16 w-12 sm:h-20 sm:w-16 rounded-lg overflow-hidden shadow-md mx-1 cursor-pointer transition-transform hover:scale-105"
                       aria-label={`${item.name} (${item.type})`}
                     >
                       {showImages && item.image ? (
@@ -87,27 +89,30 @@ const LiveGamePath = memo(function LiveGamePath({ history, difficulty }: LiveGam
                       ) : (
                         <div className="h-full w-full bg-muted flex items-center justify-center">
                           {item.type === "movie" ? (
-                            <Film size={24} className="text-muted-foreground" />
+                            <Film size={isMobile ? 18 : 24} className="text-muted-foreground" />
                           ) : (
-                            <User size={24} className="text-muted-foreground" />
+                            <User size={isMobile ? 18 : 24} className="text-muted-foreground" />
                           )}
                         </div>
                       )}
 
                       {/* Only show rarity overlay for player selections */}
                       {item.selectedBy === "player" && item.rarity && (
-                        <RarityOverlay rarity={item.rarity} showLabel={true} size="sm" />
+                        <RarityOverlay rarity={item.rarity} showLabel={true} size={isMobile ? "xs" : "sm"} />
                       )}
                     </div>
                     {/* Improved tooltip implementation */}
                     <div
-                      className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black/80 text-white text-xs rounded shadow-lg invisible group-hover:visible transition-opacity duration-100 whitespace-nowrap z-50 pointer-events-none"
-                      style={{ minWidth: "120px", textAlign: "center" }}
+                      className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 sm:px-3 py-1 sm:py-2 bg-black/80 text-white text-xs rounded shadow-lg invisible group-hover:visible transition-opacity duration-100 whitespace-nowrap z-50 pointer-events-none"
+                      style={{ minWidth: isMobile ? "100px" : "120px", textAlign: "center" }}
                     >
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-xs text-gray-300 capitalize">{item.type}</p>
+                      <p className="font-medium text-xs sm:text-sm">{item.name}</p>
+                      <p className="text-[10px] sm:text-xs text-gray-300 capitalize">{item.type}</p>
                       {item.selectedBy === "player" && item.rarity && item.rarity !== "common" && (
-                        <p className="text-xs font-semibold mt-1" style={{ color: getRarityColor(item.rarity) }}>
+                        <p
+                          className="text-[10px] sm:text-xs font-semibold mt-1"
+                          style={{ color: getRarityColor(item.rarity) }}
+                        >
                           {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
                         </p>
                       )}
@@ -118,8 +123,8 @@ const LiveGamePath = memo(function LiveGamePath({ history, difficulty }: LiveGam
 
               {/* Add arrow between groups with equal spacing */}
               {groupIndex < groupedItems.length - 1 && (
-                <div className="w-12 flex justify-center items-center">
-                  <ArrowRight size={20} className="text-muted-foreground" />
+                <div className="w-8 sm:w-12 flex justify-center items-center">
+                  <ArrowRight size={isMobile ? 16 : 20} className="text-muted-foreground" />
                 </div>
               )}
             </React.Fragment>
