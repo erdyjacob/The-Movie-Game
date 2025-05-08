@@ -333,6 +333,11 @@ export function updateAchievements(): Achievement[] {
         achievement.progress!.current = legendaryItems.length
         achievement.isUnlocked = legendaryItems.length >= achievement.progress!.target
         break
+      case "legendary_hunter":
+        // Make sure legendary_hunter is updated from player history too
+        achievement.progress!.current = legendaryItems.length
+        achievement.isUnlocked = legendaryItems.length >= achievement.progress!.target
+        break
       // Other achievements would be updated based on game events
       // We'll implement those in the game logic
     }
@@ -364,16 +369,81 @@ export function unlockAchievement(id: string): void {
   }
 }
 
-// Update achievement progress
-export function updateAchievementProgress(id: string, progress: number): void {
+// Update achievement progress - FIXED to increment instead of set
+export function updateAchievementProgress(id: string, incrementBy: number): void {
   const achievements = loadAchievements()
   const achievement = achievements.find((a) => a.id === id)
 
   if (achievement && achievement.progress) {
-    achievement.progress.current = progress
-    if (progress >= achievement.progress.target) {
+    // Increment the current progress instead of setting it
+    achievement.progress.current += incrementBy
+
+    // Log the update for debugging
+    console.log(`Achievement ${id} progress updated: ${achievement.progress.current}/${achievement.progress.target}`)
+
+    // Check if the achievement should be unlocked
+    if (achievement.progress.current >= achievement.progress.target) {
       achievement.isUnlocked = true
+      console.log(`Achievement ${id} unlocked!`)
     }
+
     saveAchievements(achievements)
   }
+}
+
+// Track legendary items specifically
+export function trackLegendaryItem(item: any): void {
+  if (item && item.rarity === "legendary") {
+    const achievements = loadAchievements()
+
+    // Find the legendary hunter achievement
+    const legendaryHunter = achievements.find((a) => a.id === "legendary_hunter")
+
+    if (legendaryHunter && legendaryHunter.progress) {
+      // Increment the progress
+      legendaryHunter.progress.current += 1
+
+      console.log(`Legendary Hunter progress: ${legendaryHunter.progress.current}/${legendaryHunter.progress.target}`)
+
+      // Check if the achievement should be unlocked
+      if (legendaryHunter.progress.current >= legendaryHunter.progress.target) {
+        legendaryHunter.isUnlocked = true
+        console.log("Legendary Hunter achievement unlocked!")
+      }
+
+      saveAchievements(achievements)
+    }
+
+    // Also update the legendary collection achievement
+    const legendaryCollection = achievements.find((a) => a.id === "legendary_collection")
+
+    if (legendaryCollection && legendaryCollection.progress) {
+      // Increment the progress
+      legendaryCollection.progress.current += 1
+
+      console.log(
+        `Legendary Collection progress: ${legendaryCollection.progress.current}/${legendaryCollection.progress.target}`,
+      )
+
+      // Check if the achievement should be unlocked
+      if (legendaryCollection.progress.current >= legendaryCollection.progress.target) {
+        legendaryCollection.isUnlocked = true
+        console.log("Legendary Collection achievement unlocked!")
+      }
+
+      saveAchievements(achievements)
+    }
+  }
+}
+
+// Get achievement progress
+export function getAchievementProgress(id: string): number {
+  const achievements = loadAchievements()
+  const achievement = achievements.find((a) => a.id === id)
+
+  if (achievement && achievement.progress) {
+    return achievement.progress.current
+  }
+
+  return 0
 }

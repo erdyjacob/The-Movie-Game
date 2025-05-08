@@ -170,9 +170,9 @@ export async function getDailyChallenge(): Promise<GameItem> {
       while (!movie && attempts < maxAttempts) {
         attempts++
         const candidateMovie = await getRandomMovie("medium", {
-          includeAnimated: true,
+          includeAnimated: false, // Changed to false to exclude animated movies
           includeSequels: true,
-          includeForeign: true,
+          includeForeign: false, // Changed to false to exclude foreign movies
         })
 
         // Check if this movie has at least two rare actors
@@ -186,9 +186,9 @@ export async function getDailyChallenge(): Promise<GameItem> {
       // If we couldn't find a suitable movie after max attempts, just use the last one we tried
       if (!movie) {
         movie = await getRandomMovie("medium", {
-          includeAnimated: true,
+          includeAnimated: false, // Changed to false to exclude animated movies
           includeSequels: true,
-          includeForeign: true,
+          includeForeign: false, // Changed to false to exclude foreign movies
         })
       }
 

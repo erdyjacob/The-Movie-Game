@@ -480,6 +480,10 @@ export default function GameContainer() {
     // In timed mode, we don't count strikes
   }, [gameMode])
 
+  const trackLegendaryItem = useCallback((item: GameItem) => {
+    console.log("Legendary item found:", item.name)
+  }, [])
+
   const updateGameState = useCallback(
     async (newItem: GameItem) => {
       // Add the new item's ID to the used IDs set
@@ -508,11 +512,13 @@ export default function GameContainer() {
         // Create a copy of the current progress
         const updatedProgress = { ...gameAchievementProgress }
 
-        // Check for legendary hunter achievement
+        // Check for legendary items - use our new dedicated function
         if (newItem.rarity === "legendary") {
+          trackLegendaryItem(newItem)
+
+          // Update the local game state for UI display
           const currentProgress = updatedProgress["legendary_hunter"] || 0
           updatedProgress["legendary_hunter"] = currentProgress + 1
-          updateAchievementProgress("legendary_hunter", 1)
         }
 
         // Check for actor-specific achievements
@@ -521,7 +527,7 @@ export default function GameContainer() {
           if (newItem.name.toLowerCase().includes("jason statham")) {
             const currentProgress = updatedProgress["fully_cranked"] || 0
             updatedProgress["fully_cranked"] = currentProgress + 1
-            updateAchievementProgress("fully_cranked", 1)
+            updateAchievementProgress("fully_cranked", 1) // Now increments by 1
           }
 
           // Dwayne Johnson achievement
@@ -531,7 +537,7 @@ export default function GameContainer() {
           ) {
             const currentProgress = updatedProgress["the_rock_star"] || 0
             updatedProgress["the_rock_star"] = currentProgress + 1
-            updateAchievementProgress("the_rock_star", 1)
+            updateAchievementProgress("the_rock_star", 1) // Now increments by 1
           }
 
           // Nicolas Cage achievement
@@ -541,14 +547,14 @@ export default function GameContainer() {
           ) {
             const currentProgress = updatedProgress["cage_match"] || 0
             updatedProgress["cage_match"] = currentProgress + 1
-            updateAchievementProgress("cage_match", 1)
+            updateAchievementProgress("cage_match", 1) // Now increments by 1
           }
 
           // Kevin Bacon achievement (partial tracking)
           if (newItem.name.toLowerCase().includes("kevin bacon")) {
             const currentProgress = updatedProgress["six_degrees"] || 0
             updatedProgress["six_degrees"] = currentProgress + 1
-            updateAchievementProgress("six_degrees", 1)
+            updateAchievementProgress("six_degrees", 1) // Now increments by 1
           }
         }
 
@@ -565,7 +571,7 @@ export default function GameContainer() {
           ) {
             const currentProgress = updatedProgress["aw_cute"] || 0
             updatedProgress["aw_cute"] = currentProgress + 1
-            updateAchievementProgress("aw_cute", 1)
+            updateAchievementProgress("aw_cute", 1) // Now increments by 1
           }
 
           // Horror detection
@@ -579,7 +585,7 @@ export default function GameContainer() {
           ) {
             const currentProgress = updatedProgress["screamer"] || 0
             updatedProgress["screamer"] = currentProgress + 1
-            updateAchievementProgress("screamer", 1)
+            updateAchievementProgress("screamer", 1) // Now increments by 1
           }
 
           // Sci-fi detection
@@ -593,7 +599,7 @@ export default function GameContainer() {
           ) {
             const currentProgress = updatedProgress["space_race"] || 0
             updatedProgress["space_race"] = currentProgress + 1
-            updateAchievementProgress("space_race", 1)
+            updateAchievementProgress("space_race", 1) // Now increments by 1
           }
 
           // Action detection
@@ -607,7 +613,7 @@ export default function GameContainer() {
           ) {
             const currentProgress = updatedProgress["locked_n_loaded"] || 0
             updatedProgress["locked_n_loaded"] = currentProgress + 1
-            updateAchievementProgress("locked_n_loaded", 1)
+            updateAchievementProgress("locked_n_loaded", 1) // Now increments by 1
           }
 
           // Comedy detection
@@ -621,7 +627,7 @@ export default function GameContainer() {
           ) {
             const currentProgress = updatedProgress["mr_funny"] || 0
             updatedProgress["mr_funny"] = currentProgress + 1
-            updateAchievementProgress("mr_funny", 1)
+            updateAchievementProgress("mr_funny", 1) // Now increments by 1
           }
         }
 
@@ -631,10 +637,12 @@ export default function GameContainer() {
 
       // Check for chain reaction achievement
       if (gameState.history.length >= 15) {
+        unlockAchievement("chain_reaction")
+
+        // Update local state for UI display
         const updatedProgress = { ...gameAchievementProgress }
         updatedProgress["chain_reaction"] = 1
         setGameAchievementProgress(updatedProgress)
-        unlockAchievement("chain_reaction")
       }
 
       // Check if this is the daily challenge item

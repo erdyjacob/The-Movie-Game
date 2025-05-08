@@ -161,6 +161,23 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
         // Update and load achievements
         const updatedAchievements = updateAchievements()
         setAchievements(updatedAchievements)
+
+        // Log achievement progress for debugging
+        console.log("Loaded achievements:", updatedAchievements)
+
+        // Specifically log legendary achievements
+        const legendaryHunter = updatedAchievements.find((a) => a.id === "legendary_hunter")
+        const legendaryCollection = updatedAchievements.find((a) => a.id === "legendary_collection")
+
+        if (legendaryHunter) {
+          console.log(`Legendary Hunter: ${legendaryHunter.progress?.current}/${legendaryHunter.progress?.target}`)
+        }
+
+        if (legendaryCollection) {
+          console.log(
+            `Legendary Collection: ${legendaryCollection.progress?.current}/${legendaryCollection.progress?.target}`,
+          )
+        }
       }
 
       // Calculate account score
