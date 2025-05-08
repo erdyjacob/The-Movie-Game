@@ -281,12 +281,21 @@ export function loadAchievements(): Achievement[] {
   try {
     const savedAchievements = localStorage.getItem("movieGameAchievements")
     if (savedAchievements) {
-      return JSON.parse(savedAchievements)
+      try {
+        const parsed = JSON.parse(savedAchievements)
+        // Validate the parsed data
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
+          return parsed
+        }
+      } catch (error) {
+        console.error("Error parsing achievements:", error)
+      }
     }
   } catch (error) {
     console.error("Error loading achievements:", error)
   }
 
+  // Return default achievements if anything goes wrong
   return ACHIEVEMENTS
 }
 
@@ -305,150 +314,189 @@ export function saveAchievements(achievements: Achievement[]): void {
 
 // Check and update achievements based on player history
 export function updateAchievements(): Achievement[] {
-  const achievements = loadAchievements()
-  const playerHistory = loadPlayerHistory()
+  try {
+    const achievements = loadAchievements()
+    const playerHistory = loadPlayerHistory()
 
-  // Count unique movies and actors
-  const uniqueMovies = new Set(playerHistory.movies.map((movie) => movie.id))
-  const uniqueActors = new Set(playerHistory.actors.map((actor) => actor.id))
+    // Count unique movies and actors
+    const uniqueMovies = new Set(playerHistory.movies.map((movie) => movie.id))
+    const uniqueActors = new Set(playerHistory.actors.map((actor) => actor.id))
 
-  // Count legendary items
-  const legendaryItems = [
-    ...playerHistory.movies.filter((movie) => movie.rarity === "legendary"),
-    ...playerHistory.actors.filter((actor) => actor.rarity === "legendary"),
-  ]
+    // Count legendary items
+    const legendaryItems = [
+      ...playerHistory.movies.filter((movie) => movie.rarity === "legendary"),
+      ...playerHistory.actors.filter((actor) => actor.rarity === "legendary"),
+    ]
 
-  // Log the legendary items for debugging
-  console.log(`Found ${legendaryItems.length} legendary items in player history`)
+    // Log the legendary items for debugging
+    console.log(`Found ${legendaryItems.length} legendary items in player history`)
 
-  // Update achievement progress
-  achievements.forEach((achievement) => {
-    switch (achievement.id) {
-      case "cinephile_supreme":
-        achievement.progress!.current = uniqueMovies.size
-        achievement.isUnlocked = uniqueMovies.size >= achievement.progress!.target
-        break
-      case "hollywood_rolodex":
-        achievement.progress!.current = uniqueActors.size
-        achievement.isUnlocked = uniqueActors.size >= achievement.progress!.target
-        break
-      case "legendary_collection":
-        achievement.progress!.current = legendaryItems.length
-        achievement.isUnlocked = legendaryItems.length >= achievement.progress!.target
-        console.log(`Legendary Collection: ${achievement.progress!.current}/${achievement.progress!.target}`)
-        break
-      case "legendary_hunter":
-        // Make sure legendary_hunter is updated from player history too
-        achievement.progress!.current = legendaryItems.length
-        achievement.isUnlocked = legendaryItems.length >= achievement.progress!.target
-        console.log(`Legendary Hunter: ${achievement.progress!.current}/${achievement.progress!.target}`)
-        break
-      // Other achievements would be updated based on game events
-      // We'll implement those in the game logic
-    }
-  })
+    // Update achievement progress
+    achievements.forEach((achievement) => {
+      switch (achievement.id) {
+        case "cinephile_supreme":
+          if (achievement.progress) {
+            achievement.progress.current = uniqueMovies.size
+            achievement.isUnlocked = uniqueMovies.size >= achievement.progress.target
+          }
+          break
+        case "hollywood_rolodex":
+          if (achievement.progress) {
+            achievement.progress.current = uniqueActors.size
+            achievement.isUnlocked = uniqueActors.size >= achievement.progress.target
+          }
+          break
+        case "legendary_collection":
+          if (achievement.progress) {
+            achievement.progress.current = legendaryItems.length
+            achievement.isUnlocked = legendaryItems.length >= achievement.progress.target
+            console.log(`Legendary Collection: ${achievement.progress.current}/${achievement.progress.target}`)
+          }
+          break
+        case "legendary_hunter":
+          // Make sure legendary_hunter is updated from player history too
+          if (achievement.progress) {
+            achievement.progress.current = legendaryItems.length
+            achievement.isUnlocked = legendaryItems.length >= achievement.progress.target
+            console.log(`Legendary Hunter: ${achievement.progress.current}/${achievement.progress.target}`)
+          }
+          break
+        // Other achievements would be updated based on game events
+        // We'll implement those in the game logic
+      }
+    })
 
-  saveAchievements(achievements)
-  return achievements
+    saveAchievements(achievements)
+    return achievements
+  } catch (error) {
+    console.error("Error updating achievements:", error)
+    return ACHIEVEMENTS
+  }
 }
 
 // Get achievements by category
 export function getAchievementsByCategory(category: AchievementCategory): Achievement[] {
-  const achievements = loadAchievements()
-  return achievements.filter((achievement) => achievement.category === category)
+  try {
+    const achievements = loadAchievements()
+    return achievements.filter((achievement) => achievement.category === category)
+  } catch (error) {
+    console.error("Error getting achievements by category:", error)
+    return ACHIEVEMENTS.filter((achievement) => achievement.category === category)
+  }
 }
 
 // Get all achievements
 export function getAllAchievements(): Achievement[] {
-  return loadAchievements()
+  try {
+    return loadAchievements()
+  } catch (error) {
+    console.error("Error getting all achievements:", error)
+    return ACHIEVEMENTS
+  }
 }
 
 // Unlock a specific achievement
 export function unlockAchievement(id: string): void {
-  const achievements = loadAchievements()
-  const achievement = achievements.find((a) => a.id === id)
+  try {
+    const achievements = loadAchievements()
+    const achievement = achievements.find((a) => a.id === id)
 
-  if (achievement && !achievement.isUnlocked) {
-    achievement.isUnlocked = true
-    console.log(`Achievement unlocked: ${achievement.name}`)
-    saveAchievements(achievements)
+    if (achievement && !achievement.isUnlocked) {
+      achievement.isUnlocked = true
+      console.log(`Achievement unlocked: ${achievement.name}`)
+      saveAchievements(achievements)
+    }
+  } catch (error) {
+    console.error("Error unlocking achievement:", error)
   }
 }
 
 // Update achievement progress - FIXED to increment instead of set
 export function updateAchievementProgress(id: string, incrementBy: number): void {
-  const achievements = loadAchievements()
-  const achievement = achievements.find((a) => a.id === id)
+  try {
+    const achievements = loadAchievements()
+    const achievement = achievements.find((a) => a.id === id)
 
-  if (achievement && achievement.progress) {
-    // Increment the current progress instead of setting it
-    achievement.progress.current += incrementBy
+    if (achievement && achievement.progress) {
+      // Increment the current progress instead of setting it
+      achievement.progress.current += incrementBy
 
-    // Log the update for debugging
-    console.log(`Achievement ${id} progress updated: ${achievement.progress.current}/${achievement.progress.target}`)
+      // Log the update for debugging
+      console.log(`Achievement ${id} progress updated: ${achievement.progress.current}/${achievement.progress.target}`)
 
-    // Check if the achievement should be unlocked
-    if (achievement.progress.current >= achievement.progress.target) {
-      achievement.isUnlocked = true
-      console.log(`Achievement ${id} unlocked!`)
+      // Check if the achievement should be unlocked
+      if (achievement.progress.current >= achievement.progress.target) {
+        achievement.isUnlocked = true
+        console.log(`Achievement ${id} unlocked!`)
+      }
+
+      saveAchievements(achievements)
     }
-
-    saveAchievements(achievements)
+  } catch (error) {
+    console.error("Error updating achievement progress:", error)
   }
 }
 
 // Track legendary items specifically
 export function trackLegendaryItem(item: any): void {
-  if (item && item.rarity === "legendary") {
-    console.log(`Tracking legendary item: ${item.name}`)
+  try {
+    if (item && item.rarity === "legendary") {
+      console.log(`Tracking legendary item: ${item.name}`)
 
-    const achievements = loadAchievements()
+      const achievements = loadAchievements()
 
-    // Find the legendary hunter achievement
-    const legendaryHunter = achievements.find((a) => a.id === "legendary_hunter")
+      // Find the legendary hunter achievement
+      const legendaryHunter = achievements.find((a) => a.id === "legendary_hunter")
 
-    if (legendaryHunter && legendaryHunter.progress) {
-      // Increment the progress
-      legendaryHunter.progress.current += 1
+      if (legendaryHunter && legendaryHunter.progress) {
+        // Increment the progress
+        legendaryHunter.progress.current += 1
 
-      console.log(`Legendary Hunter progress: ${legendaryHunter.progress.current}/${legendaryHunter.progress.target}`)
+        console.log(`Legendary Hunter progress: ${legendaryHunter.progress.current}/${legendaryHunter.progress.target}`)
 
-      // Check if the achievement should be unlocked
-      if (legendaryHunter.progress.current >= legendaryHunter.progress.target) {
-        legendaryHunter.isUnlocked = true
-        console.log("Legendary Hunter achievement unlocked!")
+        // Check if the achievement should be unlocked
+        if (legendaryHunter.progress.current >= legendaryHunter.progress.target) {
+          legendaryHunter.isUnlocked = true
+          console.log("Legendary Hunter achievement unlocked!")
+        }
       }
-    }
 
-    // Also update the legendary collection achievement
-    const legendaryCollection = achievements.find((a) => a.id === "legendary_collection")
+      // Also update the legendary collection achievement
+      const legendaryCollection = achievements.find((a) => a.id === "legendary_collection")
 
-    if (legendaryCollection && legendaryCollection.progress) {
-      // Increment the progress
-      legendaryCollection.progress.current += 1
+      if (legendaryCollection && legendaryCollection.progress) {
+        // Increment the progress
+        legendaryCollection.progress.current += 1
 
-      console.log(
-        `Legendary Collection progress: ${legendaryCollection.progress.current}/${legendaryCollection.progress.target}`,
-      )
+        console.log(
+          `Legendary Collection progress: ${legendaryCollection.progress.current}/${legendaryCollection.progress.target}`,
+        )
 
-      // Check if the achievement should be unlocked
-      if (legendaryCollection.progress.current >= legendaryCollection.progress.target) {
-        legendaryCollection.isUnlocked = true
-        console.log("Legendary Collection achievement unlocked!")
+        // Check if the achievement should be unlocked
+        if (legendaryCollection.progress.current >= legendaryCollection.progress.target) {
+          legendaryCollection.isUnlocked = true
+          console.log("Legendary Collection achievement unlocked!")
+        }
       }
-    }
 
-    saveAchievements(achievements)
+      saveAchievements(achievements)
+    }
+  } catch (error) {
+    console.error("Error tracking legendary item:", error)
   }
 }
 
 // Get achievement progress
 export function getAchievementProgress(id: string): number {
-  const achievements = loadAchievements()
-  const achievement = achievements.find((a) => a.id === id)
+  try {
+    const achievements = loadAchievements()
+    const achievement = achievements.find((a) => a.id === id)
 
-  if (achievement && achievement.progress) {
-    return achievement.progress.current
+    if (achievement && achievement.progress) {
+      return achievement.progress.current
+    }
+  } catch (error) {
+    console.error("Error getting achievement progress:", error)
   }
 
   return 0
@@ -460,6 +508,10 @@ export function resetAchievements(): void {
     return
   }
 
-  localStorage.removeItem("movieGameAchievements")
-  console.log("All achievements have been reset")
+  try {
+    localStorage.removeItem("movieGameAchievements")
+    console.log("All achievements have been reset")
+  } catch (error) {
+    console.error("Error resetting achievements:", error)
+  }
 }

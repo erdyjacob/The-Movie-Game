@@ -52,7 +52,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
-import { updateAchievements, type Achievement, type AchievementCategory } from "@/lib/achievements"
+import { updateAchievements, type Achievement, type AchievementCategory, getAllAchievements } from "@/lib/achievements"
 import { Progress } from "@/components/ui/progress"
 
 // Add this import at the top
@@ -157,48 +157,58 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
     })
 
     // Reload achievements
-    const updatedAchievements = updateAchievements()
+    const updatedAchievements = getAllAchievements()
     setAchievements(updatedAchievements)
   }
 
   // Load data when component mounts or when tabs change
   useEffect(() => {
     const loadData = async () => {
-      if (activeTab === "recent") {
-        setRecentItems(getRecentItems(activeType, 20))
-      } else if (activeTab === "most-used") {
-        setMostUsedItems(getMostUsedItems(activeType, 20))
-      } else if (activeTab === "collection") {
-        setCollectionItems(getItemsByRarity(activeType))
-      } else if (activeTab === "challenges") {
-        // Load daily challenges
-        const challenges = await getCompletedDailyChallengeItems()
-        setDailyChallenges(challenges)
-      } else if (activeTab === "achievements") {
-        // Update and load achievements
-        const updatedAchievements = updateAchievements()
-        setAchievements(updatedAchievements)
+      try {
+        if (activeTab === "recent") {
+          setRecentItems(getRecentItems(activeType, 20))
+        } else if (activeTab === "most-used") {
+          setMostUsedItems(getMostUsedItems(activeType, 20))
+        } else if (activeTab === "collection") {
+          setCollectionItems(getItemsByRarity(activeType))
+        } else if (activeTab === "challenges") {
+          // Load daily challenges
+          const challenges = await getCompletedDailyChallengeItems()
+          setDailyChallenges(challenges)
+        } else if (activeTab === "achievements") {
+          // Update and load achievements - wrap in try/catch to prevent crashes
+          try {
+            const updatedAchievements = updateAchievements()
+            setAchievements(updatedAchievements)
 
-        // Log achievement progress for debugging
-        console.log("Loaded achievements:", updatedAchievements)
+            // Log achievement progress for debugging
+            console.log("Loaded achievements:", updatedAchievements)
 
-        // Specifically log legendary achievements
-        const legendaryHunter = updatedAchievements.find((a) => a.id === "legendary_hunter")
-        const legendaryCollection = updatedAchievements.find((a) => a.id === "legendary_collection")
+            // Specifically log legendary achievements
+            const legendaryHunter = updatedAchievements.find((a) => a.id === "legendary_hunter")
+            const legendaryCollection = updatedAchievements.find((a) => a.id === "legendary_collection")
 
-        if (legendaryHunter) {
-          console.log(`Legendary Hunter: ${legendaryHunter.progress?.current}/${legendaryHunter.progress?.target}`)
+            if (legendaryHunter && legendaryHunter.progress) {
+              console.log(`Legendary Hunter: ${legendaryHunter.progress.current}/${legendaryHunter.progress.target}`)
+            }
+
+            if (legendaryCollection && legendaryCollection.progress) {
+              console.log(
+                `Legendary Collection: ${legendaryCollection.progress.current}/${legendaryCollection.progress.target}`,
+              )
+            }
+          } catch (error) {
+            console.error("Error loading achievements:", error)
+            // Set default achievements to prevent UI crashes
+            setAchievements(getAllAchievements())
+          }
         }
 
-        if (legendaryCollection) {
-          console.log(
-            `Legendary Collection: ${legendaryCollection.progress?.current}/${legendaryCollection.progress?.target}`,
-          )
-        }
+        // Calculate account score
+        calculateAccountScore()
+      } catch (error) {
+        console.error("Error loading data:", error)
       }
-
-      // Calculate account score
-      calculateAccountScore()
     }
 
     loadData()
@@ -206,88 +216,92 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
 
   // Update the calculateAccountScore function to include collection percentages
   const calculateAccountScore = async () => {
-    const movies = getItemsByRarity("movie")
-    const actors = getItemsByRarity("actor")
-    const allItems = [...movies, ...actors]
+    try {
+      const movies = getItemsByRarity("movie")
+      const actors = getItemsByRarity("actor")
+      const allItems = [...movies, ...actors]
 
-    const legendaryCount = allItems.filter((item) => item.rarity === "legendary").length
-    const epicCount = allItems.filter((item) => item.rarity === "epic").length
-    const rareCount = allItems.filter((item) => item.rarity === "rare").length
-    const uncommonCount = allItems.filter((item) => item.rarity === "uncommon").length
-    const commonCount = allItems.filter((item) => item.rarity === "common").length
-    const totalItems = allItems.length
+      const legendaryCount = allItems.filter((item) => item.rarity === "legendary").length
+      const epicCount = allItems.filter((item) => item.rarity === "epic").length
+      const rareCount = allItems.filter((item) => item.rarity === "rare").length
+      const uncommonCount = allItems.filter((item) => item.rarity === "uncommon").length
+      const commonCount = allItems.filter((item) => item.rarity === "common").length
+      const totalItems = allItems.length
 
-    // Calculate collection percentages
-    const moviesPercentage = ((movies.length / TOTAL_COLLECTIBLE_MOVIES) * 100).toFixed(2)
-    const actorsPercentage = ((actors.length / TOTAL_COLLECTIBLE_ACTORS) * 100).toFixed(2)
-    const totalPercentage = (
-      ((movies.length + actors.length) / (TOTAL_COLLECTIBLE_MOVIES + TOTAL_COLLECTIBLE_ACTORS)) *
-      100
-    ).toFixed(2)
+      // Calculate collection percentages
+      const moviesPercentage = ((movies.length / TOTAL_COLLECTIBLE_MOVIES) * 100).toFixed(2)
+      const actorsPercentage = ((actors.length / TOTAL_COLLECTIBLE_ACTORS) * 100).toFixed(2)
+      const totalPercentage = (
+        ((movies.length + actors.length) / (TOTAL_COLLECTIBLE_MOVIES + TOTAL_COLLECTIBLE_ACTORS)) *
+        100
+      ).toFixed(2)
 
-    // Calculate points
-    const points = legendaryCount * 100 + epicCount * 50 + rareCount * 25 + uncommonCount * 10 + commonCount * 1
+      // Calculate points
+      const points = legendaryCount * 100 + epicCount * 50 + rareCount * 25 + uncommonCount * 10 + commonCount * 1
 
-    // Calculate daily challenges completed
-    const challenges = await getCompletedDailyChallengeItems()
-    const dailyChallengesCompleted = Object.keys(challenges).length
+      // Calculate daily challenges completed
+      const challenges = await getCompletedDailyChallengeItems()
+      const dailyChallengesCompleted = Object.keys(challenges).length
 
-    // Add bonus points for daily challenges
-    const totalPoints = points + dailyChallengesCompleted * 50
+      // Add bonus points for daily challenges
+      const totalPoints = points + dailyChallengesCompleted * 50
 
-    // Determine rank
-    let rank: AccountRank = "F"
-    if (totalPoints >= 10000) rank = "SS"
-    else if (totalPoints >= 7500) rank = "S+"
-    else if (totalPoints >= 5000) rank = "S"
-    else if (totalPoints >= 4000) rank = "S-"
-    else if (totalPoints >= 3000) rank = "A+"
-    else if (totalPoints >= 2000) rank = "A"
-    else if (totalPoints >= 1500) rank = "A-"
-    else if (totalPoints >= 1200) rank = "B+"
-    else if (totalPoints >= 900) rank = "B"
-    else if (totalPoints >= 750) rank = "B-"
-    else if (totalPoints >= 600) rank = "C+"
-    else if (totalPoints >= 450) rank = "C"
-    else if (totalPoints >= 350) rank = "C-"
-    else if (totalPoints >= 250) rank = "D+"
-    else if (totalPoints >= 200) rank = "D"
-    else if (totalPoints >= 150) rank = "D-"
-    else if (totalPoints >= 100) rank = "F+"
-    else if (totalPoints >= 50) rank = "F"
+      // Determine rank
+      let rank: AccountRank = "F"
+      if (totalPoints >= 10000) rank = "SS"
+      else if (totalPoints >= 7500) rank = "S+"
+      else if (totalPoints >= 5000) rank = "S"
+      else if (totalPoints >= 4000) rank = "S-"
+      else if (totalPoints >= 3000) rank = "A+"
+      else if (totalPoints >= 2000) rank = "A"
+      else if (totalPoints >= 1500) rank = "A-"
+      else if (totalPoints >= 1200) rank = "B+"
+      else if (totalPoints >= 900) rank = "B"
+      else if (totalPoints >= 750) rank = "B-"
+      else if (totalPoints >= 600) rank = "C+"
+      else if (totalPoints >= 450) rank = "C"
+      else if (totalPoints >= 350) rank = "C-"
+      else if (totalPoints >= 250) rank = "D+"
+      else if (totalPoints >= 200) rank = "D"
+      else if (totalPoints >= 150) rank = "D-"
+      else if (totalPoints >= 100) rank = "F+"
+      else if (totalPoints >= 50) rank = "F"
 
-    setAccountScore({
-      rank,
-      points: totalPoints,
-      legendaryCount,
-      epicCount,
-      rareCount,
-      uncommonCount,
-      commonCount,
-      totalItems,
-      dailyChallengesCompleted,
-      moviesPercentage: Number.parseFloat(moviesPercentage),
-      actorsPercentage: Number.parseFloat(actorsPercentage),
-      totalPercentage: Number.parseFloat(totalPercentage),
-      moviesCount: movies.length,
-      actorsCount: actors.length,
-    })
+      setAccountScore({
+        rank,
+        points: totalPoints,
+        legendaryCount,
+        epicCount,
+        rareCount,
+        uncommonCount,
+        commonCount,
+        totalItems,
+        dailyChallengesCompleted,
+        moviesPercentage: Number.parseFloat(moviesPercentage),
+        actorsPercentage: Number.parseFloat(actorsPercentage),
+        totalPercentage: Number.parseFloat(totalPercentage),
+        moviesCount: movies.length,
+        actorsCount: actors.length,
+      })
+    } catch (error) {
+      console.error("Error calculating account score:", error)
+    }
   }
 
-  // Filter collection items by rarity
+  // Filter collection items by rarity - add null check
   const filteredCollectionItems =
     activeRarity === "all" ? collectionItems : collectionItems.filter((item) => item.rarity === activeRarity)
 
-  // Filter achievements by category
+  // Filter achievements by category - add null checks and default to empty array
   const filteredAchievements =
     activeAchievementCategory === "all"
-      ? achievements
+      ? achievements || []
       : activeAchievementCategory === "completed"
-        ? achievements.filter((achievement) => achievement.isUnlocked)
-        : achievements.filter((achievement) => achievement.category === activeAchievementCategory)
+        ? (achievements || []).filter((achievement) => achievement.isUnlocked)
+        : (achievements || []).filter((achievement) => achievement.category === activeAchievementCategory)
 
-  // Add these computed values after the filteredAchievements definition
-  const completedAchievements = achievements.filter((a) => a.isUnlocked)
+  // Add these computed values after the filteredAchievements definition - add null checks
+  const completedAchievements = (achievements || []).filter((a) => a.isUnlocked)
   const filteredInProgressAchievements =
     activeAchievementCategory === "completed" ? [] : filteredAchievements.filter((a) => !a.isUnlocked)
 
@@ -312,7 +326,7 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
     })
   }
 
-  // Count items by rarity
+  // Count items by rarity - add null check
   const rarityCount = {
     legendary: collectionItems.filter((item) => item.rarity === "legendary").length,
     epic: collectionItems.filter((item) => item.rarity === "epic").length,
@@ -322,14 +336,14 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
     all: collectionItems.length,
   }
 
-  // Count achievements by category
+  // Count achievements by category - add null check
   const achievementCounts = {
-    all: achievements.length,
-    rare: achievements.filter((a) => a.category === "rare").length,
-    gameplay: achievements.filter((a) => a.category === "gameplay").length,
-    genre: achievements.filter((a) => a.category === "genre").length,
-    actor: achievements.filter((a) => a.category === "actor").length,
-    unlocked: achievements.filter((a) => a.isUnlocked).length,
+    all: achievements?.length || 0,
+    rare: achievements?.filter((a) => a.category === "rare").length || 0,
+    gameplay: achievements?.filter((a) => a.category === "gameplay").length || 0,
+    genre: achievements?.filter((a) => a.category === "genre").length || 0,
+    actor: achievements?.filter((a) => a.category === "actor").length || 0,
+    unlocked: achievements?.filter((a) => a.isUnlocked).length || 0,
   }
 
   // Get rank color
@@ -902,44 +916,47 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
               </Button>
             </div>
 
-            {activeAchievementCategory === "completed" && (
+            {activeAchievementCategory === "completed" && completedAchievements.length > 0 ? (
               <div className="space-y-4">
                 <h4 className="text-base font-medium mb-3 flex items-center gap-2">
                   <Trophy className="h-4 w-4 text-amber-500" />
                   <span>Completed Achievements</span>
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {achievements
-                    .filter((a) => a.isUnlocked)
-                    .map((achievement) => (
-                      <div key={achievement.id} className="border rounded-lg p-3 bg-muted/20">
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
-                          >
-                            {getIconComponent(achievement.icon, 20)}
+                  {completedAchievements.map((achievement) => (
+                    <div key={achievement.id} className="border rounded-lg p-3 bg-muted/20">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
+                        >
+                          {getIconComponent(achievement.icon, 20)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-sm">{achievement.name}</h4>
+                            <div
+                              className={`text-xs px-2 py-0.5 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
+                            >
+                              {getRarityDisplayName(achievement.rarity)}
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-medium text-sm">{achievement.name}</h4>
-                              <div
-                                className={`text-xs px-2 py-0.5 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
-                              >
-                                {getRarityDisplayName(achievement.rarity)}
-                              </div>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">{achievement.description}</p>
-                            <div className="mt-1 pt-1 border-t text-xs text-green-600 font-medium flex items-center gap-1">
-                              <CheckCircle className="h-3 w-3" />
-                              <span>Completed!</span>
-                            </div>
+                          <p className="text-xs text-muted-foreground mt-1">{achievement.description}</p>
+                          <div className="mt-1 pt-1 border-t text-xs text-green-600 font-medium flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            <span>Completed!</span>
                           </div>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
+            ) : activeAchievementCategory === "completed" ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No completed achievements yet.</p>
+                <p className="text-sm mt-2">Keep playing to unlock achievements!</p>
+              </div>
+            ) : null}
 
             {/* In-Progress Achievements */}
             {filteredInProgressAchievements.length > 0 ? (
@@ -986,21 +1003,12 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : activeAchievementCategory !== "completed" ? (
               <div className="text-center py-8 text-muted-foreground">
-                {activeAchievementCategory === "completed" ? (
-                  <>
-                    <p>No completed achievements yet.</p>
-                    <p className="text-sm mt-2">Keep playing to unlock achievements!</p>
-                  </>
-                ) : (
-                  <>
-                    <p>No in-progress achievements found in this category.</p>
-                    <p className="text-sm mt-2">Play more games to make progress!</p>
-                  </>
-                )}
+                <p>No in-progress achievements found in this category.</p>
+                <p className="text-sm mt-2">Play more games to make progress!</p>
               </div>
-            )}
+            ) : null}
           </TabsContent>
         </Tabs>
       </CardContent>
