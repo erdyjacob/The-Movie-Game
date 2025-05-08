@@ -1,10 +1,39 @@
 "use client"
 
+import Link from "next/link"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Film, User, Clock, Trophy, BarChart, Star, Target, Calendar, X } from "lucide-react"
+import {
+  Film,
+  User,
+  Clock,
+  Trophy,
+  BarChart,
+  Star,
+  Target,
+  Calendar,
+  X,
+  Award,
+  Medal,
+  Globe,
+  Search,
+  CheckCircle,
+  Heart,
+  Skull,
+  Rocket,
+  Zap,
+  Laugh,
+  Dumbbell,
+  Mountain,
+  Box,
+  Network,
+  Repeat,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react"
 import { clearPlayerHistory, getMostUsedItems, getRecentItems, getItemsByRarity } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
@@ -23,6 +52,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
+import { updateAchievements, type Achievement, type AchievementCategory } from "@/lib/achievements"
+import { Progress } from "@/components/ui/progress"
 
 // Add these constants at the top of the file, after the imports
 // These represent estimated totals of collectible items in the game
@@ -49,8 +80,40 @@ function getRarityColor(rarity: string): string {
   }
 }
 
+// Helper function to get icon component
+function getIconComponent(iconName: string, size = 16) {
+  const icons: Record<string, any> = {
+    Trophy,
+    Users: User,
+    Star,
+    Globe,
+    Link,
+    Search,
+    Timer: Clock,
+    Calendar,
+    CheckCircle,
+    Heart,
+    Skull,
+    Rocket,
+    Zap,
+    Laugh,
+    Dumbbell,
+    Mountain,
+    Box,
+    Network,
+    Repeat,
+    Award,
+    Medal,
+  }
+
+  const IconComponent = icons[iconName] || Award
+  return <IconComponent size={size} />
+}
+
 export default function PlayerStats({ onClose }: PlayerStatsProps) {
-  const [activeTab, setActiveTab] = useState<"recent" | "most-used" | "collection" | "challenges">("recent")
+  const [activeTab, setActiveTab] = useState<"recent" | "most-used" | "collection" | "challenges" | "achievements">(
+    "recent",
+  )
   const [activeType, setActiveType] = useState<"movie" | "actor">("movie")
   const [recentItems, setRecentItems] = useState<PlayerHistoryItem[]>([])
   const [mostUsedItems, setMostUsedItems] = useState<PlayerHistoryItem[]>([])
@@ -73,7 +136,12 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
     actorsCount: 0,
   })
   const [dailyChallenges, setDailyChallenges] = useState<Record<string, GameItem>>({})
+  const [achievements, setAchievements] = useState<Achievement[]>([])
+  const [activeAchievementCategory, setActiveAchievementCategory] = useState<AchievementCategory | "all">("all")
   const { toast } = useToast()
+  const [collectionProgressOpen, setCollectionProgressOpen] = useState(false)
+  // Add these state variables and computed values near the top of the component with other state variables
+  const [showCompletedAchievements, setShowCompletedAchievements] = useState(false)
 
   // Load data when component mounts or when tabs change
   useEffect(() => {
@@ -88,6 +156,10 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
         // Load daily challenges
         const challenges = await getCompletedDailyChallengeItems()
         setDailyChallenges(challenges)
+      } else if (activeTab === "achievements") {
+        // Update and load achievements
+        const updatedAchievements = updateAchievements()
+        setAchievements(updatedAchievements)
       }
 
       // Calculate account score
@@ -171,6 +243,18 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
   const filteredCollectionItems =
     activeRarity === "all" ? collectionItems : collectionItems.filter((item) => item.rarity === activeRarity)
 
+  // Filter achievements by category
+  const filteredAchievements =
+    activeAchievementCategory === "all"
+      ? achievements
+      : achievements.filter((achievement) => achievement.category === activeAchievementCategory)
+
+  // Add these computed values after the filteredAchievements definition
+  const completedAchievements = achievements.filter(
+    (a) => a.isUnlocked && (activeAchievementCategory === "all" || a.category === activeAchievementCategory),
+  )
+  const filteredInProgressAchievements = filteredAchievements.filter((a) => !a.isUnlocked)
+
   const handleClearHistory = () => {
     clearPlayerHistory()
     setRecentItems([])
@@ -199,6 +283,16 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
     rare: collectionItems.filter((item) => item.rarity === "rare").length,
     uncommon: collectionItems.filter((item) => item.rarity === "uncommon").length,
     all: collectionItems.length,
+  }
+
+  // Count achievements by category
+  const achievementCounts = {
+    all: achievements.length,
+    rare: achievements.filter((a) => a.category === "rare").length,
+    gameplay: achievements.filter((a) => a.category === "gameplay").length,
+    genre: achievements.filter((a) => a.category === "genre").length,
+    actor: achievements.filter((a) => a.category === "actor").length,
+    unlocked: achievements.filter((a) => a.isUnlocked).length,
   }
 
   // Get rank color
@@ -233,6 +327,22 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
         return "text-gray-500 border-gray-500" // Gray for F ranks
       default:
         return "text-gray-500 border-gray-500"
+    }
+  }
+
+  // Get achievement rarity color
+  const getAchievementRarityColor = (rarity: string): string => {
+    switch (rarity) {
+      case "legendary":
+        return "bg-gradient-to-r from-amber-500 to-amber-700 border-amber-600"
+      case "epic":
+        return "bg-gradient-to-r from-purple-500 to-purple-700 border-purple-600"
+      case "rare":
+        return "bg-gradient-to-r from-blue-500 to-indigo-700 border-indigo-600"
+      case "uncommon":
+        return "bg-gradient-to-r from-green-500 to-green-700 border-green-600"
+      default:
+        return "bg-gradient-to-r from-gray-500 to-gray-700 border-gray-600"
     }
   }
 
@@ -319,59 +429,74 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
               <p className="text-sm text-muted-foreground">Daily Challenges</p>
               <p className="text-xl font-semibold text-red-500">{accountScore.dailyChallengesCompleted}</p>
             </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Achievements</p>
+              <p className="text-xl font-semibold text-green-600">{achievementCounts.unlocked}</p>
+            </div>
           </div>
           <div className="mt-4 pt-4 border-t">
-            <h4 className="text-sm font-medium mb-2">Collection Progress</h4>
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span>Total Collection ({accountScore.totalPercentage}%)</span>
-                  <span>
-                    {accountScore.totalItems} / {TOTAL_COLLECTIBLE_MOVIES + TOTAL_COLLECTIBLE_ACTORS}
-                  </span>
+            <button
+              onClick={() => setCollectionProgressOpen(!collectionProgressOpen)}
+              className="flex items-center justify-between w-full text-sm font-medium mb-2"
+            >
+              <span>Collection Progress</span>
+              {collectionProgressOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {collectionProgressOpen && (
+              <div className="space-y-3 mt-2">
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Total Collection ({accountScore.totalPercentage}%)</span>
+                    <span>
+                      {accountScore.totalItems} / {TOTAL_COLLECTIBLE_MOVIES + TOTAL_COLLECTIBLE_ACTORS}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
+                      style={{ width: `${accountScore.totalPercentage}%` }}
+                    ></div>
+                  </div>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
-                    style={{ width: `${accountScore.totalPercentage}%` }}
-                  ></div>
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Movies ({accountScore.moviesPercentage}%)</span>
+                    <span>
+                      {accountScore.moviesCount} / {TOTAL_COLLECTIBLE_MOVIES}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-red-500"
+                      style={{ width: `${accountScore.moviesPercentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Actors ({accountScore.actorsPercentage}%)</span>
+                    <span>
+                      {accountScore.actorsCount} / {TOTAL_COLLECTIBLE_ACTORS}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-green-500 to-emerald-600"
+                      style={{ width: `${accountScore.actorsPercentage}%` }}
+                    ></div>
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span>Movies ({accountScore.moviesPercentage}%)</span>
-                  <span>
-                    {accountScore.moviesCount} / {TOTAL_COLLECTIBLE_MOVIES}
-                  </span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-amber-500 to-red-500"
-                    style={{ width: `${accountScore.moviesPercentage}%` }}
-                  ></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span>Actors ({accountScore.actorsPercentage}%)</span>
-                  <span>
-                    {accountScore.actorsCount} / {TOTAL_COLLECTIBLE_ACTORS}
-                  </span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-green-500 to-emerald-600"
-                    style={{ width: `${accountScore.actorsPercentage}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
         <Tabs
           defaultValue="recent"
-          onValueChange={(value) => setActiveTab(value as "recent" | "most-used" | "collection" | "challenges")}
+          onValueChange={(value) =>
+            setActiveTab(value as "recent" | "most-used" | "collection" | "challenges" | "achievements")
+          }
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
             <div className="overflow-x-auto pb-2 hide-scrollbar w-full sm:w-auto">
@@ -392,10 +517,14 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
                   <Target className="h-4 w-4" />
                   <span>Challenges</span>
                 </TabsTrigger>
+                <TabsTrigger value="achievements" className="flex items-center gap-1">
+                  <Award className="h-4 w-4" />
+                  <span>Achievements</span>
+                </TabsTrigger>
               </TabsList>
             </div>
 
-            {activeTab !== "challenges" && (
+            {activeTab !== "challenges" && activeTab !== "achievements" && (
               <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-start">
                 <Button
                   size="sm"
@@ -662,6 +791,164 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
               <div className="text-center py-8 text-muted-foreground">
                 <p>No daily challenges completed yet.</p>
                 <p className="text-sm mt-2">Complete daily challenges to see them here.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="achievements" className="mt-0">
+            <div className="mb-4 text-center">
+              <h3 className="text-lg font-medium flex items-center justify-center gap-2">
+                <Award className="h-5 w-5 text-amber-500" />
+                <span>Achievements</span>
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Unlock achievements by completing special tasks in the game!
+              </p>
+              <div className="mt-3 text-sm font-medium">
+                <span className="text-green-600">{achievementCounts.unlocked}</span> of {achievementCounts.all}{" "}
+                achievements unlocked
+              </div>
+            </div>
+
+            {/* Achievement category filter */}
+            <div className="flex flex-wrap gap-2 mb-4 justify-center">
+              <Button
+                size="sm"
+                variant={activeAchievementCategory === "all" ? "default" : "outline"}
+                onClick={() => setActiveAchievementCategory("all")}
+                className="text-xs"
+              >
+                All ({achievementCounts.all})
+              </Button>
+              <Button
+                size="sm"
+                variant={activeAchievementCategory === "rare" ? "default" : "outline"}
+                onClick={() => setActiveAchievementCategory("rare")}
+                className="text-xs"
+              >
+                Rare ({achievementCounts.rare})
+              </Button>
+              <Button
+                size="sm"
+                variant={activeAchievementCategory === "gameplay" ? "default" : "outline"}
+                onClick={() => setActiveAchievementCategory("gameplay")}
+                className="text-xs"
+              >
+                Gameplay ({achievementCounts.gameplay})
+              </Button>
+              <Button
+                size="sm"
+                variant={activeAchievementCategory === "genre" ? "default" : "outline"}
+                onClick={() => setActiveAchievementCategory("genre")}
+                className="text-xs"
+              >
+                Genre ({achievementCounts.genre})
+              </Button>
+              <Button
+                size="sm"
+                variant={activeAchievementCategory === "actor" ? "default" : "outline"}
+                onClick={() => setActiveAchievementCategory("actor")}
+                className="text-xs"
+              >
+                Actor ({achievementCounts.actor})
+              </Button>
+              <Button
+                size="sm"
+                variant={showCompletedAchievements ? "default" : "outline"}
+                onClick={() => setShowCompletedAchievements(!showCompletedAchievements)}
+                className="text-xs ml-auto"
+              >
+                {showCompletedAchievements ? "Hide Completed" : "Show Completed"}
+              </Button>
+            </div>
+
+            {/* Completed Achievements Section */}
+            {showCompletedAchievements && completedAchievements.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-base font-medium mb-3 flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  <span>Completed Achievements</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {completedAchievements.map((achievement) => (
+                    <div key={achievement.id} className="border rounded-lg p-3 bg-muted/20">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
+                        >
+                          {getIconComponent(achievement.icon, 20)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-sm">{achievement.name}</h4>
+                            <div
+                              className={`text-xs px-2 py-0.5 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
+                            >
+                              {getRarityDisplayName(achievement.rarity)}
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{achievement.description}</p>
+                          <div className="mt-1 pt-1 border-t text-xs text-green-600 font-medium flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            <span>Completed!</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* In-Progress Achievements */}
+            {filteredInProgressAchievements.length > 0 ? (
+              <div className="space-y-4">
+                <h4 className="text-base font-medium mb-3 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-blue-500" />
+                  <span>In Progress</span>
+                </h4>
+                {filteredInProgressAchievements.map((achievement) => (
+                  <div key={achievement.id} className="border rounded-lg p-4 bg-muted/5">
+                    <div className="flex items-start gap-4">
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
+                      >
+                        {getIconComponent(achievement.icon, 24)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">{achievement.name}</h4>
+                          <div
+                            className={`text-xs px-2 py-1 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
+                          >
+                            {getRarityDisplayName(achievement.rarity)}
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{achievement.description}</p>
+
+                        {achievement.progress && (
+                          <div className="mt-2">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span>Progress</span>
+                              <span>
+                                {achievement.progress.current} / {achievement.progress.target}
+                              </span>
+                            </div>
+                            <Progress
+                              value={(achievement.progress.current / achievement.progress.target) * 100}
+                              className="h-2"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No in-progress achievements found in this category.</p>
+                <p className="text-sm mt-2">Play more games to make progress!</p>
               </div>
             )}
           </TabsContent>

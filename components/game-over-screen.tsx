@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +13,31 @@ import Image from "next/image"
 import { RarityOverlay } from "./rarity-overlay"
 import PlayerStats from "./player-stats"
 import { cn } from "@/lib/utils"
+import { unlockAchievement, getAllAchievements, type Achievement } from "@/lib/achievements"
+import {
+  CheckCircle,
+  Trophy,
+  Star,
+  Globe,
+  Link,
+  Search,
+  Calendar,
+  Heart,
+  Skull,
+  Rocket,
+  Zap,
+  Laugh,
+  Dumbbell,
+  Mountain,
+  Box,
+  Network,
+  Repeat,
+  Award,
+  Medal,
+} from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 
+// Update the props interface to include achievement progress
 interface GameOverScreenProps {
   history: GameItem[]
   score: number
@@ -24,6 +48,8 @@ interface GameOverScreenProps {
     actors: GameItem[]
     movies: GameItem[]
   }
+  dailyChallengeCompleted?: boolean
+  achievementProgress: Record<string, number>
 }
 
 // Custom animated button component
@@ -226,10 +252,22 @@ export default function GameOverScreen({
   onRestart,
   gameMode,
   newUnlocks,
+  dailyChallengeCompleted,
+  achievementProgress,
 }: GameOverScreenProps) {
   const isNewHighScore = score > highScore
   const totalNewUnlocks = newUnlocks.actors.length + newUnlocks.movies.length
   const [statsOpen, setStatsOpen] = useState(false)
+
+  useEffect(() => {
+    // Check for perfect game achievement
+    if (score > 0 && history.length > 0) {
+      // If there were no strikes, unlock the perfect game achievement
+      if (gameMode === "classic" && history.every((item) => !item.isIncorrect)) {
+        unlockAchievement("perfect_game")
+      }
+    }
+  }, [score, history, gameMode])
 
   const openStats = () => {
     setStatsOpen(true)
@@ -237,6 +275,84 @@ export default function GameOverScreen({
 
   const closeStats = () => {
     setStatsOpen(false)
+  }
+
+  // Add this function inside the component to get the top achievements
+  const getTopAchievements = (progress: Record<string, number>): Achievement[] => {
+    if (!progress || Object.keys(progress).length === 0) return []
+
+    const allAchievements = getAllAchievements()
+
+    // Map achievements with their progress in this game
+    const achievementsWithProgress = allAchievements
+      .filter((a) => progress[a.id] && !a.isUnlocked) // Only include achievements with progress that aren't already completed
+      .map((a) => ({
+        ...a,
+        gameProgress: progress[a.id] || 0,
+      }))
+      .sort((a, b) => {
+        // Sort by percentage of progress made in this game
+        const aPercentage = a.progress ? a.gameProgress / a.progress.target : 0
+        const bPercentage = b.progress ? b.gameProgress / b.progress.target : 0
+        return bPercentage - aPercentage
+      })
+      .slice(0, 3) // Get top 3
+
+    return achievementsWithProgress
+  }
+
+  // Add this to the component to get the top achievements
+  const topAchievements = getTopAchievements(achievementProgress)
+
+  // Add this helper function to get achievement rarity color
+  const getAchievementRarityColor = (rarity: string): string => {
+    switch (rarity) {
+      case "legendary":
+        return "bg-gradient-to-r from-amber-500 to-amber-700 border-amber-600"
+      case "epic":
+        return "bg-gradient-to-r from-purple-500 to-purple-700 border-purple-600"
+      case "rare":
+        return "bg-gradient-to-r from-blue-500 to-indigo-700 border-indigo-600"
+      case "uncommon":
+        return "bg-gradient-to-r from-green-500 to-green-700 border-green-600"
+      default:
+        return "bg-gradient-to-r from-gray-500 to-gray-700 border-gray-600"
+    }
+  }
+
+  // Add this helper function to get icon component
+  const getIconComponent = (iconName: string, size = 16) => {
+    const icons: Record<string, any> = {
+      Trophy,
+      Users: User,
+      Star,
+      Globe,
+      Link,
+      Search,
+      Timer: Clock,
+      Calendar,
+      CheckCircle,
+      Heart,
+      Skull,
+      Rocket,
+      Zap,
+      Laugh,
+      Dumbbell,
+      Mountain,
+      Box,
+      Network,
+      Repeat,
+      Award,
+      Medal,
+    }
+
+    const IconComponent = icons[iconName] || Award
+    return <IconComponent size={size} />
+  }
+
+  // Add this helper function to get rarity display name
+  const getRarityDisplayName = (rarity: string): string => {
+    return rarity.charAt(0).toUpperCase() + rarity.slice(1)
   }
 
   return (
@@ -362,6 +478,55 @@ export default function GameOverScreen({
                 </div>
               </div>
             )}
+          </div>
+        )}
+        {topAchievements.length > 0 && (
+          <div className="space-y-4 border-t pt-6">
+            <div className="flex items-center justify-center gap-2">
+              <Award className="h-5 w-5 text-amber-500" />
+              <h3 className="text-xl font-semibold text-center">Achievement Progress</h3>
+            </div>
+
+            <div className="space-y-3">
+              {topAchievements.map((achievement) => (
+                <div key={achievement.id} className="border rounded-lg p-4 bg-muted/5">
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
+                    >
+                      {getIconComponent(achievement.icon, 20)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-sm">{achievement.name}</h4>
+                        <div
+                          className={`text-xs px-2 py-0.5 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
+                        >
+                          {getRarityDisplayName(achievement.rarity)}
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{achievement.description}</p>
+
+                      {achievement.progress && (
+                        <div className="mt-2">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span>Progress</span>
+                            <span>
+                              {achievement.progress.current} / {achievement.progress.target}
+                            </span>
+                          </div>
+                          <Progress
+                            value={(achievement.progress.current / achievement.progress.target) * 100}
+                            className="h-2"
+                          />
+                          <p className="text-xs text-green-600 mt-1">+{achievement.gameProgress} progress this game!</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </CardContent>

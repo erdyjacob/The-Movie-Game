@@ -1,11 +1,12 @@
 import type { Rarity, TMDBMovie, TMDBActor } from "./types"
 
+// Update the ACTOR_RARITY_THRESHOLDS constant with more refined values
 // Constants for rarity thresholds - FLIPPED so less popular actors are legendary
 const ACTOR_RARITY_THRESHOLDS = {
-  common: 80, // Very high popularity (A-list celebrities)
-  uncommon: 40, // High popularity
-  rare: 20, // Medium popularity
-  epic: 5, // Low popularity
+  common: 40, // Very high popularity (A-list celebrities)
+  uncommon: 20, // High popularity
+  rare: 8, // Medium popularity
+  epic: 2, // Low popularity
   legendary: 0, // Very low popularity (these are the hardest to guess)
 }
 
@@ -62,17 +63,157 @@ export function calculateMovieRarity(movie: TMDBMovie): Rarity {
   return "common"
 }
 
-// Calculate actor rarity based on popularity - FLIPPED logic
+// Replace the calculateActorRarity function with this enhanced version
 export function calculateActorRarity(actor: TMDBActor): Rarity {
   if (!actor) return "common"
 
   const popularity = actor.popularity || 0
+  const name = actor.name || ""
+  const knownForCount = actor.known_for?.length || 0
+
+  // Expanded list of very famous actors who should always be common
+  const veryFamousActors = [
+    // Hollywood A-listers
+    "tom hanks",
+    "leonardo dicaprio",
+    "robert downey jr",
+    "brad pitt",
+    "jennifer lawrence",
+    "scarlett johansson",
+    "dwayne johnson",
+    "meryl streep",
+    "denzel washington",
+    "tom cruise",
+    "will smith",
+    "julia roberts",
+    "morgan freeman",
+    "samuel l jackson",
+    "harrison ford",
+    "johnny depp",
+    "angelina jolie",
+    "chris hemsworth",
+    "chris evans",
+    "ryan reynolds",
+    "emma stone",
+    "jennifer aniston",
+    "chris pratt",
+    "mark wahlberg",
+    "benedict cumberbatch",
+    "matt damon",
+    "george clooney",
+    "sandra bullock",
+    "natalie portman",
+    "anne hathaway",
+    "charlize theron",
+    "hugh jackman",
+    "christian bale",
+    "daniel craig",
+    "ryan gosling",
+    "emma watson",
+    "jennifer lopez",
+    "nicole kidman",
+    "cate blanchett",
+    "viola davis",
+    "idris elba",
+    "zoe saldana",
+    "chris pine",
+    "jake gyllenhaal",
+    "margot robbie",
+    "keanu reeves",
+    "joaquin phoenix",
+    "bradley cooper",
+    "zendaya",
+    "timothée chalamet",
+    "florence pugh",
+    "tom holland",
+
+    // Marvel/DC stars
+    "robert pattinson",
+    "gal gadot",
+    "brie larson",
+    "chadwick boseman",
+    "elizabeth olsen",
+    "paul rudd",
+    "jeremy renner",
+    "mark ruffalo",
+    "sebastian stan",
+    "anthony mackie",
+    "tom hiddleston",
+    "karen gillan",
+    "dave bautista",
+    "vin diesel",
+    "jason momoa",
+    "henry cavill",
+
+    // Other major stars
+    "adam sandler",
+    "jim carrey",
+    "steve carell",
+    "melissa mccarthy",
+    "dwayne johnson",
+    "kevin hart",
+    "jamie foxx",
+    "halle berry",
+    "daniel radcliffe",
+    "rupert grint",
+    "emma watson",
+    "orlando bloom",
+    "keira knightley",
+    "judi dench",
+    "ian mckellen",
+    "patrick stewart",
+    "michael caine",
+    "anthony hopkins",
+    "al pacino",
+    "robert de niro",
+    "jack nicholson",
+    "leonardo dicaprio",
+    "kate winslet",
+    "russell crowe",
+    "joaquin phoenix",
+    "brad pitt",
+    "tom hanks",
+    "julia roberts",
+  ]
+
+  // Check if the actor is in our very famous list
+  if (veryFamousActors.some((famous) => name.toLowerCase().includes(famous))) {
+    return "common"
+  }
+
+  // Check for Oscar winners/nominees who might not be in our list
+  const oscarKeywords = ["oscar winner", "academy award winner", "oscar nominee", "academy award nominee"]
+  const hasOscarMention =
+    actor.biography && oscarKeywords.some((keyword) => actor.biography.toLowerCase().includes(keyword))
+
+  // Adjust popularity based on additional factors
+  let adjustedPopularity = popularity
+
+  // Boost for actors with many known roles
+  if (knownForCount > 5) {
+    adjustedPopularity += 15
+  } else if (knownForCount > 3) {
+    adjustedPopularity += 8
+  } else if (knownForCount > 1) {
+    adjustedPopularity += 3
+  }
+
+  // Boost for Oscar winners/nominees
+  if (hasOscarMention) {
+    adjustedPopularity += 10
+  }
+
+  // Boost for actors with high vote counts in their films
+  const highVoteCount = actor.known_for?.some((movie) => movie.vote_count > 5000)
+  if (highVoteCount) {
+    adjustedPopularity += 5
+  }
 
   // Flipped logic: less popular actors are legendary (harder to guess)
-  if (popularity >= ACTOR_RARITY_THRESHOLDS.common) return "common"
-  if (popularity >= ACTOR_RARITY_THRESHOLDS.uncommon) return "uncommon"
-  if (popularity >= ACTOR_RARITY_THRESHOLDS.rare) return "rare"
-  if (popularity >= ACTOR_RARITY_THRESHOLDS.epic) return "epic"
+  if (adjustedPopularity >= ACTOR_RARITY_THRESHOLDS.common) return "common"
+  if (adjustedPopularity >= ACTOR_RARITY_THRESHOLDS.uncommon) return "uncommon"
+  if (adjustedPopularity >= ACTOR_RARITY_THRESHOLDS.rare) return "rare"
+  if (adjustedPopularity >= ACTOR_RARITY_THRESHOLDS.epic) return "epic"
   return "legendary" // Very obscure actors
 }
 
