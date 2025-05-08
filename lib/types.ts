@@ -1,6 +1,6 @@
 export type ItemType = "movie" | "actor"
 export type Difficulty = "easy" | "medium" | "hard"
-export type GameMode = "classic" | "timed"
+export type GameMode = "classic" | "timed" | "dailyChallenge"
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary"
 export type AccountRank = "S" | "A" | "B" | "C" | "D" | "F"
 

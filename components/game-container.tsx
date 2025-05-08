@@ -1,20 +1,19 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import StartScreen from "./start-screen"
 import GameScreen from "./game-screen"
 import GameOverScreen from "./game-over-screen"
-import { SurveyPopup } from "./survey-popup"
 import type { GameState, GameItem, Difficulty, GameFilters } from "@/lib/types"
 import { getRandomMovie, searchMoviesByActor, searchActorsByMovie, prefetchGameData } from "@/lib/tmdb-api"
 import { addToPlayerHistory, isNewItem } from "@/lib/player-history"
 import { toast } from "@/components/ui/use-toast"
 import { calculateActorRarity, calculateMovieRarity } from "@/lib/rarity"
 import {
-  getDailyChallenge,
   checkDailyChallenge,
   saveDailyChallengeItem,
   markDailyChallengeCompleted,
+  getDailyChallenge,
 } from "@/lib/daily-challenge"
 
 // Add this import at the top of the file
@@ -26,9 +25,6 @@ import { DailyChallengeToast } from "./daily-challenge-toast"
 // Time limit for timed mode in seconds
 const TIME_LIMIT = 120 // 2 minutes
 
-// Number of games before showing the survey
-const GAMES_BEFORE_SURVEY = 5
-
 export default function GameContainer() {
   const [gameState, setGameState] = useState<GameState>({
     status: "start",
@@ -38,7 +34,7 @@ export default function GameContainer() {
     score: 0,
     highScore: 0,
     difficulty: "medium",
-    gameMode: "timed", // Always timed mode
+    gameMode: "timed", // Default to timed mode
     filters: {
       includeAnimated: true,
       includeSequels: true,
@@ -47,7 +43,7 @@ export default function GameContainer() {
     isComputerTurn: false,
     strikes: 0,
     turnPhase: "player-pick-actor", // Start with player picking an actor from a movie
-    timeRemaining: TIME_LIMIT, // Always set time remaining
+    timeRemaining: TIME_LIMIT, // Set time remaining for timed mode
     newUnlocks: {
       actors: [],
       movies: [],
@@ -58,11 +54,6 @@ export default function GameContainer() {
   const [loading, setLoading] = useState(false)
   const [dataPreloaded, setDataPreloaded] = useState(false)
   const [dailyChallenge, setDailyChallenge] = useState<GameItem | null>(null)
-
-  // Add these state variables for the survey popup
-  const [gameCount, setGameCount] = useState(0)
-  const [showSurvey, setShowSurvey] = useState(false)
-  const [surveyShown, setSurveyShown] = useState(false)
 
   // Add this state variable
   const [showDailyChallengeToast, setShowDailyChallengeToast] = useState(false)
@@ -77,42 +68,6 @@ export default function GameContainer() {
     const cleanup = setupCachePersistence()
 
     return cleanup
-  }, [])
-
-  // Load game count from localStorage on initial render
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedGameCount = localStorage.getItem("movieGameCount")
-      const surveyCompleted = localStorage.getItem("movieGameSurveyCompleted")
-
-      if (savedGameCount) {
-        setGameCount(Number.parseInt(savedGameCount))
-      }
-
-      if (surveyCompleted === "true") {
-        setSurveyShown(true)
-      }
-    }
-  }, [])
-
-  // Preload data when component mounts
-  useEffect(() => {
-    const preloadData = async () => {
-      try {
-        await prefetchGameData("medium") // Preload data for medium difficulty (default)
-        setDataPreloaded(true)
-
-        // Load daily challenge
-        const challenge = await getDailyChallenge()
-        setDailyChallenge(challenge)
-      } catch (error) {
-        console.error("Error preloading data:", error)
-        // Continue even if preloading fails
-        setDataPreloaded(true)
-      }
-    }
-
-    preloadData()
   }, [])
 
   // Load high score from localStorage on initial render
@@ -136,7 +91,7 @@ export default function GameContainer() {
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null
 
-    if (gameState.status === "playing" && gameState.timeRemaining !== undefined) {
+    if (gameState.status === "playing" && gameState.gameMode === "timed" && gameState.timeRemaining !== undefined) {
       timer = setInterval(() => {
         setGameState((prev) => {
           const newTimeRemaining = (prev.timeRemaining || 0) - 1
@@ -162,40 +117,32 @@ export default function GameContainer() {
     return () => {
       if (timer) clearInterval(timer)
     }
-  }, [gameState.status, gameState.timeRemaining])
+  }, [gameState.status, gameState.timeRemaining, gameState.gameMode])
 
-  // Increment game count when a game ends
-  const prevGameStatusRef = useRef(gameState.status)
-
+  // Load daily challenge
   useEffect(() => {
-    // Only increment when transitioning from playing to gameOver
-    if (prevGameStatusRef.current === "playing" && gameState.status === "gameOver") {
-      const newGameCount = gameCount + 1
-      setGameCount(newGameCount)
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("movieGameCount", newGameCount.toString())
-
-        // Show survey after GAMES_BEFORE_SURVEY games if not shown before
-        if (newGameCount >= GAMES_BEFORE_SURVEY && !surveyShown) {
-          setShowSurvey(true)
-        }
+    const loadDailyChallenge = async () => {
+      try {
+        const challenge = await getDailyChallenge()
+        setDailyChallenge(challenge)
+      } catch (error) {
+        console.error("Error loading daily challenge:", error)
       }
     }
 
-    // Update the ref with current status for next render
-    prevGameStatusRef.current = gameState.status
-  }, [gameState.status, gameCount, surveyShown])
+    loadDailyChallenge()
+  }, [])
 
   // Memoize the current game state to prevent unnecessary re-renders
-  const { status, currentItem, isComputerTurn, turnPhase } = useMemo(
+  const { status, currentItem, isComputerTurn, turnPhase, gameMode } = useMemo(
     () => ({
       status: gameState.status,
       currentItem: gameState.currentItem,
       isComputerTurn: gameState.isComputerTurn,
       turnPhase: gameState.turnPhase,
+      gameMode: gameState.gameMode,
     }),
-    [gameState.status, gameState.currentItem, gameState.isComputerTurn, gameState.turnPhase],
+    [gameState.status, gameState.currentItem, gameState.isComputerTurn, gameState.turnPhase, gameState.gameMode],
   )
 
   // Handle computer's turn with useCallback to prevent unnecessary re-renders
@@ -360,7 +307,7 @@ export default function GameContainer() {
   }, [status, isComputerTurn, currentItem, makeComputerMove])
 
   const startGame = useCallback(
-    async (difficulty: Difficulty, filters: GameFilters) => {
+    async (difficulty: Difficulty, filters: GameFilters, gameMode = "timed") => {
       try {
         setLoading(true)
 
@@ -374,29 +321,55 @@ export default function GameContainer() {
           }
         }
 
-        // Always start with a movie from the computer
+        // For daily challenge mode, use the daily challenge item as the starting item
         let startItem: GameItem
 
-        try {
-          const movie = await getRandomMovie(difficulty, filters)
-          startItem = {
-            id: movie.id,
-            name: movie.title,
-            image: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
-            type: "movie",
-            details: movie,
-            selectedBy: "computer",
+        if (gameMode === "dailyChallenge") {
+          try {
+            // For daily challenge, we start with a random movie (not the challenge item)
+            const movie = await getRandomMovie(difficulty, filters)
+            startItem = {
+              id: movie.id,
+              name: movie.title,
+              image: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
+              type: "movie",
+              details: movie,
+              selectedBy: "computer",
+            }
+          } catch (error) {
+            console.error("Failed to get movie for daily challenge:", error)
+            toast({
+              title: "Error Starting Daily Challenge",
+              description: "There was a problem starting the daily challenge. Please try again later.",
+              variant: "destructive",
+            })
+            resetGame()
+            setLoading(false)
+            return
           }
-        } catch (error) {
-          console.error("Failed to get random movie:", error)
-          toast({
-            title: "Error Starting Game",
-            description: "There was a problem starting the game. Please try again or adjust your filters.",
-            variant: "destructive",
-          })
-          resetGame()
-          setLoading(false)
-          return
+        } else {
+          // Regular game mode - start with a random movie
+          try {
+            const movie = await getRandomMovie(difficulty, filters)
+            startItem = {
+              id: movie.id,
+              name: movie.title,
+              image: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
+              type: "movie",
+              details: movie,
+              selectedBy: "computer",
+            }
+          } catch (error) {
+            console.error("Failed to get random movie:", error)
+            toast({
+              title: "Error Starting Game",
+              description: "There was a problem starting the game. Please try again or adjust your filters.",
+              variant: "destructive",
+            })
+            resetGame()
+            setLoading(false)
+            return
+          }
         }
 
         // Initialize with the first item's ID in the used IDs set
@@ -410,12 +383,12 @@ export default function GameContainer() {
           score: 0,
           highScore: gameState.highScore,
           difficulty,
-          gameMode: "timed", // Always timed mode
+          gameMode: gameMode, // Set the game mode
           filters,
           isComputerTurn: false,
           strikes: 0,
           turnPhase: "player-pick-actor", // Player needs to find an actor from the computer's movie
-          timeRemaining: TIME_LIMIT, // Always set time limit
+          timeRemaining: gameMode === "timed" ? TIME_LIMIT : undefined, // Only set time for timed mode
           newUnlocks: {
             actors: [],
             movies: [],
@@ -438,7 +411,6 @@ export default function GameContainer() {
   )
 
   // Update the endGame function to avoid potential state update issues
-
   const endGame = useCallback(() => {
     // Only update state if we're not already in gameOver state
     setGameState((prev) => {
@@ -476,9 +448,28 @@ export default function GameContainer() {
   }, [resetGame])
 
   const handleIncorrectAnswer = useCallback(() => {
-    // In timed mode, we don't count strikes, but we might want to add a time penalty
-    // For now, we'll just do nothing
-  }, [])
+    // In daily challenge mode, count strikes
+    if (gameMode === "dailyChallenge") {
+      setGameState((prev) => {
+        const newStrikes = prev.strikes + 1
+
+        // If three strikes, end the game
+        if (newStrikes >= 3) {
+          return {
+            ...prev,
+            strikes: newStrikes,
+            status: "gameOver",
+          }
+        }
+
+        return {
+          ...prev,
+          strikes: newStrikes,
+        }
+      })
+    }
+    // In timed mode, we don't count strikes
+  }, [gameMode])
 
   const updateGameState = useCallback(
     async (newItem: GameItem) => {
@@ -503,7 +494,6 @@ export default function GameContainer() {
       // Add to player history
       addToPlayerHistory(newItem)
 
-      // In the updateGameState function, update the daily challenge section
       // Check if this is the daily challenge item
       let isDailyChallenge = false
       if (dailyChallenge && !gameState.dailyChallengeCompleted) {
@@ -563,27 +553,17 @@ export default function GameContainer() {
     [gameState.turnPhase, gameState.usedIds, gameState.dailyChallengeCompleted, dailyChallenge],
   )
 
-  // Handle survey popup actions
-  const handleCloseSurvey = useCallback(() => {
-    setShowSurvey(false)
-    setSurveyShown(true)
-    if (typeof window !== "undefined") {
-      localStorage.setItem("movieGameSurveyCompleted", "true")
-    }
-  }, [])
-
-  const handleNewGameFromSurvey = useCallback(() => {
-    handleCloseSurvey()
-    resetGame()
-  }, [handleCloseSurvey, resetGame])
-
   return (
     <div className="w-full max-w-3xl">
       {/* Remove the header when on the start screen */}
       {gameState.status !== "start" && (
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold mb-3">The Movie Game</h1>
-          <p className="text-muted-foreground">Name an actor from the movie or a movie the actor was in!</p>
+          <p className="text-muted-foreground">
+            {gameState.gameMode === "dailyChallenge"
+              ? "Daily Challenge: Unlimited time, three strikes, find the daily target!"
+              : "Name an actor from the movie or a movie the actor was in!"}
+          </p>
         </div>
       )}
 
@@ -627,9 +607,6 @@ export default function GameContainer() {
 
       {/* Daily Challenge Toast */}
       {completedChallengeItem && <DailyChallengeToast item={completedChallengeItem} show={showDailyChallengeToast} />}
-
-      {/* Survey Popup */}
-      <SurveyPopup open={showSurvey} onClose={handleCloseSurvey} onNewGame={handleNewGameFromSurvey} />
     </div>
   )
 }

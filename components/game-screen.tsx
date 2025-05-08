@@ -471,8 +471,8 @@ const GameScreen = memo(function GameScreen({
           </div>
         )}
 
-        {/* Show strikes for classic mode */}
-        {gameMode === "classic" && (
+        {/* Show strikes for classic and daily challenge modes */}
+        {(gameMode === "classic" || gameMode === "dailyChallenge") && (
           <div className="flex justify-center items-center gap-2 mt-3">
             <span className="text-sm text-muted-foreground">Strikes:</span>
             <div className="flex gap-1">
@@ -489,7 +489,7 @@ const GameScreen = memo(function GameScreen({
         )}
 
         {/* Daily Challenge Indicator */}
-        {dailyChallenge && (
+        {gameMode === "dailyChallenge" && dailyChallenge && (
           <div className="mt-3 flex justify-center">
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
@@ -502,7 +502,7 @@ const GameScreen = memo(function GameScreen({
               <span>
                 {dailyChallengeCompleted
                   ? "Daily Challenge Completed!"
-                  : `Daily Challenge: Find ${dailyChallenge.type === "movie" ? "movie" : "actor"} "${dailyChallenge.name}"`}
+                  : `Find ${dailyChallenge.type === "movie" ? "movie" : "actor"} "${dailyChallenge.name}"`}
               </span>
             </div>
           </div>
