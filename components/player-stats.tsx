@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Film, User, Clock, Trophy, BarChart, Star, Target, Calendar } from "lucide-react"
+import { Film, User, Clock, Trophy, BarChart, Star, Target, Calendar, X } from "lucide-react"
 import { clearPlayerHistory, getMostUsedItems, getRecentItems, getItemsByRarity } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
@@ -29,7 +29,27 @@ import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
 const TOTAL_COLLECTIBLE_MOVIES = 10000
 const TOTAL_COLLECTIBLE_ACTORS = 5000
 
-export default function PlayerStats() {
+interface PlayerStatsProps {
+  onClose: () => void
+}
+
+// Helper function to get color for rarity
+function getRarityColor(rarity: string): string {
+  switch (rarity) {
+    case "legendary":
+      return "#F59E0B" // amber-500
+    case "epic":
+      return "#9333EA" // purple-600
+    case "rare":
+      return "#4F46E5" // indigo-600
+    case "uncommon":
+      return "#10B981" // emerald-500
+    default:
+      return "#6B7280" // gray-500
+  }
+}
+
+export default function PlayerStats({ onClose }: PlayerStatsProps) {
   const [activeTab, setActiveTab] = useState<"recent" | "most-used" | "collection" | "challenges">("recent")
   const [activeType, setActiveType] = useState<"movie" | "actor">("movie")
   const [recentItems, setRecentItems] = useState<PlayerHistoryItem[]>([])
@@ -189,32 +209,38 @@ export default function PlayerStats() {
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full border-0 rounded-none sm:rounded-lg sm:border">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <BarChart className="h-5 w-5" />
             Your Movie Game Stats
           </span>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                Clear History
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete your movie game history. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearHistory}>Clear History</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="flex items-center gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Clear History
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete your movie game history. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearHistory}>Clear History</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -302,28 +328,30 @@ export default function PlayerStats() {
           defaultValue="recent"
           onValueChange={(value) => setActiveTab(value as "recent" | "most-used" | "collection" | "challenges")}
         >
-          <div className="flex justify-between items-center mb-4">
-            <TabsList>
-              <TabsTrigger value="recent" className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                <span>Recent</span>
-              </TabsTrigger>
-              <TabsTrigger value="most-used" className="flex items-center gap-1">
-                <Trophy className="h-4 w-4" />
-                <span>Most Used</span>
-              </TabsTrigger>
-              <TabsTrigger value="collection" className="flex items-center gap-1">
-                <Star className="h-4 w-4" />
-                <span>Pulls</span>
-              </TabsTrigger>
-              <TabsTrigger value="challenges" className="flex items-center gap-1">
-                <Target className="h-4 w-4" />
-                <span>Challenges</span>
-              </TabsTrigger>
-            </TabsList>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <div className="overflow-x-auto pb-2 hide-scrollbar w-full sm:w-auto">
+              <TabsList className="w-max min-w-full">
+                <TabsTrigger value="recent" className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  <span>Recent</span>
+                </TabsTrigger>
+                <TabsTrigger value="most-used" className="flex items-center gap-1">
+                  <Trophy className="h-4 w-4" />
+                  <span>Most Used</span>
+                </TabsTrigger>
+                <TabsTrigger value="collection" className="flex items-center gap-1">
+                  <Star className="h-4 w-4" />
+                  <span>Pulls</span>
+                </TabsTrigger>
+                <TabsTrigger value="challenges" className="flex items-center gap-1">
+                  <Target className="h-4 w-4" />
+                  <span>Challenges</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {activeTab !== "challenges" && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-start">
                 <Button
                   size="sm"
                   variant={activeType === "movie" ? "default" : "outline"}
@@ -382,7 +410,7 @@ export default function PlayerStats() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No recent {activeType}s found.</p>
-                <p className="text-sm mt-2">Play some games to see your history!</p>
+                <p className="text-sm mt-2">Play some games to see your history.</p>
               </div>
             )}
           </TabsContent>
@@ -425,7 +453,7 @@ export default function PlayerStats() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No {activeType} usage data found.</p>
-                <p className="text-sm mt-2">Play some games to see your most used {activeType}s!</p>
+                <p className="text-sm mt-2">Play some games to see your most used {activeType}s.</p>
               </div>
             )}
           </TabsContent>
@@ -519,7 +547,7 @@ export default function PlayerStats() {
                 <p>
                   No {activeRarity !== "all" ? getRarityDisplayName(activeRarity as Rarity) : ""} {activeType}s found.
                 </p>
-                <p className="text-sm mt-2">Play more games to discover new {activeType} pulls!</p>
+                <p className="text-sm mt-2">Play more games to discover new {activeType} pulls.</p>
               </div>
             )}
           </TabsContent>
@@ -588,7 +616,7 @@ export default function PlayerStats() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No daily challenges completed yet.</p>
-                <p className="text-sm mt-2">Complete daily challenges to see them here!</p>
+                <p className="text-sm mt-2">Complete daily challenges to see them here.</p>
               </div>
             )}
           </TabsContent>
@@ -596,20 +624,4 @@ export default function PlayerStats() {
       </CardContent>
     </Card>
   )
-}
-
-// Helper function to get color for rarity
-function getRarityColor(rarity: string): string {
-  switch (rarity) {
-    case "legendary":
-      return "#F59E0B" // amber-500
-    case "epic":
-      return "#9333EA" // purple-600
-    case "rare":
-      return "#4F46E5" // indigo-600
-    case "uncommon":
-      return "#10B981" // emerald-500
-    default:
-      return "#6B7280" // gray-500
-  }
 }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Loader2, ChevronDown, ChevronUp, Target, Calendar, Film, User, BarChart, X } from "lucide-react"
+import { Loader2, ChevronDown, ChevronUp, Target, Calendar, Film, User, BarChart } from "lucide-react"
 import type { Difficulty, GameFilters, GameItem } from "@/lib/types"
 import PlayerStats from "./player-stats"
 import Image from "next/image"
@@ -172,11 +172,11 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                 </p>
                 <p>
                   <strong>Collect Rare Pulls:</strong> Discover and collect actors and movies of different rarities to
-                  build your collection!
+                  build your collection.
                 </p>
                 <p>
                   <strong>Daily Challenge:</strong> Try the special daily challenge mode - unlimited time, but only one
-                  attempt per day!
+                  attempt per day.
                 </p>
               </div>
             </div>
@@ -401,13 +401,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
             className="bg-background p-3 sm:p-6 rounded-lg w-[95vw] sm:w-full sm:max-w-4xl max-h-[80vh] sm:max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-3 sm:mb-4">
-              <h2 className="text-lg sm:text-xl font-bold">Your Stats</h2>
-              <Button variant="ghost" size="sm" onClick={closeStats}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <PlayerStats />
+            <PlayerStats onClose={closeStats} />
           </div>
         </div>
       )}

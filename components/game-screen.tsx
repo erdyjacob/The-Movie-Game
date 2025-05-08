@@ -303,7 +303,7 @@ const GameScreen = memo(function GameScreen({
 
         toast({
           title: "Duplicate Answer",
-          description: "You can't use the same answer twice in one game!",
+          description: "You can't use the same answer twice in one game.",
           variant: "destructive",
         })
 

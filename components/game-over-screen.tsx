@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import type { GameItem, GameMode } from "@/lib/types"
 import GamePath from "./game-path"
-import { Clock, Film, Unlock, User, X, BarChart } from "lucide-react"
+import { Clock, Film, Unlock, User, BarChart } from "lucide-react"
 import Image from "next/image"
 import { RarityOverlay } from "./rarity-overlay"
 import PlayerStats from "./player-stats"
@@ -242,7 +242,7 @@ export default function GameOverScreen({
   return (
     <Card className="w-full">
       <CardHeader className="pb-4">
-        <CardTitle className="text-center text-2xl">Game Over!</CardTitle>
+        <CardTitle className="text-center text-2xl">Game Over</CardTitle>
       </CardHeader>
       <CardContent className="space-y-8 px-6">
         <div className="text-center py-2">
@@ -251,7 +251,7 @@ export default function GameOverScreen({
             <h3 className="text-xl">Connections Made: {score}</h3>
           </div>
           {isNewHighScore ? (
-            <p className="text-green-600 font-semibold">New High Score!</p>
+            <p className="text-green-600 font-semibold">New High Score</p>
           ) : (
             <p>High Score: {highScore}</p>
           )}
@@ -275,7 +275,7 @@ export default function GameOverScreen({
             <div className="flex items-center justify-center gap-2">
               <Unlock className="h-5 w-5 text-green-500" />
               <h3 className="text-xl font-semibold text-center">
-                You unlocked {totalNewUnlocks} new {totalNewUnlocks === 1 ? "pull" : "pulls"}!
+                You unlocked {totalNewUnlocks} new {totalNewUnlocks === 1 ? "pull" : "pulls"}
               </h3>
             </div>
 
@@ -385,13 +385,7 @@ export default function GameOverScreen({
             className="bg-background p-3 sm:p-6 rounded-lg w-[95vw] sm:w-full sm:max-w-4xl max-h-[80vh] sm:max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-3 sm:mb-4">
-              <h2 className="text-lg sm:text-xl font-bold">Your Stats</h2>
-              <Button variant="ghost" size="sm" onClick={closeStats}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <PlayerStats />
+            <PlayerStats onClose={closeStats} />
           </div>
         </div>
       )}
