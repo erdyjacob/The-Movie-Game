@@ -55,6 +55,9 @@ import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
 import { updateAchievements, type Achievement, type AchievementCategory } from "@/lib/achievements"
 import { Progress } from "@/components/ui/progress"
 
+// Add this import at the top
+import { resetAchievements } from "@/lib/achievements"
+
 // Add these constants at the top of the file, after the imports
 // These represent estimated totals of collectible items in the game
 const TOTAL_COLLECTIBLE_MOVIES = 10000
@@ -143,6 +146,20 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
   const { toast } = useToast()
   const [collectionProgressOpen, setCollectionProgressOpen] = useState(false)
   // Add these state variables and computed values near the top of the component with other state variables
+
+  // Then add this function inside the PlayerStats component
+  const handleResetAchievements = () => {
+    resetAchievements()
+
+    toast({
+      title: "Achievements Reset",
+      description: "All achievements have been reset for debugging purposes.",
+    })
+
+    // Reload achievements
+    const updatedAchievements = updateAchievements()
+    setAchievements(updatedAchievements)
+  }
 
   // Load data when component mounts or when tabs change
   useEffect(() => {
@@ -375,6 +392,9 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
             Your Movie Game Stats
           </span>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleResetAchievements}>
+              Reset Achievements
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm">

@@ -22,8 +22,8 @@ import { initializeCache, setupCachePersistence } from "@/lib/api-cache"
 // Add this import at the top
 import { DailyChallengeToast } from "./daily-challenge-toast"
 
-// Add this import at the top of the file
-import { updateAchievementProgress, unlockAchievement } from "@/lib/achievements"
+// Add this import at the top of the file - make sure to import trackLegendaryItem
+import { updateAchievementProgress, unlockAchievement, trackLegendaryItem } from "@/lib/achievements"
 
 // Time limit for timed mode in seconds
 const TIME_LIMIT = 120 // 2 minutes
@@ -480,10 +480,6 @@ export default function GameContainer() {
     // In timed mode, we don't count strikes
   }, [gameMode])
 
-  const trackLegendaryItem = useCallback((item: GameItem) => {
-    console.log("Legendary item found:", item.name)
-  }, [])
-
   const updateGameState = useCallback(
     async (newItem: GameItem) => {
       // Add the new item's ID to the used IDs set
@@ -512,8 +508,11 @@ export default function GameContainer() {
         // Create a copy of the current progress
         const updatedProgress = { ...gameAchievementProgress }
 
-        // Check for legendary items - use our new dedicated function
+        // Check for legendary items - use the imported trackLegendaryItem function
         if (newItem.rarity === "legendary") {
+          console.log("Found legendary item:", newItem.name)
+
+          // Call the trackLegendaryItem function from achievements.ts
           trackLegendaryItem(newItem)
 
           // Update the local game state for UI display
@@ -707,6 +706,7 @@ export default function GameContainer() {
       gameState.dailyChallengeCompleted,
       dailyChallenge,
       gameAchievementProgress,
+      gameState.history.length,
     ],
   )
 

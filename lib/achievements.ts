@@ -318,6 +318,9 @@ export function updateAchievements(): Achievement[] {
     ...playerHistory.actors.filter((actor) => actor.rarity === "legendary"),
   ]
 
+  // Log the legendary items for debugging
+  console.log(`Found ${legendaryItems.length} legendary items in player history`)
+
   // Update achievement progress
   achievements.forEach((achievement) => {
     switch (achievement.id) {
@@ -332,11 +335,13 @@ export function updateAchievements(): Achievement[] {
       case "legendary_collection":
         achievement.progress!.current = legendaryItems.length
         achievement.isUnlocked = legendaryItems.length >= achievement.progress!.target
+        console.log(`Legendary Collection: ${achievement.progress!.current}/${achievement.progress!.target}`)
         break
       case "legendary_hunter":
         // Make sure legendary_hunter is updated from player history too
         achievement.progress!.current = legendaryItems.length
         achievement.isUnlocked = legendaryItems.length >= achievement.progress!.target
+        console.log(`Legendary Hunter: ${achievement.progress!.current}/${achievement.progress!.target}`)
         break
       // Other achievements would be updated based on game events
       // We'll implement those in the game logic
@@ -365,6 +370,7 @@ export function unlockAchievement(id: string): void {
 
   if (achievement && !achievement.isUnlocked) {
     achievement.isUnlocked = true
+    console.log(`Achievement unlocked: ${achievement.name}`)
     saveAchievements(achievements)
   }
 }
@@ -394,6 +400,8 @@ export function updateAchievementProgress(id: string, incrementBy: number): void
 // Track legendary items specifically
 export function trackLegendaryItem(item: any): void {
   if (item && item.rarity === "legendary") {
+    console.log(`Tracking legendary item: ${item.name}`)
+
     const achievements = loadAchievements()
 
     // Find the legendary hunter achievement
@@ -410,8 +418,6 @@ export function trackLegendaryItem(item: any): void {
         legendaryHunter.isUnlocked = true
         console.log("Legendary Hunter achievement unlocked!")
       }
-
-      saveAchievements(achievements)
     }
 
     // Also update the legendary collection achievement
@@ -430,9 +436,9 @@ export function trackLegendaryItem(item: any): void {
         legendaryCollection.isUnlocked = true
         console.log("Legendary Collection achievement unlocked!")
       }
-
-      saveAchievements(achievements)
     }
+
+    saveAchievements(achievements)
   }
 }
 
@@ -446,4 +452,14 @@ export function getAchievementProgress(id: string): number {
   }
 
   return 0
+}
+
+// Reset all achievements (for testing)
+export function resetAchievements(): void {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  localStorage.removeItem("movieGameAchievements")
+  console.log("All achievements have been reset")
 }
