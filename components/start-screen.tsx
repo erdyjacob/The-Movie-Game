@@ -103,7 +103,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                 {dailyChallenge.image ? (
                   <Image
                     src={dailyChallenge.image || "/placeholder.svg"}
-                    alt={dailyChallenge.name}
+                    alt="Daily Challenge"
                     fill
                     className="object-cover"
                   />
@@ -124,7 +124,10 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                   </div>
                 </div>
               </div>
-              <p className="text-sm font-medium">Find this {dailyChallenge.type} in today's games!</p>
+              <p className="text-sm font-medium">Today's Challenge:</p>
+              <p className="text-sm font-bold mt-1">
+                Find the {dailyChallenge.type} "{dailyChallenge.name}"
+              </p>
               <p className="text-xs text-muted-foreground mt-1">Complete the challenge to earn bonus points</p>
             </div>
           ) : (

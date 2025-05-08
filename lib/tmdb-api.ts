@@ -478,7 +478,43 @@ export async function prefetchGameData(difficulty: Difficulty = "medium"): Promi
   }
 }
 
-// Fetch a random popular movie based on difficulty and filters
+// Add this near the top of the file with other constants
+// Keep track of recently used movies and actors to avoid repetition
+const recentlyUsedMovieIds: number[] = []
+const recentlyUsedActorIds: number[] = []
+const MAX_RECENT_ITEMS = 10 // Remember the last 10 items
+
+// Keep track of recently used actor types to avoid repetition
+const recentlyUsedActorTypes: string[] = []
+const MAX_RECENT_ACTOR_TYPES = 5
+
+// Function to check if an actor type is recently used
+function isRecentlyUsedActorType(actor: TMDBActor): boolean {
+  // Extract potential actor type (first word of name)
+  const name = actor.name || ""
+  const actorType = name.split(" ")[0].toLowerCase()
+
+  return recentlyUsedActorTypes.some((type) => type === actorType)
+}
+
+// Function to add an actor type to the recently used list
+function addToRecentActorTypes(actor: TMDBActor) {
+  // Extract potential actor type (first word of name)
+  const name = actor.name || ""
+  const actorType = name.split(" ")[0].toLowerCase()
+
+  // Only add if it's not already in the list
+  if (!recentlyUsedActorTypes.includes(actorType)) {
+    recentlyUsedActorTypes.push(actorType)
+
+    // Keep the list at a maximum size
+    if (recentlyUsedActorTypes.length > MAX_RECENT_ACTOR_TYPES) {
+      recentlyUsedActorTypes.shift()
+    }
+  }
+}
+
+// Update the getRandomMovie function to avoid recently used movies
 export async function getRandomMovie(
   difficulty: Difficulty = "medium",
   filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: true },
@@ -486,21 +522,20 @@ export async function getRandomMovie(
   try {
     const thresholds = getMovieDifficultyThresholds(difficulty)
 
-    // Increase the page range to get more variety
-    const maxPages = difficulty === "easy" ? 5 : difficulty === "medium" ? 8 : 12
+    // Increase the page range significantly to get more variety
+    const maxPages = difficulty === "easy" ? 10 : difficulty === "medium" ? 15 : 20
 
-    // Use a more random page selection
+    // Use a more random page selection with better distribution
     const page = Math.floor(Math.random() * maxPages) + 1
 
-    // For easy mode, sort by popularity to get the most popular movies
-    // For medium and hard, use different sort methods to increase variety
-    let sortBy = "popularity.desc"
-    if (difficulty === "medium") {
-      // Randomly choose between popularity and vote count for medium difficulty
-      sortBy = Math.random() > 0.5 ? "popularity.desc" : "vote_count.desc"
-    } else if (difficulty === "hard") {
-      // For hard, use vote average to get critically acclaimed but less popular movies
-      sortBy = Math.random() > 0.5 ? "vote_average.desc" : "popularity.asc"
+    // Vary the sort methods more to increase variety
+    let sortOptions = ["popularity.desc", "vote_count.desc", "vote_average.desc", "primary_release_date.desc"]
+    let sortBy = sortOptions[Math.floor(Math.random() * sortOptions.length)]
+
+    // For hard difficulty, add more variety with ascending sorts
+    if (difficulty === "hard") {
+      sortOptions = [...sortOptions, "popularity.asc", "vote_average.asc", "primary_release_date.asc"]
+      sortBy = sortOptions[Math.floor(Math.random() * sortOptions.length)]
     }
 
     // Build the API URL
@@ -519,12 +554,23 @@ export async function getRandomMovie(
       apiUrl += `&with_original_language=en`
     }
 
+    // Add a random year range to increase variety (for medium and hard difficulties)
+    if (difficulty !== "easy") {
+      const currentYear = new Date().getFullYear()
+      const startYear = Math.max(1970, currentYear - Math.floor(Math.random() * 50))
+      const endYear = Math.min(currentYear, startYear + Math.floor(Math.random() * 20) + 5)
+      apiUrl += `&primary_release_date.gte=${startYear}-01-01&primary_release_date.lte=${endYear}-12-31`
+    }
+
     console.log("API URL:", apiUrl)
 
     const data = await cachedFetch(apiUrl, { cache: "no-store" })
     let movies = data.results
 
     console.log(`Fetched ${movies.length} movies before filtering`)
+
+    // Filter out recently used movies
+    movies = movies.filter((movie) => !recentlyUsedMovieIds.includes(movie.id))
 
     // Filter movies based on difficulty and other criteria
     movies = movies.filter((movie: TMDBMovie) => {
@@ -602,6 +648,11 @@ export async function getRandomMovie(
     if (movies.length === 0) {
       console.log("No movies matched all criteria, using basic filters only")
       movies = data.results.filter((movie) => {
+        // Still filter out recently used movies
+        if (recentlyUsedMovieIds.includes(movie.id)) {
+          return false
+        }
+
         // Filter out extremely niche movies
         if (isTooNicheMovie(movie)) {
           return false
@@ -634,7 +685,7 @@ export async function getRandomMovie(
       console.log("No movies matched even basic filters, making another API call")
 
       // Try a different API endpoint with more strict filtering
-      let fallbackUrl = `${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=vote_count.desc&page=1&vote_count.gte=${MIN_MOVIE_VOTE_COUNT}`
+      let fallbackUrl = `${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=vote_count.desc&page=${Math.floor(Math.random() * 5) + 1}&vote_count.gte=${MIN_MOVIE_VOTE_COUNT}`
 
       if (!filters.includeAnimated) {
         fallbackUrl += `&without_genres=${ANIMATION_GENRE_ID}`
@@ -650,6 +701,11 @@ export async function getRandomMovie(
       const fallbackData = await cachedFetch(fallbackUrl, { cache: "no-store" })
 
       movies = fallbackData.results.filter((movie) => {
+        // Still filter out recently used movies
+        if (recentlyUsedMovieIds.includes(movie.id)) {
+          return false
+        }
+
         // Filter out extremely niche movies
         if (isTooNicheMovie(movie)) {
           return false
@@ -679,7 +735,13 @@ export async function getRandomMovie(
     // If we still have no movies, use fallback data
     if (movies.length === 0) {
       console.log("Using fallback movie data")
-      movies = FALLBACK_MOVIES
+      // Filter out recently used fallback movies
+      movies = FALLBACK_MOVIES.filter((movie) => !recentlyUsedMovieIds.includes(movie.id))
+
+      // If all fallbacks have been used recently, just use all of them
+      if (movies.length === 0) {
+        movies = FALLBACK_MOVIES
+      }
     }
 
     // Pick a random movie from the filtered results
@@ -688,6 +750,12 @@ export async function getRandomMovie(
 
     // Add this movie's franchise to recently used list
     addToRecentFranchises(selectedMovie)
+
+    // Add this movie to recently used movies
+    recentlyUsedMovieIds.push(selectedMovie.id)
+    if (recentlyUsedMovieIds.length > MAX_RECENT_ITEMS) {
+      recentlyUsedMovieIds.shift() // Remove oldest item
+    }
 
     console.log(
       `Selected movie: ${selectedMovie.title}, Animated: ${isAnimatedMovie(selectedMovie)}, Foreign: ${isForeignFilm(selectedMovie)}`,
@@ -701,44 +769,13 @@ export async function getRandomMovie(
   }
 }
 
-// Keep track of recently used actor types to avoid repetition
-const recentlyUsedActorTypes: string[] = []
-const MAX_RECENT_ACTOR_TYPES = 3
-
-// Function to categorize an actor
-function categorizeActor(actor: TMDBActor): string {
-  // Simple categorization based on popularity
-  if (actor.popularity >= 30) return "a-list"
-  if (actor.popularity >= 10) return "b-list"
-  return "character-actor"
-}
-
-// Function to add an actor type to recently used list
-function addToRecentActorTypes(actor: TMDBActor) {
-  const type = categorizeActor(actor)
-
-  if (!recentlyUsedActorTypes.includes(type)) {
-    recentlyUsedActorTypes.push(type)
-
-    if (recentlyUsedActorTypes.length > MAX_RECENT_ACTOR_TYPES) {
-      recentlyUsedActorTypes.shift()
-    }
-  }
-}
-
-// Function to check if an actor type was recently used
-function isRecentlyUsedActorType(actor: TMDBActor): boolean {
-  const type = categorizeActor(actor)
-  return recentlyUsedActorTypes.includes(type)
-}
-
-// Update the getRandomActor function to ensure better randomization
+// Update the getRandomActor function to avoid recently used actors
 export async function getRandomActor(difficulty: Difficulty = "medium"): Promise<TMDBActor> {
   try {
     const thresholds = getActorDifficultyThresholds(difficulty)
 
-    // Increase the page range to get more variety
-    const maxPages = difficulty === "easy" ? 5 : difficulty === "medium" ? 8 : 12
+    // Increase the page range significantly to get more variety
+    const maxPages = difficulty === "easy" ? 10 : difficulty === "medium" ? 15 : 20
 
     // Use a more random page selection
     const page = Math.floor(Math.random() * maxPages) + 1
@@ -748,6 +785,9 @@ export async function getRandomActor(difficulty: Difficulty = "medium"): Promise
     })
 
     let actors = data.results
+
+    // Filter out recently used actors
+    actors = actors.filter((actor) => !recentlyUsedActorIds.includes(actor.id))
 
     // Filter out extremely niche actors first
     actors = actors.filter((actor: TMDBActor) => !isTooNicheActor(actor))
@@ -780,17 +820,27 @@ export async function getRandomActor(difficulty: Difficulty = "medium"): Promise
     // If no actors match the criteria, return any actor
     if (actors.length === 0) {
       console.log("No actors matched the criteria, using unfiltered results")
-      actors = data.results.filter((actor: TMDBActor) => !isTooNicheActor(actor))
+      actors = data.results.filter(
+        (actor: TMDBActor) => !recentlyUsedActorIds.includes(actor.id) && !isTooNicheActor(actor),
+      )
 
       // If still no actors, try with minimal filtering
       if (actors.length === 0) {
-        actors = data.results.filter((actor: TMDBActor) => actor.profile_path !== null)
+        actors = data.results.filter(
+          (actor: TMDBActor) => !recentlyUsedActorIds.includes(actor.id) && actor.profile_path !== null,
+        )
       }
 
       // If still no actors, use fallback data
       if (actors.length === 0) {
         console.log("Using fallback actor data")
-        actors = FALLBACK_ACTORS
+        // Filter out recently used fallback actors
+        actors = FALLBACK_ACTORS.filter((actor) => !recentlyUsedActorIds.includes(actor.id))
+
+        // If all fallbacks have been used recently, just use all of them
+        if (actors.length === 0) {
+          actors = FALLBACK_ACTORS
+        }
       }
     }
 
@@ -800,6 +850,12 @@ export async function getRandomActor(difficulty: Difficulty = "medium"): Promise
 
     // Add this actor type to recently used list
     addToRecentActorTypes(selectedActor)
+
+    // Add this actor to recently used actors
+    recentlyUsedActorIds.push(selectedActor.id)
+    if (recentlyUsedActorIds.length > MAX_RECENT_ITEMS) {
+      recentlyUsedActorIds.shift() // Remove oldest item
+    }
 
     return selectedActor
   } catch (error) {

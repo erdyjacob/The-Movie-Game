@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import type { GameItem, ItemType, GameFilters, Difficulty, GameMode } from "@/lib/types"
 import { searchMoviesByActor, searchActorsByMovie } from "@/lib/tmdb-api"
-import { Loader2, Film, User, Info, AlertTriangle, Clock } from "lucide-react"
+import { Loader2, Film, User, Info, AlertTriangle, Clock, Target } from "lucide-react"
 import LiveGamePath from "./live-game-path"
 import { toast } from "@/components/ui/use-toast"
 import Image from "next/image"
@@ -75,7 +75,7 @@ function formatTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
 }
 
-// Update the props interface to include game mode and time remaining
+// Update the props interface to include daily challenge information
 interface GameScreenProps {
   currentItem: GameItem
   score: number
@@ -92,6 +92,8 @@ interface GameScreenProps {
   difficulty: Difficulty
   gameMode: GameMode
   timeRemaining?: number
+  dailyChallenge?: GameItem | null
+  dailyChallengeCompleted?: boolean
 }
 
 // Memoize the GameScreen component to prevent unnecessary re-renders
@@ -111,6 +113,8 @@ const GameScreen = memo(function GameScreen({
   difficulty,
   gameMode,
   timeRemaining,
+  dailyChallenge,
+  dailyChallengeCompleted,
 }: GameScreenProps) {
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(false)
@@ -481,6 +485,26 @@ const GameScreen = memo(function GameScreen({
               ))}
             </div>
             <span className="text-sm text-muted-foreground ml-1">({3 - strikes} remaining)</span>
+          </div>
+        )}
+
+        {/* Daily Challenge Indicator */}
+        {dailyChallenge && (
+          <div className="mt-3 flex justify-center">
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+                dailyChallengeCompleted
+                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                  : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+              }`}
+            >
+              <Target size={12} />
+              <span>
+                {dailyChallengeCompleted
+                  ? "Daily Challenge Completed!"
+                  : `Daily Challenge: Find ${dailyChallenge.type === "movie" ? "movie" : "actor"} "${dailyChallenge.name}"`}
+              </span>
+            </div>
           </div>
         )}
       </CardHeader>

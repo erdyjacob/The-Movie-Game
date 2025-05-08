@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import StartScreen from "./start-screen"
 import GameScreen from "./game-screen"
 import GameOverScreen from "./game-over-screen"
+import { SurveyPopup } from "./survey-popup"
 import type { GameState, GameItem, Difficulty, GameFilters } from "@/lib/types"
 import { getRandomMovie, searchMoviesByActor, searchActorsByMovie, prefetchGameData } from "@/lib/tmdb-api"
 import { addToPlayerHistory, isNewItem } from "@/lib/player-history"
@@ -19,8 +20,14 @@ import {
 // Add this import at the top of the file
 import { initializeCache, setupCachePersistence } from "@/lib/api-cache"
 
+// Add this import at the top
+import { DailyChallengeToast } from "./daily-challenge-toast"
+
 // Time limit for timed mode in seconds
 const TIME_LIMIT = 120 // 2 minutes
+
+// Number of games before showing the survey
+const GAMES_BEFORE_SURVEY = 5
 
 export default function GameContainer() {
   const [gameState, setGameState] = useState<GameState>({
@@ -52,6 +59,15 @@ export default function GameContainer() {
   const [dataPreloaded, setDataPreloaded] = useState(false)
   const [dailyChallenge, setDailyChallenge] = useState<GameItem | null>(null)
 
+  // Add these state variables for the survey popup
+  const [gameCount, setGameCount] = useState(0)
+  const [showSurvey, setShowSurvey] = useState(false)
+  const [surveyShown, setSurveyShown] = useState(false)
+
+  // Add this state variable
+  const [showDailyChallengeToast, setShowDailyChallengeToast] = useState(false)
+  const [completedChallengeItem, setCompletedChallengeItem] = useState<GameItem | null>(null)
+
   // Inside the GameContainer component, add this effect to initialize the cache
   useEffect(() => {
     // Initialize the API cache
@@ -61,6 +77,22 @@ export default function GameContainer() {
     const cleanup = setupCachePersistence()
 
     return cleanup
+  }, [])
+
+  // Load game count from localStorage on initial render
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedGameCount = localStorage.getItem("movieGameCount")
+      const surveyCompleted = localStorage.getItem("movieGameSurveyCompleted")
+
+      if (savedGameCount) {
+        setGameCount(Number.parseInt(savedGameCount))
+      }
+
+      if (surveyCompleted === "true") {
+        setSurveyShown(true)
+      }
+    }
   }, [])
 
   // Preload data when component mounts
@@ -131,6 +163,29 @@ export default function GameContainer() {
       if (timer) clearInterval(timer)
     }
   }, [gameState.status, gameState.timeRemaining])
+
+  // Increment game count when a game ends
+  const prevGameStatusRef = useRef(gameState.status)
+
+  useEffect(() => {
+    // Only increment when transitioning from playing to gameOver
+    if (prevGameStatusRef.current === "playing" && gameState.status === "gameOver") {
+      const newGameCount = gameCount + 1
+      setGameCount(newGameCount)
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("movieGameCount", newGameCount.toString())
+
+        // Show survey after GAMES_BEFORE_SURVEY games if not shown before
+        if (newGameCount >= GAMES_BEFORE_SURVEY && !surveyShown) {
+          setShowSurvey(true)
+        }
+      }
+    }
+
+    // Update the ref with current status for next render
+    prevGameStatusRef.current = gameState.status
+  }, [gameState.status, gameCount, surveyShown])
 
   // Memoize the current game state to prevent unnecessary re-renders
   const { status, currentItem, isComputerTurn, turnPhase } = useMemo(
@@ -382,11 +437,19 @@ export default function GameContainer() {
     [dataPreloaded, gameState.highScore],
   )
 
+  // Update the endGame function to avoid potential state update issues
+
   const endGame = useCallback(() => {
-    setGameState((prev) => ({
-      ...prev,
-      status: "gameOver",
-    }))
+    // Only update state if we're not already in gameOver state
+    setGameState((prev) => {
+      if (prev.status !== "gameOver") {
+        return {
+          ...prev,
+          status: "gameOver",
+        }
+      }
+      return prev
+    })
   }, [])
 
   const resetGame = useCallback(() => {
@@ -434,12 +497,13 @@ export default function GameContainer() {
       }
 
       // Check if this is a new unlock
-      const isNewUnlock = isNewItem(newItem)
-      newItem.isNewUnlock = isNewUnlock
+      const isNewItemUnlock = isNewItem(newItem)
+      newItem.isNewUnlock = isNewItemUnlock
 
       // Add to player history
       addToPlayerHistory(newItem)
 
+      // In the updateGameState function, update the daily challenge section
       // Check if this is the daily challenge item
       let isDailyChallenge = false
       if (dailyChallenge && !gameState.dailyChallengeCompleted) {
@@ -449,12 +513,9 @@ export default function GameContainer() {
           await saveDailyChallengeItem(newItem)
           await markDailyChallengeCompleted()
 
-          // Show a toast notification
-          toast({
-            title: "Daily Challenge Completed!",
-            description: "You found today's challenge item! +50 bonus points added to your account score.",
-            variant: "default",
-          })
+          // Set state to show the toast
+          setCompletedChallengeItem(newItem)
+          setShowDailyChallengeToast(true)
 
           // Add the daily challenge flag to the item
           newItem.isDailyChallenge = true
@@ -478,7 +539,7 @@ export default function GameContainer() {
       setGameState((prev) => {
         // Update the new unlocks list if this is a new item
         const newUnlocks = { ...prev.newUnlocks }
-        if (isNewUnlock) {
+        if (isNewItemUnlock) {
           if (newItem.type === "actor") {
             newUnlocks.actors = [...newUnlocks.actors, newItem]
           } else {
@@ -501,6 +562,20 @@ export default function GameContainer() {
     },
     [gameState.turnPhase, gameState.usedIds, gameState.dailyChallengeCompleted, dailyChallenge],
   )
+
+  // Handle survey popup actions
+  const handleCloseSurvey = useCallback(() => {
+    setShowSurvey(false)
+    setSurveyShown(true)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("movieGameSurveyCompleted", "true")
+    }
+  }, [])
+
+  const handleNewGameFromSurvey = useCallback(() => {
+    handleCloseSurvey()
+    resetGame()
+  }, [handleCloseSurvey, resetGame])
 
   return (
     <div className="w-full max-w-3xl">
@@ -549,6 +624,12 @@ export default function GameContainer() {
           dailyChallengeCompleted={gameState.dailyChallengeCompleted}
         />
       )}
+
+      {/* Daily Challenge Toast */}
+      {completedChallengeItem && <DailyChallengeToast item={completedChallengeItem} show={showDailyChallengeToast} />}
+
+      {/* Survey Popup */}
+      <SurveyPopup open={showSurvey} onClose={handleCloseSurvey} onNewGame={handleNewGameFromSurvey} />
     </div>
   )
 }
