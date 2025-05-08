@@ -287,7 +287,19 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
                   accountScore.rank === "SS" || accountScore.rank === "S+" ? "0 0 10px rgba(251, 191, 36, 0.6)" : "",
               }}
             >
-              {accountScore.rank}
+              {accountScore.rank.includes("+") ? (
+                <span className="flex items-center justify-center">
+                  <span>{accountScore.rank.charAt(0)}</span>
+                  <sup className="text-lg -ml-1">+</sup>
+                </span>
+              ) : accountScore.rank.includes("-") ? (
+                <span className="flex items-center justify-center">
+                  <span>{accountScore.rank.charAt(0)}</span>
+                  <sup className="text-lg -ml-1">-</sup>
+                </span>
+              ) : (
+                accountScore.rank
+              )}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-4">
