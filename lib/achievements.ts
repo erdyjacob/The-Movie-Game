@@ -315,17 +315,40 @@ export function saveAchievements(achievements: Achievement[]): void {
 // Check and update achievements based on player history
 export function updateAchievements(): Achievement[] {
   try {
-    const achievements = loadAchievements()
-    const playerHistory = loadPlayerHistory()
+    // Load achievements with a fallback
+    let achievements = []
+    try {
+      achievements = loadAchievements()
+    } catch (error) {
+      console.error("Error loading achievements, using defaults:", error)
+      achievements = [...ACHIEVEMENTS]
+    }
 
-    // Count unique movies and actors
-    const uniqueMovies = new Set(playerHistory.movies.map((movie) => movie.id))
-    const uniqueActors = new Set(playerHistory.actors.map((actor) => actor.id))
+    // Load player history with a fallback
+    let playerHistory = { movies: [], actors: [] }
+    try {
+      playerHistory = loadPlayerHistory()
+    } catch (error) {
+      console.error("Error loading player history:", error)
+    }
 
-    // Count legendary items
+    // Count unique movies and actors - with defensive programming
+    const uniqueMovies = new Set(
+      Array.isArray(playerHistory.movies) ? playerHistory.movies.map((movie) => movie?.id).filter(Boolean) : [],
+    )
+
+    const uniqueActors = new Set(
+      Array.isArray(playerHistory.actors) ? playerHistory.actors.map((actor) => actor?.id).filter(Boolean) : [],
+    )
+
+    // Count legendary items - with defensive programming
     const legendaryItems = [
-      ...playerHistory.movies.filter((movie) => movie.rarity === "legendary"),
-      ...playerHistory.actors.filter((actor) => actor.rarity === "legendary"),
+      ...(Array.isArray(playerHistory.movies)
+        ? playerHistory.movies.filter((movie) => movie?.rarity === "legendary")
+        : []),
+      ...(Array.isArray(playerHistory.actors)
+        ? playerHistory.actors.filter((actor) => actor?.rarity === "legendary")
+        : []),
     ]
 
     // Log the legendary items for debugging
@@ -333,6 +356,8 @@ export function updateAchievements(): Achievement[] {
 
     // Update achievement progress
     achievements.forEach((achievement) => {
+      if (!achievement) return // Skip if achievement is undefined
+
       switch (achievement.id) {
         case "cinephile_supreme":
           if (achievement.progress) {
@@ -366,7 +391,12 @@ export function updateAchievements(): Achievement[] {
       }
     })
 
-    saveAchievements(achievements)
+    try {
+      saveAchievements(achievements)
+    } catch (error) {
+      console.error("Error saving achievements:", error)
+    }
+
     return achievements
   } catch (error) {
     console.error("Error updating achievements:", error)

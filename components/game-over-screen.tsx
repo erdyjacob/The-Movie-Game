@@ -36,6 +36,7 @@ import {
   Medal,
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import ErrorBoundary from "./error-boundary"
 
 // Update the props interface to include achievement progress
 interface GameOverScreenProps {
@@ -550,7 +551,9 @@ export default function GameOverScreen({
             className="bg-background p-3 sm:p-6 rounded-lg w-[95vw] sm:w-full sm:max-w-4xl max-h-[80vh] sm:max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <PlayerStats onClose={closeStats} />
+            <ErrorBoundary>
+              <PlayerStats onClose={closeStats} />
+            </ErrorBoundary>
           </div>
         </div>
       )}

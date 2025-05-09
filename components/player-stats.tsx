@@ -166,27 +166,64 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
     const loadData = async () => {
       try {
         if (activeTab === "recent") {
-          setRecentItems(getRecentItems(activeType, 20))
+          try {
+            setRecentItems(getRecentItems(activeType, 20))
+          } catch (error) {
+            console.error("Error loading recent items:", error)
+            setRecentItems([])
+          }
         } else if (activeTab === "most-used") {
-          setMostUsedItems(getMostUsedItems(activeType, 20))
+          try {
+            setMostUsedItems(getMostUsedItems(activeType, 20))
+          } catch (error) {
+            console.error("Error loading most used items:", error)
+            setMostUsedItems([])
+          }
         } else if (activeTab === "collection") {
-          setCollectionItems(getItemsByRarity(activeType))
+          try {
+            setCollectionItems(getItemsByRarity(activeType))
+          } catch (error) {
+            console.error("Error loading collection items:", error)
+            setCollectionItems([])
+          }
         } else if (activeTab === "challenges") {
           // Load daily challenges
-          const challenges = await getCompletedDailyChallengeItems()
-          setDailyChallenges(challenges)
+          try {
+            const challenges = await getCompletedDailyChallengeItems()
+            setDailyChallenges(challenges || {})
+          } catch (error) {
+            console.error("Error loading daily challenges:", error)
+            setDailyChallenges({})
+          }
         } else if (activeTab === "achievements") {
           // Update and load achievements - wrap in try/catch to prevent crashes
           try {
-            const updatedAchievements = updateAchievements()
+            // First try to get all achievements as a fallback
+            let allAchievements = []
+            try {
+              allAchievements = getAllAchievements()
+            } catch (error) {
+              console.error("Error getting all achievements:", error)
+              allAchievements = []
+            }
+
+            // Then try to update them
+            let updatedAchievements = []
+            try {
+              updatedAchievements = updateAchievements()
+            } catch (error) {
+              console.error("Error updating achievements:", error)
+              updatedAchievements = allAchievements
+            }
+
             setAchievements(updatedAchievements)
 
             // Log achievement progress for debugging
             console.log("Loaded achievements:", updatedAchievements)
 
             // Specifically log legendary achievements
-            const legendaryHunter = updatedAchievements.find((a) => a.id === "legendary_hunter")
-            const legendaryCollection = updatedAchievements.find((a) => a.id === "legendary_collection")
+            const legendaryHunter = updatedAchievements.find((a) => a?.id === "legendary_hunter")
+            const legendaryCollection = updatedAchievements.find((a) => a?.id === "legendary_collection")
 
             if (legendaryHunter && legendaryHunter.progress) {
               console.log(`Legendary Hunter: ${legendaryHunter.progress.current}/${legendaryHunter.progress.target}`)
@@ -200,12 +237,16 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
           } catch (error) {
             console.error("Error loading achievements:", error)
             // Set default achievements to prevent UI crashes
-            setAchievements(getAllAchievements())
+            setAchievements([])
           }
         }
 
         // Calculate account score
-        calculateAccountScore()
+        try {
+          calculateAccountScore()
+        } catch (error) {
+          console.error("Error calculating account score:", error)
+        }
       } catch (error) {
         console.error("Error loading data:", error)
       }
@@ -849,7 +890,7 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
             )}
           </TabsContent>
 
-          <TabsContent value="achievements" className="mt-0">
+          {activeTab === "achievements" && (
             <div className="mb-4 text-center">
               <h3 className="text-lg font-medium flex items-center justify-center gap-2">
                 <Award className="h-5 w-5 text-amber-500" />
@@ -863,59 +904,74 @@ export default function PlayerStats({ onClose }: PlayerStatsProps) {
                 achievements unlocked
               </div>
             </div>
+          )}
 
-            {/* Achievement category filter */}
+          {/* Add a try-catch wrapper around the achievement rendering */}
+          {activeTab === "achievements" && (
             <div className="flex flex-wrap gap-2 mb-4 justify-center">
-              <Button
-                size="sm"
-                variant={activeAchievementCategory === "all" ? "default" : "outline"}
-                onClick={() => setActiveAchievementCategory("all")}
-                className="text-xs"
-              >
-                All ({achievementCounts.all})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeAchievementCategory === "rare" ? "default" : "outline"}
-                onClick={() => setActiveAchievementCategory("rare")}
-                className="text-xs"
-              >
-                Rare ({achievementCounts.rare})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeAchievementCategory === "gameplay" ? "default" : "outline"}
-                onClick={() => setActiveAchievementCategory("gameplay")}
-                className="text-xs"
-              >
-                Gameplay ({achievementCounts.gameplay})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeAchievementCategory === "genre" ? "default" : "outline"}
-                onClick={() => setActiveAchievementCategory("genre")}
-                className="text-xs"
-              >
-                Genre ({achievementCounts.genre})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeAchievementCategory === "actor" ? "default" : "outline"}
-                onClick={() => setActiveAchievementCategory("actor")}
-                className="text-xs"
-              >
-                Actor ({achievementCounts.actor})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeAchievementCategory === "completed" ? "default" : "outline"}
-                onClick={() => setActiveAchievementCategory("completed")}
-                className="text-xs"
-              >
-                Completed ({achievementCounts.unlocked})
-              </Button>
+              {(() => {
+                try {
+                  return (
+                    <>
+                      <Button
+                        size="sm"
+                        variant={activeAchievementCategory === "all" ? "default" : "outline"}
+                        onClick={() => setActiveAchievementCategory("all")}
+                        className="text-xs"
+                      >
+                        All ({achievementCounts.all})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={activeAchievementCategory === "rare" ? "default" : "outline"}
+                        onClick={() => setActiveAchievementCategory("rare")}
+                        className="text-xs"
+                      >
+                        Rare ({achievementCounts.rare})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={activeAchievementCategory === "gameplay" ? "default" : "outline"}
+                        onClick={() => setActiveAchievementCategory("gameplay")}
+                        className="text-xs"
+                      >
+                        Gameplay ({achievementCounts.gameplay})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={activeAchievementCategory === "genre" ? "default" : "outline"}
+                        onClick={() => setActiveAchievementCategory("genre")}
+                        className="text-xs"
+                      >
+                        Genre ({achievementCounts.genre})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={activeAchievementCategory === "actor" ? "default" : "outline"}
+                        onClick={() => setActiveAchievementCategory("actor")}
+                        className="text-xs"
+                      >
+                        Actor ({achievementCounts.actor})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={activeAchievementCategory === "completed" ? "default" : "outline"}
+                        onClick={() => setActiveAchievementCategory("completed")}
+                        className="text-xs"
+                      >
+                        Completed ({achievementCounts.unlocked})
+                      </Button>
+                    </>
+                  )
+                } catch (error) {
+                  console.error("Error rendering achievement buttons:", error)
+                  return <p className="text-red-500">Error loading achievement categories</p>
+                }
+              })()}
             </div>
+          )}
 
+          <TabsContent value="achievements" className="mt-0">
             {activeAchievementCategory === "completed" && completedAchievements.length > 0 ? (
               <div className="space-y-4">
                 <h4 className="text-base font-medium mb-3 flex items-center gap-2">
