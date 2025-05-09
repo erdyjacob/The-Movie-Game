@@ -12,6 +12,9 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "The Movie Game",
   description: "Test your movie knowledge by connecting actors to movies they starred in",
+  icons: {
+    icon: "/images/TheMovieGame.svg",
+  },
     generator: 'v0.dev'
 }
 

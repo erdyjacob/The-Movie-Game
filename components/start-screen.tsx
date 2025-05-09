@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Loader2, ChevronDown, ChevronUp, Target, Calendar, Film, User, BarChart } from "lucide-react"
 import type { Difficulty, GameFilters, GameItem } from "@/lib/types"
 import PlayerStats from "./player-stats"
@@ -52,7 +52,7 @@ const AnimatedButton = ({
 }
 
 interface StartScreenProps {
-  onStart: (difficulty: Difficulty, GameFilters, gameMode: string) => void
+  onStart: (difficulty: Difficulty, filters: GameFilters, gameMode: string, dailyChallengeItem?: GameItem) => void
   highScore: number
   loading?: boolean
 }
@@ -157,7 +157,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
     const today = new Date().toISOString().split("T")[0]
     localStorage.setItem("dailyChallengeAttemptDate", today)
 
-    // Start game with daily challenge settings
+    // Start game with daily challenge settings and pass the daily challenge item
     onStart(
       "easy",
       {
@@ -166,6 +166,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
         includeForeign: false,
       },
       "dailyChallenge",
+      dailyChallenge, // Pass the daily challenge item
     )
 
     setDailyChallengeAttempted(true)
@@ -179,7 +180,18 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
   return (
     <Card className="w-full">
       <CardHeader className="pb-2 sm:pb-4">
-        <CardTitle className="text-center text-xl sm:text-2xl">The Movie Game</CardTitle>
+        <div className="flex flex-col items-center justify-center mb-2 sm:mb-4">
+          <div className="w-64 sm:w-80 h-auto mb-2">
+            <Image
+              src="/images/TheMovieGame.svg"
+              alt="The Movie Game Logo"
+              width={320}
+              height={160}
+              priority
+              className="w-full h-auto"
+            />
+          </div>
+        </div>
 
         {/* How to Play dropdown */}
         <div className="w-full mt-2 sm:mt-4">
@@ -447,7 +459,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
             className="bg-background p-3 sm:p-6 rounded-lg w-[95vw] sm:w-full sm:max-w-4xl max-h-[80vh] sm:max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <PlayerStats onClose={closeStats} />
+            <PlayerStats onClose={closeStats} mode="full" />
           </div>
         </div>
       )}

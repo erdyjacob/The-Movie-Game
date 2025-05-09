@@ -179,7 +179,6 @@ export async function getDailyChallenge(): Promise<GameItem> {
     }
   }
 
-  // Rest of the function remains the same...
   try {
     // Use the date to seed the random selection
     // This ensures the same item is selected for everyone on the same day
@@ -243,11 +242,17 @@ export async function getDailyChallenge(): Promise<GameItem> {
       }
     }
 
-    // Cache the result
+    // Cache the result in memory
     dailyChallengeCache = {
       item,
       date: today,
       completions: dailyChallengeCache.completions,
+    }
+
+    // Cache in localStorage
+    if (typeof window !== "undefined") {
+      const cacheKey = `dailyChallenge_${today}`
+      localStorage.setItem(cacheKey, JSON.stringify(item))
     }
 
     return item

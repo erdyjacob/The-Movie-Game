@@ -359,7 +359,7 @@ export default function GameContainer() {
   // Find the startGame useCallback function and add this code right after the setGameState call:
 
   const startGame = useCallback(
-    async (difficulty: Difficulty, filters: GameFilters, gameMode = "timed") => {
+    async (difficulty: Difficulty, filters: GameFilters, gameMode = "timed", dailyChallengeItem?: GameItem) => {
       try {
         setLoading(true)
 
@@ -373,11 +373,16 @@ export default function GameContainer() {
           }
         }
 
-        // For daily challenge mode, use the daily challenge item as the starting item
+        // For daily challenge mode, use the provided daily challenge item
         let startItem: GameItem
 
         if (gameMode === "dailyChallenge") {
           try {
+            // Use the provided daily challenge item if available
+            if (dailyChallengeItem) {
+              setDailyChallenge(dailyChallengeItem)
+            }
+
             // For daily challenge, we start with a random movie (not the challenge item)
             const movie = await getRandomMovie(difficulty, filters)
             startItem = {

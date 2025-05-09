@@ -11,7 +11,6 @@ import GamePath from "./game-path"
 import { Clock, Film, Unlock, User, BarChart } from "lucide-react"
 import Image from "next/image"
 import { RarityOverlay } from "./rarity-overlay"
-import PlayerStatsSimple from "./player-stats-simple"
 import { cn } from "@/lib/utils"
 import { unlockAchievement, getAllAchievements, type Achievement } from "@/lib/achievements"
 import {
@@ -37,6 +36,7 @@ import {
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import ErrorBoundary from "./error-boundary"
+import PlayerStats from "./player-stats"
 
 // Add the track import at the top of the file
 import { track } from "@vercel/analytics/react"
@@ -271,6 +271,15 @@ export default function GameOverScreen({
         unlockAchievement("perfect_game")
       }
     }
+
+    // Update longest chain if this game's chain is longer than the stored one
+    const currentChainLength = history.length
+    const storedLongestChain = localStorage.getItem("movieGameLongestChain")
+    const longestChain = storedLongestChain ? Number.parseInt(storedLongestChain) : 0
+
+    if (currentChainLength > longestChain) {
+      localStorage.setItem("movieGameLongestChain", currentChainLength.toString())
+    }
   }, [score, history, gameMode])
 
   const openStats = () => {
@@ -297,7 +306,7 @@ export default function GameOverScreen({
       .sort((a, b) => {
         // Sort by percentage of progress made in this game
         const aPercentage = a.progress ? a.gameProgress / a.progress.target : 0
-        const bPercentage = b.progress ? b.gameProgress / b.progress.target : 0
+        const bPercentage = b.progress ? a.gameProgress / b.progress.target : 0
         return bPercentage - aPercentage
       })
       .slice(0, 3) // Get top 3
@@ -535,26 +544,35 @@ export default function GameOverScreen({
         )}
       </CardContent>
       <CardFooter className="justify-center gap-3 pt-4 pb-6">
-        <AnimatedButton variant="outline" size="lg" onClick={openStats} className="flex items-center gap-2">
-          <BarChart size={16} />
-          <span>View Your Stats</span>
-        </AnimatedButton>
-        <AnimatedButton
-          size="lg"
-          onClick={() => {
-            // Track game restart
-            track("game_restart", {
-              score,
-              highScore,
-              gameMode,
-              dailyChallengeCompleted,
-            })
-            onRestart()
-          }}
-          className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
-        >
-          Play Again
-        </AnimatedButton>
+        {/* Make both buttons the same width with grid */}
+        <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+          <AnimatedButton
+            variant="outline"
+            size="lg"
+            onClick={openStats}
+            className="flex items-center justify-center gap-2 w-full"
+          >
+            <BarChart size={16} />
+            <span>View Stats</span>
+          </AnimatedButton>
+
+          <AnimatedButton
+            size="lg"
+            onClick={() => {
+              // Track game restart
+              track("game_restart", {
+                score,
+                highScore,
+                gameMode,
+                dailyChallengeCompleted,
+              })
+              onRestart()
+            }}
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white w-full"
+          >
+            Play Again
+          </AnimatedButton>
+        </div>
       </CardFooter>
       {/* Stats modal - Use the simplified version */}
       {statsOpen && (
@@ -564,7 +582,7 @@ export default function GameOverScreen({
             onClick={(e) => e.stopPropagation()}
           >
             <ErrorBoundary>
-              <PlayerStatsSimple onClose={closeStats} />
+              <PlayerStats onClose={closeStats} mode="simple" />
             </ErrorBoundary>
           </div>
         </div>
