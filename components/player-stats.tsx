@@ -33,6 +33,7 @@ import {
   Repeat,
   ChevronUp,
   ChevronDown,
+  Info,
 } from "lucide-react"
 import { clearPlayerHistory, getMostUsedItems, getItemsByRarity } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
@@ -143,6 +144,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
   )
   const { toast } = useToast()
   const [collectionProgressOpen, setCollectionProgressOpen] = useState(false)
+  const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null)
 
   // Add state for longest chain
   const [longestChain, setLongestChain] = useState(0)
@@ -436,6 +438,16 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
       default:
         return "bg-gradient-to-r from-gray-500 to-gray-700 border-gray-600"
     }
+  }
+
+  // Function to open achievement details modal
+  const openAchievementDetails = (achievement: Achievement) => {
+    setSelectedAchievement(achievement)
+  }
+
+  // Function to close achievement details modal
+  const closeAchievementDetails = () => {
+    setSelectedAchievement(null)
   }
 
   return (
@@ -953,7 +965,11 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {completedAchievements.map((achievement) => (
-                      <div key={achievement.id} className="border rounded-lg p-3 bg-muted/20">
+                      <div
+                        key={achievement.id}
+                        className="border rounded-lg p-3 bg-muted/20 cursor-pointer hover:bg-muted/30"
+                        onClick={() => openAchievementDetails(achievement)}
+                      >
                         <div className="flex items-start gap-3">
                           <div
                             className={`w-10 h-10 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
@@ -973,6 +989,12 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
                             <div className="mt-1 pt-1 border-t text-xs text-green-600 font-medium flex items-center gap-1">
                               <CheckCircle className="h-3 w-3" />
                               <span>Completed!</span>
+                              {achievement.contributingItems && achievement.contributingItems.length > 0 && (
+                                <span className="ml-auto text-muted-foreground flex items-center">
+                                  <Info className="h-3 w-3 mr-1" />
+                                  {achievement.contributingItems.length} items
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -995,7 +1017,11 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
                     <span>In Progress</span>
                   </h4>
                   {filteredInProgressAchievements.map((achievement) => (
-                    <div key={achievement.id} className="border rounded-lg p-4 bg-muted/5">
+                    <div
+                      key={achievement.id}
+                      className="border rounded-lg p-4 bg-muted/5 cursor-pointer hover:bg-muted/10"
+                      onClick={() => openAchievementDetails(achievement)}
+                    >
                       <div className="flex items-start gap-4">
                         <div
                           className={`w-12 h-12 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
@@ -1025,6 +1051,12 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
                                 value={(achievement.progress.current / achievement.progress.target) * 100}
                                 className="h-2"
                               />
+                              {achievement.contributingItems && achievement.contributingItems.length > 0 && (
+                                <div className="mt-1 text-xs text-muted-foreground flex items-center">
+                                  <Info className="h-3 w-3 mr-1" />
+                                  <span>Click to see contributing items</span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1042,6 +1074,105 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
           )}
         </Tabs>
       </CardContent>
+
+      {/* Achievement Details Modal */}
+      {selectedAchievement && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={closeAchievementDetails}
+        >
+          <div
+            className="bg-background p-4 sm:p-6 rounded-lg w-[95vw] sm:w-full sm:max-w-2xl max-h-[80vh] sm:max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold flex items-center gap-2">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${getAchievementRarityColor(selectedAchievement.rarity)}`}
+                >
+                  {getIconComponent(selectedAchievement.icon, 16)}
+                </div>
+                <span>{selectedAchievement.name}</span>
+              </h3>
+              <Button variant="ghost" size="icon" onClick={closeAchievementDetails} className="h-8 w-8">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-muted-foreground">{selectedAchievement.description}</p>
+              <div
+                className={`mt-2 text-sm px-2 py-1 rounded-full inline-block ${getAchievementRarityColor(selectedAchievement.rarity)} text-white`}
+              >
+                {getRarityDisplayName(selectedAchievement.rarity)} Achievement
+              </div>
+            </div>
+
+            {selectedAchievement.progress && (
+              <div className="mb-6">
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Progress</span>
+                  <span>
+                    {selectedAchievement.progress.current} / {selectedAchievement.progress.target}
+                  </span>
+                </div>
+                <Progress
+                  value={(selectedAchievement.progress.current / selectedAchievement.progress.target) * 100}
+                  className="h-3"
+                />
+                <p className="text-sm mt-1 text-muted-foreground">
+                  {selectedAchievement.isUnlocked
+                    ? "Achievement completed!"
+                    : `${selectedAchievement.progress.target - selectedAchievement.progress.current} more to go`}
+                </p>
+              </div>
+            )}
+
+            {selectedAchievement.contributingItems && selectedAchievement.contributingItems.length > 0 ? (
+              <div>
+                <h4 className="text-lg font-medium mb-3">Contributing Items</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  These items helped you progress toward this achievement:
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {selectedAchievement.contributingItems.map((item) => (
+                    <div key={`${item.id}-${item.type}`} className="flex flex-col items-center border rounded-lg p-2">
+                      <div className="relative h-24 w-20 mb-2 rounded-md overflow-hidden shadow-sm">
+                        {item.image ? (
+                          <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                        ) : (
+                          <div className="h-full w-full bg-muted flex items-center justify-center">
+                            {item.type === "movie" ? (
+                              <Film size={20} className="text-muted-foreground" />
+                            ) : (
+                              <User size={20} className="text-muted-foreground" />
+                            )}
+                          </div>
+                        )}
+                        {item.rarity && item.rarity !== "common" && (
+                          <RarityOverlay rarity={item.rarity as Rarity} showLabel={true} size="sm" />
+                        )}
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium text-xs truncate max-w-[100px]" title={item.name}>
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground capitalize">{item.type}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(item.date)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                <p>No contributing items recorded for this achievement.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
   )
 }

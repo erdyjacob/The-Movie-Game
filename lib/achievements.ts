@@ -4,6 +4,16 @@ import { loadPlayerHistory } from "./player-history"
 export type AchievementCategory = "rare" | "gameplay" | "genre" | "actor"
 export type AchievementRarity = "common" | "uncommon" | "rare" | "epic" | "legendary"
 
+export interface ContributingItem {
+  id: number
+  name: string
+  type: "movie" | "actor"
+  image: string | null
+  date: string
+  rarity?: string
+  genres?: string[] // Add genres for better filtering
+}
+
 export interface Achievement {
   id: string
   name: string
@@ -16,6 +26,8 @@ export interface Achievement {
     current: number
     target: number
   }
+  // Add contributing items array to track which items helped progress this achievement
+  contributingItems?: ContributingItem[]
 }
 
 // Achievement definitions
@@ -33,6 +45,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 1000,
     },
+    contributingItems: [],
   },
   {
     id: "hollywood_rolodex",
@@ -46,6 +59,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 500,
     },
+    contributingItems: [],
   },
   {
     id: "legendary_collection",
@@ -59,6 +73,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 10,
     },
+    contributingItems: [],
   },
   {
     id: "foreign_film_buff",
@@ -72,6 +87,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 10,
     },
+    contributingItems: [],
   },
 
   // Gameplay Achievements
@@ -87,6 +103,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 15,
     },
+    contributingItems: [],
   },
   {
     id: "legendary_hunter",
@@ -100,6 +117,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 5,
     },
+    contributingItems: [],
   },
   {
     id: "speed_demon",
@@ -113,6 +131,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 10,
     },
+    contributingItems: [],
   },
   {
     id: "daily_devotion",
@@ -126,6 +145,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 7,
     },
+    contributingItems: [],
   },
   {
     id: "perfect_game",
@@ -135,6 +155,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     rarity: "uncommon",
     icon: "CheckCircle",
     isUnlocked: false,
+    contributingItems: [],
   },
 
   // Genre Achievements
@@ -150,6 +171,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 10,
     },
+    contributingItems: [],
   },
   {
     id: "screamer",
@@ -163,6 +185,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 15,
     },
+    contributingItems: [],
   },
   {
     id: "space_race",
@@ -176,6 +199,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 20,
     },
+    contributingItems: [],
   },
   {
     id: "locked_n_loaded",
@@ -189,6 +213,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 25,
     },
+    contributingItems: [],
   },
   {
     id: "mr_funny",
@@ -202,6 +227,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 30,
     },
+    contributingItems: [],
   },
 
   // Actor-Based Achievements
@@ -217,6 +243,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 10,
     },
+    contributingItems: [],
   },
   {
     id: "the_rock_star",
@@ -230,6 +257,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 15,
     },
+    contributingItems: [],
   },
   {
     id: "cage_match",
@@ -243,6 +271,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 10,
     },
+    contributingItems: [],
   },
   {
     id: "six_degrees",
@@ -256,6 +285,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 6,
     },
+    contributingItems: [],
   },
   {
     id: "method_actor",
@@ -269,6 +299,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       current: 0,
       target: 3,
     },
+    contributingItems: [],
   },
 ]
 
@@ -361,29 +392,126 @@ export function updateAchievements(): Achievement[] {
       switch (achievement.id) {
         case "cinephile_supreme":
           if (achievement.progress) {
+            // Get the previous progress to check if we need to add new contributing items
+            const previousProgress = achievement.progress.current
+
+            // Update progress
             achievement.progress.current = uniqueMovies.size
             achievement.isUnlocked = uniqueMovies.size >= achievement.progress.target
+
+            // If progress increased, add the most recent movies as contributing items
+            if (achievement.progress.current > previousProgress && Array.isArray(playerHistory.movies)) {
+              // Initialize contributing items array if it doesn't exist
+              if (!achievement.contributingItems) {
+                achievement.contributingItems = []
+              }
+
+              // Sort movies by date (newest first) and take the difference in progress
+              const recentMovies = [...playerHistory.movies]
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .slice(0, achievement.progress.current - previousProgress)
+
+              // Add these movies to contributing items if they're not already there
+              recentMovies.forEach((movie) => {
+                if (!achievement.contributingItems?.some((item) => item.id === movie.id)) {
+                  achievement.contributingItems?.push({
+                    id: movie.id,
+                    name: movie.name,
+                    type: "movie",
+                    image: movie.image,
+                    date: movie.date,
+                    rarity: movie.rarity,
+                  })
+                }
+              })
+
+              // Limit to the most recent 20 contributing items
+              if (achievement.contributingItems.length > 20) {
+                achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+              }
+            }
           }
           break
         case "hollywood_rolodex":
           if (achievement.progress) {
+            // Get the previous progress to check if we need to add new contributing items
+            const previousProgress = achievement.progress.current
+
+            // Update progress
             achievement.progress.current = uniqueActors.size
             achievement.isUnlocked = uniqueActors.size >= achievement.progress.target
+
+            // If progress increased, add the most recent actors as contributing items
+            if (achievement.progress.current > previousProgress && Array.isArray(playerHistory.actors)) {
+              // Initialize contributing items array if it doesn't exist
+              if (!achievement.contributingItems) {
+                achievement.contributingItems = []
+              }
+
+              // Sort actors by date (newest first) and take the difference in progress
+              const recentActors = [...playerHistory.actors]
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .slice(0, achievement.progress.current - previousProgress)
+
+              // Add these actors to contributing items if they're not already there
+              recentActors.forEach((actor) => {
+                if (!achievement.contributingItems?.some((item) => item.id === actor.id)) {
+                  achievement.contributingItems?.push({
+                    id: actor.id,
+                    name: actor.name,
+                    type: "actor",
+                    image: actor.image,
+                    date: actor.date,
+                    rarity: actor.rarity,
+                  })
+                }
+              })
+
+              // Limit to the most recent 20 contributing items
+              if (achievement.contributingItems.length > 20) {
+                achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+              }
+            }
           }
           break
         case "legendary_collection":
-          if (achievement.progress) {
-            achievement.progress.current = legendaryItems.length
-            achievement.isUnlocked = legendaryItems.length >= achievement.progress.target
-            console.log(`Legendary Collection: ${achievement.progress.current}/${achievement.progress.target}`)
-          }
-          break
         case "legendary_hunter":
-          // Make sure legendary_hunter is updated from player history too
           if (achievement.progress) {
+            // Get the previous progress to check if we need to add new contributing items
+            const previousProgress = achievement.progress.current
+
+            // Update progress
             achievement.progress.current = legendaryItems.length
             achievement.isUnlocked = legendaryItems.length >= achievement.progress.target
-            console.log(`Legendary Hunter: ${achievement.progress.current}/${achievement.progress.target}`)
+
+            // If progress increased, add the legendary items as contributing items
+            if (achievement.progress.current > previousProgress) {
+              // Initialize contributing items array if it doesn't exist
+              if (!achievement.contributingItems) {
+                achievement.contributingItems = []
+              }
+
+              // Add legendary items to contributing items if they're not already there
+              legendaryItems.forEach((item) => {
+                if (!achievement.contributingItems?.some((ci) => ci.id === item.id && ci.type === item.type)) {
+                  achievement.contributingItems?.push({
+                    id: item.id,
+                    name: item.name,
+                    type: item.type,
+                    image: item.image,
+                    date: item.date || new Date().toISOString(),
+                    rarity: item.rarity,
+                  })
+                }
+              })
+
+              // Limit to the most recent 20 contributing items
+              if (achievement.contributingItems.length > 20) {
+                achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+              }
+            }
+
+            console.log(`${achievement.id}: ${achievement.progress.current}/${achievement.progress.target}`)
           }
           break
         // Other achievements would be updated based on game events
@@ -441,8 +569,8 @@ export function unlockAchievement(id: string): void {
   }
 }
 
-// Update achievement progress - FIXED to increment instead of set
-export function updateAchievementProgress(id: string, incrementBy: number): void {
+// Update achievement progress and add contributing item
+export function updateAchievementProgress(id: string, incrementBy: number, contributingItem?: any): void {
   try {
     const achievements = loadAchievements()
     const achievement = achievements.find((a) => a.id === id)
@@ -453,6 +581,36 @@ export function updateAchievementProgress(id: string, incrementBy: number): void
 
       // Log the update for debugging
       console.log(`Achievement ${id} progress updated: ${achievement.progress.current}/${achievement.progress.target}`)
+
+      // Add contributing item if provided
+      if (contributingItem && contributingItem.id && contributingItem.name) {
+        // Initialize contributing items array if it doesn't exist
+        if (!achievement.contributingItems) {
+          achievement.contributingItems = []
+        }
+
+        // Add the item if it's not already in the list
+        if (
+          !achievement.contributingItems.some(
+            (item) => item.id === contributingItem.id && item.type === contributingItem.type,
+          )
+        ) {
+          achievement.contributingItems.push({
+            id: contributingItem.id,
+            name: contributingItem.name,
+            type: contributingItem.type || "movie",
+            image: contributingItem.image || null,
+            date: contributingItem.date || new Date().toISOString(),
+            rarity: contributingItem.rarity,
+            genres: contributingItem.genres, // Add genres for better filtering
+          })
+
+          // Limit to the most recent 20 contributing items
+          if (achievement.contributingItems.length > 20) {
+            achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+          }
+        }
+      }
 
       // Check if the achievement should be unlocked
       if (achievement.progress.current >= achievement.progress.target) {
@@ -482,6 +640,23 @@ export function trackLegendaryItem(item: any): void {
         // Increment the progress
         legendaryHunter.progress.current += 1
 
+        // Add the item to contributing items
+        if (!legendaryHunter.contributingItems) {
+          legendaryHunter.contributingItems = []
+        }
+
+        // Add the item if it's not already in the list
+        if (!legendaryHunter.contributingItems.some((ci) => ci.id === item.id && ci.type === item.type)) {
+          legendaryHunter.contributingItems.push({
+            id: item.id,
+            name: item.name,
+            type: item.type,
+            image: item.image,
+            date: item.date || new Date().toISOString(),
+            rarity: item.rarity,
+          })
+        }
+
         console.log(`Legendary Hunter progress: ${legendaryHunter.progress.current}/${legendaryHunter.progress.target}`)
 
         // Check if the achievement should be unlocked
@@ -497,6 +672,23 @@ export function trackLegendaryItem(item: any): void {
       if (legendaryCollection && legendaryCollection.progress) {
         // Increment the progress
         legendaryCollection.progress.current += 1
+
+        // Add the item to contributing items
+        if (!legendaryCollection.contributingItems) {
+          legendaryCollection.contributingItems = []
+        }
+
+        // Add the item if it's not already in the list
+        if (!legendaryCollection.contributingItems.some((ci) => ci.id === item.id && ci.type === item.type)) {
+          legendaryCollection.contributingItems.push({
+            id: item.id,
+            name: item.name,
+            type: item.type,
+            image: item.image,
+            date: item.date || new Date().toISOString(),
+            rarity: item.rarity,
+          })
+        }
 
         console.log(
           `Legendary Collection progress: ${legendaryCollection.progress.current}/${legendaryCollection.progress.target}`,
