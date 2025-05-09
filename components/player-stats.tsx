@@ -34,7 +34,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react"
-import { clearPlayerHistory, getMostUsedItems, getRecentItems, getItemsByRarity } from "@/lib/player-history"
+import { clearPlayerHistory, getMostUsedItems, getItemsByRarity } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
 import type { PlayerHistoryItem, Rarity, AccountRank, AccountScore, GameItem } from "@/lib/types"
@@ -115,11 +115,8 @@ function getIconComponent(iconName: string, size = 16) {
 }
 
 export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps) {
-  const [activeTab, setActiveTab] = useState<"recent" | "most-used" | "collection" | "challenges" | "achievements">(
-    "recent",
-  )
+  const [activeTab, setActiveTab] = useState<"most-used" | "collection" | "challenges" | "achievements">("most-used")
   const [activeType, setActiveType] = useState<"movie" | "actor">("movie")
-  const [recentItems, setRecentItems] = useState<PlayerHistoryItem[]>([])
   const [mostUsedItems, setMostUsedItems] = useState<PlayerHistoryItem[]>([])
   const [collectionItems, setCollectionItems] = useState<PlayerHistoryItem[]>([])
   const [activeRarity, setActiveRarity] = useState<Rarity | "all">("all")
@@ -176,14 +173,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
   useEffect(() => {
     const loadData = async () => {
       try {
-        if (activeTab === "recent") {
-          try {
-            setRecentItems(getRecentItems(activeType, 20))
-          } catch (error) {
-            console.error("Error loading recent items:", error)
-            setRecentItems([])
-          }
-        } else if (activeTab === "most-used") {
+        if (activeTab === "most-used") {
           try {
             setMostUsedItems(getMostUsedItems(activeType, 20))
           } catch (error) {
@@ -359,7 +349,6 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
 
   const handleClearHistory = () => {
     clearPlayerHistory()
-    setRecentItems([])
     setMostUsedItems([])
     setCollectionItems([])
 
@@ -616,18 +605,12 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
         </div>
 
         <Tabs
-          defaultValue="recent"
-          onValueChange={(value) =>
-            setActiveTab(value as "recent" | "most-used" | "collection" | "challenges" | "achievements")
-          }
+          defaultValue="most-used"
+          onValueChange={(value) => setActiveTab(value as "most-used" | "collection" | "challenges" | "achievements")}
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
             <div className="overflow-x-auto pb-2 hide-scrollbar w-full sm:w-auto">
               <TabsList className="w-max min-w-full">
-                <TabsTrigger value="recent" className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  <span>Recent</span>
-                </TabsTrigger>
                 <TabsTrigger value="most-used" className="flex items-center gap-1">
                   <Trophy className="h-4 w-4" />
                   <span>Most Used</span>
@@ -672,47 +655,6 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
               </div>
             )}
           </div>
-
-          <TabsContent value="recent" className="mt-0">
-            {recentItems.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {recentItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-col items-center bg-muted/20 rounded-lg p-2 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="relative h-32 w-24 mb-2 rounded-md overflow-hidden shadow-sm">
-                      {item.image ? (
-                        <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-                      ) : (
-                        <div className="h-full w-full bg-muted flex items-center justify-center">
-                          {activeType === "movie" ? (
-                            <Film size={24} className="text-muted-foreground" />
-                          ) : (
-                            <User size={24} className="text-muted-foreground" />
-                          )}
-                        </div>
-                      )}
-                      {item.rarity && item.rarity !== "common" && (
-                        <RarityOverlay rarity={item.rarity} showLabel={true} />
-                      )}
-                    </div>
-                    <div className="text-center">
-                      <p className="font-medium text-sm truncate max-w-[120px]" title={item.name}>
-                        {item.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{formatDate(item.date)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No recent {activeType}s found.</p>
-                <p className="text-sm mt-2">Play some games to see your history.</p>
-              </div>
-            )}
-          </TabsContent>
 
           <TabsContent value="most-used" className="mt-0">
             {mostUsedItems.length > 0 ? (
