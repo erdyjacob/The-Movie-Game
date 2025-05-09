@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: "The Movie Game",
   description: "Test your movie knowledge by connecting actors to movies they starred in",
   icons: {
-    icon: "/images/TheMovieGame.svg",
+    icon: "/images/TheMovieGamefavicon.svg",
   },
     generator: 'v0.dev'
 }
