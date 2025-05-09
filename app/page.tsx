@@ -1,6 +1,8 @@
 import GameContainer from "@/components/game-container"
 import { prefetchGameData } from "@/lib/tmdb-api"
 
+export const dynamic = "force-dynamic"
+
 // Prefetch data for the game
 export async function generateMetadata() {
   try {
