@@ -150,9 +150,36 @@ export async function getDailyChallenge(): Promise<GameItem> {
 
   // If we already have today's challenge cached, return it
   if (dailyChallengeCache.date === today && dailyChallengeCache.item) {
+    console.log("Using in-memory cached daily challenge")
     return dailyChallengeCache.item
   }
 
+  // Check browser localStorage for cached challenge if available
+  if (typeof window !== "undefined") {
+    const cacheKey = `dailyChallenge_${today}`
+    const cachedChallenge = localStorage.getItem(cacheKey)
+
+    if (cachedChallenge) {
+      try {
+        const parsedChallenge = JSON.parse(cachedChallenge)
+        console.log("Using localStorage cached daily challenge")
+
+        // Update in-memory cache
+        dailyChallengeCache = {
+          item: parsedChallenge,
+          date: today,
+          completions: dailyChallengeCache.completions,
+        }
+
+        return parsedChallenge
+      } catch (error) {
+        console.error("Error parsing cached challenge:", error)
+        // Continue with normal challenge generation if parsing fails
+      }
+    }
+  }
+
+  // Rest of the function remains the same...
   try {
     // Use the date to seed the random selection
     // This ensures the same item is selected for everyone on the same day

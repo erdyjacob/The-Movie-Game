@@ -74,15 +74,45 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
   useEffect(() => {
     const loadDailyChallenge = async () => {
       try {
-        const challenge = await getDailyChallenge()
-        setDailyChallenge(challenge)
+        setDailyChallengeLoading(true)
+
+        // Use a specific cache key for today's date to ensure consistency
+        const today = new Date().toISOString().split("T")[0]
+        const cacheKey = `dailyChallenge_${today}`
+
+        // Check if we already have the challenge in localStorage
+        const cachedChallenge = localStorage.getItem(cacheKey)
+
+        if (cachedChallenge) {
+          // Use cached challenge if available
+          setDailyChallenge(JSON.parse(cachedChallenge))
+          console.log("Using cached daily challenge in start screen")
+        } else {
+          // Otherwise fetch a new one
+          console.log("Fetching new daily challenge in start screen")
+          const challenge = await getDailyChallenge()
+
+          // Cache the challenge with today's date as key
+          localStorage.setItem(cacheKey, JSON.stringify(challenge))
+          setDailyChallenge(challenge)
+        }
 
         // Check if daily challenge has been attempted today
-        const today = new Date().toISOString().split("T")[0]
         const attemptedDate = localStorage.getItem("dailyChallengeAttemptDate")
         setDailyChallengeAttempted(attemptedDate === today)
       } catch (error) {
         console.error("Failed to load daily challenge:", error)
+        // Set a fallback challenge in case of error
+        const fallbackChallenge = {
+          id: 0,
+          name: "Daily Challenge",
+          image: null,
+          type: "movie",
+          details: {},
+          rarity: "rare",
+          isDailyChallenge: true,
+        }
+        setDailyChallenge(fallbackChallenge)
       } finally {
         setDailyChallengeLoading(false)
       }

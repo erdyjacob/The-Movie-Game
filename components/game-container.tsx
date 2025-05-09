@@ -125,14 +125,43 @@ export default function GameContainer() {
     }
   }, [gameState.status, gameState.timeRemaining, gameState.gameMode])
 
-  // Load daily challenge
+  // Load daily challenge - with better caching and error handling
   useEffect(() => {
     const loadDailyChallenge = async () => {
       try {
-        const challenge = await getDailyChallenge()
-        setDailyChallenge(challenge)
+        // Use a specific cache key for today's date to ensure consistency
+        const today = new Date().toISOString().split("T")[0]
+        const cacheKey = `dailyChallenge_${today}`
+
+        // Check if we already have the challenge in localStorage
+        const cachedChallenge = localStorage.getItem(cacheKey)
+
+        if (cachedChallenge) {
+          // Use cached challenge if available
+          setDailyChallenge(JSON.parse(cachedChallenge))
+          console.log("Using cached daily challenge")
+        } else {
+          // Otherwise fetch a new one
+          console.log("Fetching new daily challenge")
+          const challenge = await getDailyChallenge()
+
+          // Cache the challenge with today's date as key
+          localStorage.setItem(cacheKey, JSON.stringify(challenge))
+          setDailyChallenge(challenge)
+        }
       } catch (error) {
         console.error("Error loading daily challenge:", error)
+        // Set a fallback challenge in case of error
+        const fallbackChallenge = {
+          id: 0,
+          name: "Daily Challenge",
+          image: null,
+          type: "movie",
+          details: {},
+          rarity: "rare",
+          isDailyChallenge: true,
+        }
+        setDailyChallenge(fallbackChallenge)
       }
     }
 
