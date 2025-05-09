@@ -5,8 +5,6 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
 import { Loader2, ChevronDown, ChevronUp, Target, Calendar, Film, User, BarChart } from "lucide-react"
 import type { Difficulty, GameFilters, GameItem } from "@/lib/types"
 import PlayerStats from "./player-stats"
@@ -15,6 +13,8 @@ import { getDailyChallenge } from "@/lib/daily-challenge"
 import Link from "next/link"
 import { useMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 // Custom animated button component
 const AnimatedButton = ({
@@ -66,6 +66,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
     includeForeign: false,
   })
   const [howToPlayOpen, setHowToPlayOpen] = useState(false)
+  const [gameModifiersOpen, setGameModifiersOpen] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
   const [dailyChallenge, setDailyChallenge] = useState<GameItem | null>(null)
   const [dailyChallengeLoading, setDailyChallengeLoading] = useState(true)
@@ -121,15 +122,12 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
     loadDailyChallenge()
   }, [])
 
-  const handleFilterChange = (key: keyof GameFilters) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }))
-  }
-
   const toggleHowToPlay = () => {
     setHowToPlayOpen(!howToPlayOpen)
+  }
+
+  const toggleGameModifiers = () => {
+    setGameModifiersOpen(!gameModifiersOpen)
   }
 
   const openStats = () => {
@@ -138,6 +136,13 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
 
   const closeStats = () => {
     setStatsOpen(false)
+  }
+
+  const handleFilterChange = (key: keyof GameFilters) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }))
   }
 
   // Format date for daily challenge
@@ -176,7 +181,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
       <CardHeader className="pb-2 sm:pb-4">
         <CardTitle className="text-center text-xl sm:text-2xl">The Movie Game</CardTitle>
 
-        {/* Move How to Play here */}
+        {/* How to Play dropdown */}
         <div className="w-full mt-2 sm:mt-4">
           <Button
             variant="ghost"
@@ -208,6 +213,99 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                   <strong>Daily Challenge:</strong> Try the special daily challenge mode - unlimited time, but only one
                   attempt per day.
                 </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Game Modifiers dropdown - styled like How to Play */}
+        <div className="w-full mt-2">
+          <Button
+            variant="ghost"
+            className="flex w-full justify-between py-1 sm:py-2 font-medium text-sm sm:text-base"
+            onClick={toggleGameModifiers}
+            type="button"
+          >
+            Game Modifiers
+            {gameModifiersOpen ? (
+              <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />
+            ) : (
+              <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
+            )}
+          </Button>
+
+          {gameModifiersOpen && (
+            <div className="px-2 sm:px-4 pb-2 sm:pb-4 pt-1">
+              <div className="text-xs sm:text-sm space-y-4 bg-muted/30 p-2 sm:p-3 rounded-md">
+                {/* Difficulty Selector - Removed header */}
+                <div className="grid grid-cols-3 gap-1 sm:gap-2 w-full">
+                  <Button
+                    variant={difficulty === "easy" ? "default" : "outline"}
+                    onClick={() => setDifficulty("easy")}
+                    disabled={loading}
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                  >
+                    Easy
+                  </Button>
+                  <Button
+                    variant={difficulty === "medium" ? "default" : "outline"}
+                    onClick={() => setDifficulty("medium")}
+                    disabled={loading}
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                  >
+                    Medium
+                  </Button>
+                  <Button
+                    variant={difficulty === "hard" ? "default" : "outline"}
+                    onClick={() => setDifficulty("hard")}
+                    disabled={loading}
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                  >
+                    Hard
+                  </Button>
+                </div>
+
+                {/* Movie Filters - Removed header */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between py-1">
+                    <Label htmlFor="animated" className="text-xs sm:text-sm cursor-pointer">
+                      Include Animated Movies
+                    </Label>
+                    <Switch
+                      id="animated"
+                      checked={filters.includeAnimated}
+                      onCheckedChange={() => handleFilterChange("includeAnimated")}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between py-1">
+                    <Label htmlFor="sequels" className="text-xs sm:text-sm cursor-pointer">
+                      Include Movie Sequels
+                    </Label>
+                    <Switch
+                      id="sequels"
+                      checked={filters.includeSequels}
+                      onCheckedChange={() => handleFilterChange("includeSequels")}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between py-1">
+                    <Label htmlFor="foreign" className="text-xs sm:text-sm cursor-pointer">
+                      Include Foreign Films
+                    </Label>
+                    <Switch
+                      id="foreign"
+                      checked={filters.includeForeign}
+                      onCheckedChange={() => handleFilterChange("includeForeign")}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -290,124 +388,42 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
 
         {/* Regular Game Mode Section */}
         <div className="border-t pt-3 sm:pt-4">
-          {/* Difficulty Selector */}
-          <div className="space-y-2 sm:space-y-3">
-            <div className="grid grid-cols-3 gap-1 sm:gap-2 w-full">
-              <AnimatedButton
-                variant={difficulty === "easy" ? "default" : "outline"}
-                onClick={() => setDifficulty("easy")}
-                disabled={loading}
-                size={isMobile ? "sm" : "lg"}
-                className="px-1 sm:px-4 text-sm sm:text-base"
-              >
-                Easy
-              </AnimatedButton>
-              <AnimatedButton
-                variant={difficulty === "medium" ? "default" : "outline"}
-                onClick={() => setDifficulty("medium")}
-                disabled={loading}
-                size={isMobile ? "sm" : "lg"}
-                className="px-1 sm:px-4 text-sm sm:text-base"
-              >
-                Medium
-              </AnimatedButton>
-              <AnimatedButton
-                variant={difficulty === "hard" ? "default" : "outline"}
-                onClick={() => setDifficulty("hard")}
-                disabled={loading}
-                size={isMobile ? "sm" : "lg"}
-                className="px-1 sm:px-4 text-sm sm:text-base"
-              >
-                Hard
-              </AnimatedButton>
-            </div>
-          </div>
-
-          {/* Movie Filters */}
-          <div className="space-y-3 sm:space-y-5 mt-4 sm:mt-6">
-            <h4 className="text-center font-medium text-sm sm:text-base">Movie Modifiers</h4>
-
-            <div className="flex items-center justify-between py-1">
-              <div className="space-y-0.5 max-w-[70%] sm:max-w-none">
-                <Label htmlFor="animated" className="text-sm">
-                  Include Animated Movies
-                </Label>
-                <p className="text-xs sm:text-sm text-muted-foreground">Toggle to include animated films</p>
+          <div className="space-y-4">
+            {/* High Score */}
+            {highScore > 0 && (
+              <div className="text-center p-2 sm:p-3 bg-muted rounded-md">
+                <p className="text-sm sm:text-base">
+                  Your High Score: <span className="font-bold">{highScore}</span>
+                </p>
               </div>
-              <Switch
-                id="animated"
-                checked={filters.includeAnimated}
-                onCheckedChange={() => handleFilterChange("includeAnimated")}
-                disabled={loading}
-              />
-            </div>
+            )}
 
-            <div className="flex items-center justify-between py-1">
-              <div className="space-y-0.5 max-w-[70%] sm:max-w-none">
-                <Label htmlFor="sequels" className="text-sm">
-                  Include Movie Sequels
-                </Label>
-                <p className="text-xs sm:text-sm text-muted-foreground">Toggle to include sequels & franchises</p>
-              </div>
-              <Switch
-                id="sequels"
-                checked={filters.includeSequels}
-                onCheckedChange={() => handleFilterChange("includeSequels")}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="flex items-center justify-between py-1">
-              <div className="space-y-0.5 max-w-[70%] sm:max-w-none">
-                <Label htmlFor="foreign" className="text-sm">
-                  Include Foreign Films
-                </Label>
-                <p className="text-xs sm:text-sm text-muted-foreground">Toggle to include non-English films</p>
-              </div>
-              <Switch
-                id="foreign"
-                checked={filters.includeForeign}
-                onCheckedChange={() => handleFilterChange("includeForeign")}
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          {/* High Score */}
-          {highScore > 0 && (
-            <div className="text-center p-2 sm:p-3 bg-muted rounded-md mt-4 sm:mt-6">
-              <p className="text-sm sm:text-base">
-                Your High Score: <span className="font-bold">{highScore}</span>
-              </p>
-            </div>
-          )}
-
-          {/* Start Regular Game Button */}
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-3 mt-4 sm:mt-6">
-            <AnimatedButton
-              variant="outline"
-              className="w-full sm:w-auto flex items-center gap-2"
-              onClick={openStats}
-              size={isMobile ? "sm" : "lg"}
-            >
-              <BarChart size={isMobile ? 14 : 16} />
-              <span>View Your Stats</span>
-            </AnimatedButton>
-
+            {/* Start Game Button - Full Width */}
             <AnimatedButton
               onClick={startRegularGame}
-              size={isMobile ? "sm" : "lg"}
+              size={isMobile ? "default" : "lg"}
               disabled={loading}
-              className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-4 sm:px-8"
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-2 sm:py-3"
             >
               {loading ? (
                 <>
-                  <Loader2 size={isMobile ? 14 : 18} className="mr-2 animate-spin" />
+                  <Loader2 size={isMobile ? 16 : 18} className="mr-2 animate-spin" />
                   Loading...
                 </>
               ) : (
                 "Start Game"
               )}
+            </AnimatedButton>
+
+            {/* View Your Stats - Full Width - Now below Start Game */}
+            <AnimatedButton
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={openStats}
+              size={isMobile ? "default" : "lg"}
+            >
+              <BarChart size={isMobile ? 16 : 18} />
+              <span>View Your Stats</span>
             </AnimatedButton>
           </div>
         </div>

@@ -28,6 +28,9 @@ import { updateAchievementProgress, unlockAchievement, trackLegendaryItem } from
 // Add the track import at the top of the file with other imports
 import { track } from "@vercel/analytics/react"
 
+// Add this import near the top of the file
+import { makeComputerSelection } from "@/lib/computer-selection"
+
 // Time limit for timed mode in seconds
 const TIME_LIMIT = 120 // 2 minutes
 
@@ -223,29 +226,29 @@ export default function GameContainer() {
               return
             }
 
-            // Sort actors by popularity (descending)
-            const sortedActors = [...availableActors].sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+            // Use our new selection algorithm instead of the old sorting and selection
+            const selectedActor = makeComputerSelection(
+              availableActors,
+              gameState.difficulty,
+              {
+                history: gameState.history,
+                score: gameState.score,
+                usedIds: gameState.usedIds,
+              },
+              "actor",
+            )
 
-            // For easy mode, only use the top 5 most popular actors
-            // For medium, use top 10, for hard use any
-            const difficulty = gameState.difficulty
-            const actorPool =
-              difficulty === "easy"
-                ? sortedActors.slice(0, Math.min(5, sortedActors.length))
-                : difficulty === "medium"
-                  ? sortedActors.slice(0, Math.min(10, sortedActors.length))
-                  : sortedActors
-
-            // Pick a random actor from the filtered pool
-            const randomActor = actorPool[Math.floor(Math.random() * actorPool.length)]
-
-            nextItem = {
-              id: randomActor.id,
-              name: randomActor.name,
-              image: randomActor.profile_path ? `https://image.tmdb.org/t/p/w500${randomActor.profile_path}` : null,
-              type: "actor",
-              details: randomActor,
-              selectedBy: "computer",
+            if (selectedActor) {
+              nextItem = {
+                id: selectedActor.id,
+                name: selectedActor.name,
+                image: selectedActor.profile_path
+                  ? `https://image.tmdb.org/t/p/w500${selectedActor.profile_path}`
+                  : null,
+                type: "actor",
+                details: selectedActor,
+                selectedBy: "computer",
+              }
             }
           }
         } else if (turnPhase === "computer-pick-movie") {
@@ -277,29 +280,27 @@ export default function GameContainer() {
               return
             }
 
-            // Sort movies by popularity (descending)
-            const sortedMovies = [...availableMovies].sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+            // Use our new selection algorithm instead of the old sorting and selection
+            const selectedMovie = makeComputerSelection(
+              availableMovies,
+              gameState.difficulty,
+              {
+                history: gameState.history,
+                score: gameState.score,
+                usedIds: gameState.usedIds,
+              },
+              "movie",
+            )
 
-            // For easy mode, only use the top 5 most popular movies
-            // For medium, use top 10, for hard use any
-            const difficulty = gameState.difficulty
-            const moviePool =
-              difficulty === "easy"
-                ? sortedMovies.slice(0, Math.min(5, sortedMovies.length))
-                : difficulty === "medium"
-                  ? sortedMovies.slice(0, Math.min(10, sortedMovies.length))
-                  : sortedMovies
-
-            // Pick a random movie from the filtered pool
-            const randomMovie = moviePool[Math.floor(Math.random() * moviePool.length)]
-
-            nextItem = {
-              id: randomMovie.id,
-              name: randomMovie.title,
-              image: randomMovie.poster_path ? `https://image.tmdb.org/t/p/w500${randomMovie.poster_path}` : null,
-              type: "movie",
-              details: randomMovie,
-              selectedBy: "computer",
+            if (selectedMovie) {
+              nextItem = {
+                id: selectedMovie.id,
+                name: selectedMovie.title,
+                image: selectedMovie.poster_path ? `https://image.tmdb.org/t/p/w500${selectedMovie.poster_path}` : null,
+                type: "movie",
+                details: selectedMovie,
+                selectedBy: "computer",
+              }
             }
           }
         }
@@ -335,7 +336,17 @@ export default function GameContainer() {
         endGame()
       }
     }
-  }, [status, isComputerTurn, currentItem, turnPhase, gameState.difficulty, gameState.usedIds, gameState.filters])
+  }, [
+    status,
+    isComputerTurn,
+    currentItem,
+    turnPhase,
+    gameState.difficulty,
+    gameState.usedIds,
+    gameState.filters,
+    gameState.history,
+    gameState.score,
+  ])
 
   // Execute computer move when it's the computer's turn
   useEffect(() => {

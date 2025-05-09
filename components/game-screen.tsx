@@ -183,8 +183,11 @@ const GameScreen = memo(function GameScreen({
           ? "actor"
           : "movie"
 
-  // Flag to determine if suggestions should be enabled (only for easy difficulty)
-  const suggestionsEnabled = difficulty === "easy"
+  // Flag to determine if suggestions should be enabled (for easy and medium difficulty)
+  const suggestionsEnabled = difficulty === "easy" || difficulty === "medium"
+
+  // Minimum characters required before showing suggestions
+  const minCharsForSuggestions = difficulty === "medium" ? 3 : 2
 
   // Reset player used items when the game resets
   useEffect(() => {
@@ -199,7 +202,7 @@ const GameScreen = memo(function GameScreen({
     const loadOptions = async () => {
       if (isComputerTurn || optionsLoadedRef.current) return
 
-      // Only load options for suggestions if on easy difficulty
+      // Only load options for suggestions if on easy or medium difficulty
       if (suggestionsEnabled || !optionsLoadedRef.current) {
         try {
           setLoading(true)
@@ -231,7 +234,7 @@ const GameScreen = memo(function GameScreen({
     // Skip if suggestions are not enabled
     if (!suggestionsEnabled) return
 
-    if (!search.trim() || search.length < 2) {
+    if (!search.trim() || search.length < minCharsForSuggestions) {
       setSuggestions([])
       setShowSuggestions(false)
       return
@@ -261,7 +264,7 @@ const GameScreen = memo(function GameScreen({
 
     setSuggestions(filteredOptions)
     setShowSuggestions(filteredOptions.length > 0)
-  }, [search, availableOptions, expectedType, suggestionsEnabled])
+  }, [search, availableOptions, expectedType, suggestionsEnabled, minCharsForSuggestions])
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -492,7 +495,7 @@ const GameScreen = memo(function GameScreen({
   }, [turnPhase, currentItem.type])
 
   // Determine if we should show images based on difficulty
-  const showImages = difficulty === "easy"
+  const showImages = difficulty === "easy" || difficulty === "medium"
 
   // Calculate progress percentage for timed mode
   const timeProgress = timeRemaining !== undefined ? (timeRemaining / 120) * 100 : 100
@@ -572,7 +575,11 @@ const GameScreen = memo(function GameScreen({
                     src={currentItem.image || "/placeholder.svg"}
                     alt={currentItem.name}
                     fill
-                    className="object-cover"
+                    className={cn(
+                      "object-cover",
+                      // Apply blur filter for medium difficulty
+                      difficulty === "medium" && "filter blur-[2px]",
+                    )}
                     loading="eager"
                     priority
                   />
@@ -606,7 +613,7 @@ const GameScreen = memo(function GameScreen({
                   }}
                 />
 
-                {/* Suggestions dropdown - only shown for easy difficulty */}
+                {/* Suggestions dropdown - only shown for easy and medium difficulty */}
                 {suggestionsEnabled && showSuggestions && (
                   <div
                     ref={suggestionsRef}
@@ -624,7 +631,11 @@ const GameScreen = memo(function GameScreen({
                               src={suggestion.image || "/placeholder.svg"}
                               alt={suggestion.name}
                               fill
-                              className="object-cover"
+                              className={cn(
+                                "object-cover",
+                                // Apply blur filter for medium difficulty
+                                difficulty === "medium" && "filter blur-[2px]",
+                              )}
                             />
                           ) : (
                             <div className="h-full w-full bg-muted flex items-center justify-center">
