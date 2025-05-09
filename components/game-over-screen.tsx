@@ -38,6 +38,9 @@ import {
 import { Progress } from "@/components/ui/progress"
 import ErrorBoundary from "./error-boundary"
 
+// Add the track import at the top of the file
+import { track } from "@vercel/analytics/react"
+
 // Update the props interface to include achievement progress
 interface GameOverScreenProps {
   history: GameItem[]
@@ -538,7 +541,16 @@ export default function GameOverScreen({
         </AnimatedButton>
         <AnimatedButton
           size="lg"
-          onClick={onRestart}
+          onClick={() => {
+            // Track game restart
+            track("game_restart", {
+              score,
+              highScore,
+              gameMode,
+              dailyChallengeCompleted,
+            })
+            onRestart()
+          }}
           className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
         >
           Play Again

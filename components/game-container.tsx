@@ -25,6 +25,9 @@ import { DailyChallengeToast } from "./daily-challenge-toast"
 // Add this import at the top of the file - make sure to import trackLegendaryItem
 import { updateAchievementProgress, unlockAchievement, trackLegendaryItem } from "@/lib/achievements"
 
+// Add the track import at the top of the file with other imports
+import { track } from "@vercel/analytics/react"
+
 // Time limit for timed mode in seconds
 const TIME_LIMIT = 120 // 2 minutes
 
@@ -341,6 +344,9 @@ export default function GameContainer() {
     }
   }, [status, isComputerTurn, currentItem, makeComputerMove])
 
+  // In the startGame function, add tracking right after setting the game state
+  // Find the startGame useCallback function and add this code right after the setGameState call:
+
   const startGame = useCallback(
     async (difficulty: Difficulty, filters: GameFilters, gameMode = "timed") => {
       try {
@@ -430,6 +436,17 @@ export default function GameContainer() {
           },
           dailyChallengeCompleted: false,
         })
+
+        // Track game start event with properties
+        track("game_started", {
+          difficulty,
+          gameMode,
+          includeAnimated: filters.includeAnimated,
+          includeSequels: filters.includeSequels,
+          includeForeign: filters.includeForeign,
+          startItemId: startItem.id,
+          startItemName: startItem.name,
+        })
       } catch (error) {
         console.error("Failed to start game:", error)
         toast({
@@ -450,6 +467,16 @@ export default function GameContainer() {
     // Only update state if we're not already in gameOver state
     setGameState((prev) => {
       if (prev.status !== "gameOver") {
+        // Track game end event
+        track("game_completed", {
+          score: prev.score,
+          gameMode: prev.gameMode,
+          difficulty: prev.difficulty,
+          duration: prev.gameMode === "timed" ? TIME_LIMIT - (prev.timeRemaining || 0) : undefined,
+          historyLength: prev.history.length,
+          dailyChallengeCompleted: prev.dailyChallengeCompleted,
+        })
+
         return {
           ...prev,
           status: "gameOver",
@@ -485,7 +512,17 @@ export default function GameContainer() {
     resetGame()
   }, [resetGame])
 
+  // Add tracking for incorrect answers
+  // Find the handleIncorrectAnswer function and add tracking:
+
   const handleIncorrectAnswer = useCallback(() => {
+    // Track incorrect answer
+    track("incorrect_answer", {
+      gameMode: gameMode,
+      score: gameState.score,
+      turnPhase: gameState.turnPhase,
+    })
+
     // In daily challenge mode, count strikes
     if (gameMode === "dailyChallenge") {
       setGameState((prev) => {
@@ -493,6 +530,13 @@ export default function GameContainer() {
 
         // If three strikes, end the game
         if (newStrikes >= 3) {
+          // Track game over due to strikes
+          track("game_over_strikes", {
+            score: prev.score,
+            movesCount: prev.history.length,
+            dailyChallengeCompleted: prev.dailyChallengeCompleted,
+          })
+
           return {
             ...prev,
             strikes: newStrikes,
@@ -507,7 +551,7 @@ export default function GameContainer() {
       })
     }
     // In timed mode, we don't count strikes
-  }, [gameMode])
+  }, [gameMode, gameState.score, gameState.turnPhase, gameState.history.length])
 
   const updateGameState = useCallback(
     async (newItem: GameItem) => {
@@ -540,6 +584,15 @@ export default function GameContainer() {
         // Check for legendary items - use the imported trackLegendaryItem function
         if (newItem.rarity === "legendary") {
           console.log("Found legendary item:", newItem.name)
+
+          // Track legendary item found
+          track("legendary_item_found", {
+            itemId: newItem.id,
+            itemName: newItem.name,
+            itemType: newItem.type,
+            gameMode: gameState.gameMode,
+            score: gameState.score,
+          })
 
           // Call the trackLegendaryItem function from achievements.ts
           trackLegendaryItem(newItem)
@@ -667,6 +720,14 @@ export default function GameContainer() {
       if (gameState.history.length >= 15) {
         unlockAchievement("chain_reaction")
 
+        // Track achievement unlock
+        track("achievement_unlocked", {
+          achievementId: "chain_reaction",
+          achievementName: "Chain Reaction",
+          gameMode: gameState.gameMode,
+          score: gameState.score,
+        })
+
         // Update local state for UI display
         const updatedProgress = { ...gameAchievementProgress }
         updatedProgress["chain_reaction"] = 1
@@ -688,6 +749,16 @@ export default function GameContainer() {
 
           // Add the daily challenge flag to the item
           newItem.isDailyChallenge = true
+
+          // Track daily challenge completion
+          track("daily_challenge_completed", {
+            itemId: newItem.id,
+            itemName: newItem.name,
+            itemType: newItem.type,
+            score: gameState.score,
+            movesCount: gameState.history.length,
+            strikes: gameState.strikes,
+          })
         }
       }
 
@@ -736,6 +807,9 @@ export default function GameContainer() {
       dailyChallenge,
       gameAchievementProgress,
       gameState.history.length,
+      gameState.score,
+      gameState.strikes,
+      gameState.gameMode,
     ],
   )
 

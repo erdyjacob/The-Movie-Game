@@ -1,5 +1,7 @@
 "use client"
 
+import React from "react"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -25,6 +27,9 @@ import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
 import { resetAchievements } from "@/lib/achievements"
 
+// Add the track import at the top of the file
+import { track } from "@vercel/analytics/react"
+
 // Add these constants at the top of the file, after the imports
 // These represent estimated totals of collectible items in the game
 const TOTAL_COLLECTIBLE_MOVIES = 10000
@@ -35,6 +40,13 @@ interface PlayerStatsProps {
 }
 
 export default function PlayerStatsSimple({ onClose }: PlayerStatsProps) {
+  // Track stats view
+  React.useEffect(() => {
+    track("stats_viewed", {
+      timestamp: new Date().toISOString(),
+    })
+  }, [])
+
   const [activeTab, setActiveTab] = useState<"recent" | "most-used" | "collection" | "challenges">("recent")
   const [activeType, setActiveType] = useState<"movie" | "actor">("movie")
   const [recentItems, setRecentItems] = useState<PlayerHistoryItem[]>([])
