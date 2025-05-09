@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Film, User, Clock, Trophy, BarChart, Star, Target, Calendar, X } from "lucide-react"
+import { Film, User, Clock, Trophy, BarChart, Star, Target, Calendar, X, ChevronUp, ChevronDown } from "lucide-react"
 import { clearPlayerHistory, getMostUsedItems, getRecentItems, getItemsByRarity } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
@@ -366,6 +366,62 @@ export default function PlayerStatsSimple({ onClose }: PlayerStatsProps) {
               <p className="text-sm text-muted-foreground">Daily Challenges</p>
               <p className="text-xl font-semibold text-red-500">{accountScore.dailyChallengesCompleted}</p>
             </div>
+          </div>
+          <div className="mt-4 pt-4 border-t">
+            <button
+              onClick={() => setCollectionProgressOpen(!collectionProgressOpen)}
+              className="flex items-center justify-between w-full text-sm font-medium mb-2"
+            >
+              <span>Collection Progress</span>
+              {collectionProgressOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {collectionProgressOpen && (
+              <div className="space-y-3 mt-2">
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Total Collection ({accountScore.totalPercentage}%)</span>
+                    <span>
+                      {accountScore.totalItems} / {TOTAL_COLLECTIBLE_MOVIES + TOTAL_COLLECTIBLE_ACTORS}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
+                      style={{ width: `${accountScore.totalPercentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Movies ({accountScore.moviesPercentage}%)</span>
+                    <span>
+                      {accountScore.moviesCount} / {TOTAL_COLLECTIBLE_MOVIES}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-red-500"
+                      style={{ width: `${accountScore.moviesPercentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Actors ({accountScore.actorsPercentage}%)</span>
+                    <span>
+                      {accountScore.actorsCount} / {TOTAL_COLLECTIBLE_ACTORS}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-green-500 to-emerald-600"
+                      style={{ width: `${accountScore.actorsPercentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
