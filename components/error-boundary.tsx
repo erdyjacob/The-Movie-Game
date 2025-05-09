@@ -1,20 +1,23 @@
 "use client"
 
 import { Component, type ErrorInfo, type ReactNode } from "react"
+import { Button } from "@/components/ui/button"
+import { AlertTriangle } from "lucide-react"
 
 interface Props {
-  children?: ReactNode
+  children: ReactNode
   fallback?: ReactNode
 }
 
 interface State {
   hasError: boolean
-  error?: Error
+  error: Error | null
 }
 
 class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
+    error: null,
   }
 
   public static getDerivedStateFromError(error: Error): State {
@@ -31,21 +34,35 @@ class ErrorBoundary extends Component<Props, State> {
       // You can render any custom fallback UI
       return (
         this.props.fallback || (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-md">
-            <h2 className="text-lg font-bold text-red-800 mb-2">Something went wrong</h2>
-            <p className="text-red-600 mb-4">
-              There was an error loading this component. Please try refreshing the page.
+          <div className="p-6 border rounded-lg bg-red-50 text-red-800">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="h-5 w-5" />
+              <h3 className="text-lg font-medium">Something went wrong</h3>
+            </div>
+            <p className="mb-4">
+              There was an error loading this component. You can try resetting your achievements or clearing your
+              browser cache.
             </p>
-            <details className="text-sm text-gray-700">
-              <summary>Error details</summary>
-              <pre className="mt-2 p-2 bg-gray-100 rounded overflow-auto text-xs">{this.state.error?.toString()}</pre>
-            </details>
-            <button
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              onClick={() => this.setState({ hasError: false })}
-            >
-              Try again
-            </button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Clear localStorage
+                  localStorage.removeItem("movieGameAchievements")
+                  // Reload the page
+                  window.location.reload()
+                }}
+              >
+                Reset Data & Reload
+              </Button>
+              <Button
+                onClick={() => {
+                  this.setState({ hasError: false, error: null })
+                }}
+              >
+                Try Again
+              </Button>
+            </div>
           </div>
         )
       )

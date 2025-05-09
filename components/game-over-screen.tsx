@@ -11,7 +11,7 @@ import GamePath from "./game-path"
 import { Clock, Film, Unlock, User, BarChart } from "lucide-react"
 import Image from "next/image"
 import { RarityOverlay } from "./rarity-overlay"
-import PlayerStats from "./player-stats"
+import PlayerStatsSimple from "./player-stats-simple"
 import { cn } from "@/lib/utils"
 import { unlockAchievement, getAllAchievements, type Achievement } from "@/lib/achievements"
 import {
@@ -544,7 +544,7 @@ export default function GameOverScreen({
           Play Again
         </AnimatedButton>
       </CardFooter>
-      {/* Stats modal */}
+      {/* Stats modal - Use the simplified version */}
       {statsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={closeStats}>
           <div
@@ -552,7 +552,7 @@ export default function GameOverScreen({
             onClick={(e) => e.stopPropagation()}
           >
             <ErrorBoundary>
-              <PlayerStats onClose={closeStats} />
+              <PlayerStatsSimple onClose={closeStats} />
             </ErrorBoundary>
           </div>
         </div>
