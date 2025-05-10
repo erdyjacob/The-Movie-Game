@@ -262,6 +262,7 @@ export default function GameOverScreen({
   const isNewHighScore = score > highScore
   const totalNewUnlocks = newUnlocks.actors.length + newUnlocks.movies.length
   const [statsOpen, setStatsOpen] = useState(false)
+  const [newlyCompletedAchievements, setNewlyCompletedAchievements] = useState<Achievement[]>([])
 
   useEffect(() => {
     // Check for perfect game achievement
@@ -280,6 +281,9 @@ export default function GameOverScreen({
     if (currentChainLength > longestChain) {
       localStorage.setItem("movieGameLongestChain", currentChainLength.toString())
     }
+
+    // Track newly completed achievements
+    const completedInThisGame: Achievement[] = []
 
     // Update achievement progress with contributing items
     if (achievementProgress && Object.keys(achievementProgress).length > 0) {
@@ -300,9 +304,23 @@ export default function GameOverScreen({
             // If no specific items contributed, just update the progress
             updateAchievementProgress(achievementId, progress)
           }
+
+          // Check if this achievement was completed in this game
+          const achievement = getAllAchievements().find((a) => a.id === achievementId)
+          if (
+            achievement &&
+            achievement.progress &&
+            achievement.progress.current >= achievement.progress.target &&
+            !achievement.isUnlocked
+          ) {
+            completedInThisGame.push(achievement)
+          }
         }
       })
     }
+
+    // Set newly completed achievements
+    setNewlyCompletedAchievements(completedInThisGame)
   }, [score, history, gameMode, achievementProgress, newUnlocks])
 
   const openStats = () => {
@@ -314,14 +332,25 @@ export default function GameOverScreen({
   }
 
   // Add this function inside the component to get the achievements with progress in this game
-  const getAchievementsWithProgress = (progress: Record<string, number>): Achievement[] => {
+  const getInProgressAchievementsWithProgress = (progress: Record<string, number>): Achievement[] => {
     if (!progress || Object.keys(progress).length === 0) return []
 
     const allAchievements = getAllAchievements()
 
     // Map achievements with their progress in this game
     const achievementsWithProgress = allAchievements
-      .filter((a) => progress[a.id] && progress[a.id] > 0) // Only include achievements with progress in this game
+      .filter((a) => {
+        // Only include achievements that:
+        // 1. Have progress in this game
+        // 2. Are not already unlocked/completed
+        // 3. Have not reached their target yet
+        return (
+          progress[a.id] &&
+          progress[a.id] > 0 &&
+          !a.isUnlocked &&
+          (a.progress ? a.progress.current < a.progress.target : true)
+        )
+      })
       .map((a) => ({
         ...a,
         gameProgress: progress[a.id] || 0,
@@ -336,8 +365,8 @@ export default function GameOverScreen({
     return achievementsWithProgress
   }
 
-  // Get achievements that made progress in this game
-  const achievementsWithProgress = getAchievementsWithProgress(achievementProgress)
+  // Get achievements that made progress in this game but are not yet completed
+  const inProgressAchievements = getInProgressAchievementsWithProgress(achievementProgress)
 
   // Add this helper function to get achievement rarity color
   const getAchievementRarityColor = (rarity: string): string => {
@@ -612,16 +641,57 @@ export default function GameOverScreen({
           </div>
         )}
 
-        {/* Achievement Progress Section - Only show if there are achievements with progress */}
-        {achievementsWithProgress.length > 0 && (
+        {/* Newly Completed Achievements Section */}
+        {newlyCompletedAchievements.length > 0 && (
           <div className="space-y-4 border-t pt-6">
             <div className="flex items-center justify-center gap-2">
-              <Award className="h-5 w-5 text-amber-500" />
+              <Trophy className="h-5 w-5 text-amber-500" />
+              <h3 className="text-xl font-semibold text-center">Achievements Completed!</h3>
+            </div>
+
+            <div className="space-y-4">
+              {newlyCompletedAchievements.map((achievement) => (
+                <div
+                  key={achievement.id}
+                  className="border rounded-lg p-4 bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-950/20 dark:to-amber-900/20 border-amber-200 dark:border-amber-800"
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
+                    >
+                      {getIconComponent(achievement.icon, 20)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-sm">{achievement.name}</h4>
+                        <div
+                          className={`text-xs px-2 py-0.5 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
+                        >
+                          {getRarityDisplayName(achievement.rarity)}
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{achievement.description}</p>
+                      <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mt-2">
+                        Achievement Unlocked! 🎉
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Achievement Progress Section - Only show if there are in-progress achievements with progress */}
+        {inProgressAchievements.length > 0 && (
+          <div className="space-y-4 border-t pt-6">
+            <div className="flex items-center justify-center gap-2">
+              <Award className="h-5 w-5 text-blue-500" />
               <h3 className="text-xl font-semibold text-center">Achievement Progress</h3>
             </div>
 
             <div className="space-y-6">
-              {achievementsWithProgress.map((achievement) => {
+              {inProgressAchievements.map((achievement) => {
                 // Get contributing items for this achievement
                 const contributingItems = findContributingItemsFromCurrentGame(achievement.id, history, newUnlocks)
 
