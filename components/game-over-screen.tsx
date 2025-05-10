@@ -12,36 +12,13 @@ import { Clock, Film, Unlock, User, BarChart } from "lucide-react"
 import Image from "next/image"
 import { RarityOverlay } from "./rarity-overlay"
 import { cn } from "@/lib/utils"
-import { unlockAchievement, getAllAchievements, type Achievement, updateAchievementProgress } from "@/lib/achievements"
-import {
-  CheckCircle,
-  Trophy,
-  Star,
-  Globe,
-  Link,
-  Search,
-  Calendar,
-  Heart,
-  Skull,
-  Rocket,
-  Zap,
-  Laugh,
-  Dumbbell,
-  Mountain,
-  Box,
-  Network,
-  Repeat,
-  Award,
-  Medal,
-} from "lucide-react"
-import { Progress } from "@/components/ui/progress"
 import ErrorBoundary from "./error-boundary"
 import PlayerStats from "./player-stats"
 
 // Add the track import at the top of the file
 import { track } from "@vercel/analytics/react"
 
-// Update the props interface to include achievement progress
+// Update the props interface to remove achievement progress
 interface GameOverScreenProps {
   history: GameItem[]
   score: number
@@ -53,7 +30,6 @@ interface GameOverScreenProps {
     movies: GameItem[]
   }
   dailyChallengeCompleted?: boolean
-  achievementProgress: Record<string, number>
 }
 
 // Custom animated button component
@@ -257,22 +233,12 @@ export default function GameOverScreen({
   gameMode,
   newUnlocks,
   dailyChallengeCompleted,
-  achievementProgress,
 }: GameOverScreenProps) {
   const isNewHighScore = score > highScore
   const totalNewUnlocks = newUnlocks.actors.length + newUnlocks.movies.length
   const [statsOpen, setStatsOpen] = useState(false)
-  const [newlyCompletedAchievements, setNewlyCompletedAchievements] = useState<Achievement[]>([])
 
   useEffect(() => {
-    // Check for perfect game achievement
-    if (score > 0 && history.length > 0) {
-      // If there were no strikes, unlock the perfect game achievement
-      if (gameMode === "classic" && history.every((item) => !item.isIncorrect)) {
-        unlockAchievement("perfect_game")
-      }
-    }
-
     // Update longest chain if this game's chain is longer than the stored one
     const currentChainLength = history.length
     const storedLongestChain = localStorage.getItem("movieGameLongestChain")
@@ -281,47 +247,7 @@ export default function GameOverScreen({
     if (currentChainLength > longestChain) {
       localStorage.setItem("movieGameLongestChain", currentChainLength.toString())
     }
-
-    // Track newly completed achievements
-    const completedInThisGame: Achievement[] = []
-
-    // Update achievement progress with contributing items
-    if (achievementProgress && Object.keys(achievementProgress).length > 0) {
-      Object.entries(achievementProgress).forEach(([achievementId, progress]) => {
-        // Find the contributing items for this achievement from the current game
-        const contributingItems = findContributingItemsFromCurrentGame(achievementId, history, newUnlocks)
-
-        // Update the achievement progress with the contributing items
-        if (progress > 0) {
-          // If we have multiple contributing items, update with each one
-          if (contributingItems.length > 0) {
-            contributingItems.forEach((item) => {
-              // We divide the progress by the number of items to avoid double counting
-              const progressPerItem = progress / contributingItems.length
-              updateAchievementProgress(achievementId, progressPerItem, item)
-            })
-          } else {
-            // If no specific items contributed, just update the progress
-            updateAchievementProgress(achievementId, progress)
-          }
-
-          // Check if this achievement was completed in this game
-          const achievement = getAllAchievements().find((a) => a.id === achievementId)
-          if (
-            achievement &&
-            achievement.progress &&
-            achievement.progress.current >= achievement.progress.target &&
-            !achievement.isUnlocked
-          ) {
-            completedInThisGame.push(achievement)
-          }
-        }
-      })
-    }
-
-    // Set newly completed achievements
-    setNewlyCompletedAchievements(completedInThisGame)
-  }, [score, history, gameMode, achievementProgress, newUnlocks])
+  }, [history.length])
 
   const openStats = () => {
     setStatsOpen(true)
@@ -329,183 +255,6 @@ export default function GameOverScreen({
 
   const closeStats = () => {
     setStatsOpen(false)
-  }
-
-  // Add this function inside the component to get the achievements with progress in this game
-  const getInProgressAchievementsWithProgress = (progress: Record<string, number>): Achievement[] => {
-    if (!progress || Object.keys(progress).length === 0) return []
-
-    const allAchievements = getAllAchievements()
-
-    // Map achievements with their progress in this game
-    const achievementsWithProgress = allAchievements
-      .filter((a) => {
-        // Only include achievements that:
-        // 1. Have progress in this game
-        // 2. Are not already unlocked/completed
-        // 3. Have not reached their target yet
-        return (
-          progress[a.id] &&
-          progress[a.id] > 0 &&
-          !a.isUnlocked &&
-          (a.progress ? a.progress.current < a.progress.target : true)
-        )
-      })
-      .map((a) => ({
-        ...a,
-        gameProgress: progress[a.id] || 0,
-      }))
-      .sort((a, b) => {
-        // Sort by percentage of progress made in this game
-        const aPercentage = a.progress ? a.gameProgress / a.progress.target : 0
-        const bPercentage = b.progress ? b.gameProgress / b.progress.target : 0
-        return bPercentage - aPercentage
-      })
-
-    return achievementsWithProgress
-  }
-
-  // Get achievements that made progress in this game but are not yet completed
-  const inProgressAchievements = getInProgressAchievementsWithProgress(achievementProgress)
-
-  // Add this helper function to get achievement rarity color
-  const getAchievementRarityColor = (rarity: string): string => {
-    switch (rarity) {
-      case "legendary":
-        return "bg-gradient-to-r from-amber-500 to-amber-700 border-amber-600"
-      case "epic":
-        return "bg-gradient-to-r from-purple-500 to-purple-700 border-purple-600"
-      case "rare":
-        return "bg-gradient-to-r from-blue-500 to-indigo-700 border-indigo-600"
-      case "uncommon":
-        return "bg-gradient-to-r from-green-500 to-green-700 border-green-600"
-      default:
-        return "bg-gradient-to-r from-gray-500 to-gray-700 border-gray-600"
-    }
-  }
-
-  // Add this helper function to get icon component
-  const getIconComponent = (iconName: string, size = 16) => {
-    const icons: Record<string, any> = {
-      Trophy,
-      Users: User,
-      Star,
-      Globe,
-      Link,
-      Search,
-      Timer: Clock,
-      Calendar,
-      CheckCircle,
-      Heart,
-      Skull,
-      Rocket,
-      Zap,
-      Laugh,
-      Dumbbell,
-      Mountain,
-      Box,
-      Network,
-      Repeat,
-      Award,
-      Medal,
-    }
-
-    const IconComponent = icons[iconName] || Award
-    return <IconComponent size={size} />
-  }
-
-  // Add this helper function to get rarity display name
-  const getRarityDisplayName = (rarity: string): string => {
-    return rarity.charAt(0).toUpperCase() + rarity.slice(1)
-  }
-
-  // Helper function to find items from the current game that contributed to an achievement
-  const findContributingItemsFromCurrentGame = (
-    achievementId: string,
-    gameHistory: GameItem[],
-    newUnlocks: { actors: GameItem[]; movies: GameItem[] },
-  ): GameItem[] => {
-    const contributingItems: GameItem[] = []
-
-    // Different logic based on achievement type
-    switch (achievementId) {
-      case "chain_reaction":
-        // For chain reaction, all items in the history contributed
-        if (gameHistory.length >= 15) {
-          return gameHistory
-        }
-        break
-
-      case "legendary_hunter":
-      case "legendary_collection":
-        // For legendary achievements, any legendary items from this game
-        return [...newUnlocks.actors, ...newUnlocks.movies].filter((item) => item.rarity === "legendary")
-
-      case "cinephile_supreme":
-        // For movie collection, any new movies unlocked
-        return newUnlocks.movies
-
-      case "hollywood_rolodex":
-        // For actor collection, any new actors unlocked
-        return newUnlocks.actors
-
-      case "perfect_game":
-        // For perfect game, all items in the history contributed
-        if (gameHistory.every((item) => !item.isIncorrect)) {
-          return gameHistory
-        }
-        break
-
-      // Genre-based achievements
-      case "aw_cute":
-        // Rom-com movies
-        return newUnlocks.movies.filter(
-          (movie) =>
-            movie.genres?.some((genre) => genre.toLowerCase().includes("romance")) &&
-            movie.genres?.some((genre) => genre.toLowerCase().includes("comedy")),
-        )
-      case "screamer":
-        // Horror movies
-        return newUnlocks.movies.filter((movie) =>
-          movie.genres?.some((genre) => genre.toLowerCase().includes("horror")),
-        )
-      case "space_race":
-        // Sci-fi movies
-        return newUnlocks.movies.filter((movie) =>
-          movie.genres?.some(
-            (genre) => genre.toLowerCase().includes("sci-fi") || genre.toLowerCase().includes("science fiction"),
-          ),
-        )
-      case "locked_n_loaded":
-        // Action movies
-        return newUnlocks.movies.filter((movie) =>
-          movie.genres?.some((genre) => genre.toLowerCase().includes("action")),
-        )
-      case "mr_funny":
-        // Comedy movies
-        return newUnlocks.movies.filter((movie) =>
-          movie.genres?.some((genre) => genre.toLowerCase().includes("comedy")),
-        )
-
-      // Actor-specific achievements
-      case "fully_cranked":
-        // Jason Statham
-        return newUnlocks.actors.filter((actor) => actor.name.toLowerCase().includes("jason statham"))
-      case "the_rock_star":
-        // Dwayne Johnson
-        return newUnlocks.actors.filter(
-          (actor) =>
-            actor.name.toLowerCase().includes("dwayne johnson") || actor.name.toLowerCase().includes("the rock"),
-        )
-      case "method_actor":
-        // Same actor in consecutive games - this is handled elsewhere
-        return []
-
-      default:
-        return []
-    }
-
-    return contributingItems
   }
 
   return (
@@ -631,148 +380,6 @@ export default function GameOverScreen({
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Newly Completed Achievements Section */}
-        {newlyCompletedAchievements.length > 0 && (
-          <div className="space-y-4 border-t pt-6">
-            <div className="flex items-center justify-center gap-2">
-              <Trophy className="h-5 w-5 text-amber-500" />
-              <h3 className="text-xl font-semibold text-center">Achievements Completed!</h3>
-            </div>
-
-            <div className="space-y-4">
-              {newlyCompletedAchievements.map((achievement) => (
-                <div
-                  key={achievement.id}
-                  className="border rounded-lg p-4 bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-950/20 dark:to-amber-900/20 border-amber-200 dark:border-amber-800"
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
-                    >
-                      {getIconComponent(achievement.icon, 20)}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-sm">{achievement.name}</h4>
-                        <div
-                          className={`text-xs px-2 py-0.5 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
-                        >
-                          {getRarityDisplayName(achievement.rarity)}
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">{achievement.description}</p>
-                      <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mt-2">
-                        Achievement Unlocked! 🎉
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Achievement Progress Section - Only show if there are in-progress achievements with progress */}
-        {inProgressAchievements.length > 0 && (
-          <div className="space-y-4 border-t pt-6">
-            <div className="flex items-center justify-center gap-2">
-              <Award className="h-5 w-5 text-blue-500" />
-              <h3 className="text-xl font-semibold text-center">Achievement Progress</h3>
-            </div>
-
-            <div className="space-y-6">
-              {inProgressAchievements.map((achievement) => {
-                // Get contributing items for this achievement
-                const contributingItems = findContributingItemsFromCurrentGame(achievement.id, history, newUnlocks)
-
-                return (
-                  <div key={achievement.id} className="border rounded-lg p-4 bg-muted/5">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
-                      >
-                        {getIconComponent(achievement.icon, 20)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-sm">{achievement.name}</h4>
-                          <div
-                            className={`text-xs px-2 py-0.5 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
-                          >
-                            {getRarityDisplayName(achievement.rarity)}
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">{achievement.description}</p>
-
-                        {achievement.progress && (
-                          <div className="mt-2">
-                            <div className="flex justify-between text-xs mb-1">
-                              <span>Progress</span>
-                              <span>
-                                {achievement.progress.current} / {achievement.progress.target}
-                              </span>
-                            </div>
-                            <Progress
-                              value={(achievement.progress.current / achievement.progress.target) * 100}
-                              className="h-2"
-                            />
-                            <p className="text-xs text-green-600 mt-1">
-                              +{achievement.gameProgress} progress this game!
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Contributing Items Section - Always visible */}
-                        {contributingItems.length > 0 && (
-                          <div className="mt-3">
-                            <h5 className="text-xs font-medium mb-2">Contributing Items:</h5>
-                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                              {contributingItems.slice(0, 8).map((item) => (
-                                <div key={`${item.id}-${item.type}`} className="flex flex-col items-center">
-                                  <div className="relative h-12 w-10 rounded-md overflow-hidden shadow-sm">
-                                    {item.image ? (
-                                      <Image
-                                        src={item.image || "/placeholder.svg"}
-                                        alt={item.name}
-                                        fill
-                                        className="object-cover"
-                                      />
-                                    ) : (
-                                      <div className="h-full w-full bg-muted flex items-center justify-center">
-                                        {item.type === "movie" ? (
-                                          <Film size={16} className="text-muted-foreground" />
-                                        ) : (
-                                          <User size={16} className="text-muted-foreground" />
-                                        )}
-                                      </div>
-                                    )}
-                                    {item.rarity && <RarityOverlay rarity={item.rarity} showLabel={false} size="xs" />}
-                                  </div>
-                                  <p className="text-xs text-center mt-1 truncate max-w-[60px]" title={item.name}>
-                                    {item.name}
-                                  </p>
-                                </div>
-                              ))}
-                              {contributingItems.length > 8 && (
-                                <div className="flex flex-col items-center justify-center">
-                                  <div className="h-12 w-10 rounded-md bg-muted flex items-center justify-center">
-                                    <p className="text-xs font-medium">+{contributingItems.length - 8}</p>
-                                  </div>
-                                  <p className="text-xs text-center mt-1">more</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
           </div>
         )}
       </CardContent>

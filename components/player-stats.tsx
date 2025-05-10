@@ -1,40 +1,10 @@
 "use client"
 
-import Link from "next/link"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import {
-  Film,
-  User,
-  Clock,
-  Trophy,
-  BarChart,
-  Star,
-  Target,
-  Calendar,
-  X,
-  Award,
-  Medal,
-  Globe,
-  Search,
-  CheckCircle,
-  Heart,
-  Skull,
-  Rocket,
-  Zap,
-  Laugh,
-  Dumbbell,
-  Mountain,
-  Box,
-  Network,
-  Repeat,
-  ChevronUp,
-  ChevronDown,
-  Info,
-} from "lucide-react"
+import { Film, User, Trophy, BarChart, Star, Target, Calendar, X, ChevronUp, ChevronDown } from "lucide-react"
 import { clearPlayerHistory, getMostUsedItems, getItemsByRarity } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
@@ -53,11 +23,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
-import { updateAchievements, type Achievement, type AchievementCategory, getAllAchievements } from "@/lib/achievements"
-import { Progress } from "@/components/ui/progress"
-
-// Add this import at the top
-import { resetAchievements } from "@/lib/achievements"
 
 // Add these constants at the top of the file, after the imports
 // These represent estimated totals of collectible items in the game
@@ -85,38 +50,8 @@ function getRarityColor(rarity: string): string {
   }
 }
 
-// Helper function to get icon component
-function getIconComponent(iconName: string, size = 16) {
-  const icons: Record<string, any> = {
-    Trophy,
-    Users: User,
-    Star,
-    Globe,
-    Link,
-    Search,
-    Timer: Clock,
-    Calendar,
-    CheckCircle,
-    Heart,
-    Skull,
-    Rocket,
-    Zap,
-    Laugh,
-    Dumbbell,
-    Mountain,
-    Box,
-    Network,
-    Repeat,
-    Award,
-    Medal,
-  }
-
-  const IconComponent = icons[iconName] || Award
-  return <IconComponent size={size} />
-}
-
 export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps) {
-  const [activeTab, setActiveTab] = useState<"most-used" | "collection" | "challenges" | "achievements">("most-used")
+  const [activeTab, setActiveTab] = useState<"most-used" | "collection" | "challenges">("most-used")
   const [activeType, setActiveType] = useState<"movie" | "actor">("movie")
   const [mostUsedItems, setMostUsedItems] = useState<PlayerHistoryItem[]>([])
   const [collectionItems, setCollectionItems] = useState<PlayerHistoryItem[]>([])
@@ -138,13 +73,8 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     actorsCount: 0,
   })
   const [dailyChallenges, setDailyChallenges] = useState<Record<string, GameItem>>({})
-  const [achievements, setAchievements] = useState<Achievement[]>([])
-  const [activeAchievementCategory, setActiveAchievementCategory] = useState<AchievementCategory | "all" | "completed">(
-    "all",
-  )
   const { toast } = useToast()
   const [collectionProgressOpen, setCollectionProgressOpen] = useState(false)
-  const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null)
 
   // Add state for longest chain
   const [longestChain, setLongestChain] = useState(0)
@@ -156,20 +86,6 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
       setLongestChain(Number.parseInt(storedLongestChain))
     }
   }, [])
-
-  // Then add this function inside the PlayerStats component
-  const handleResetAchievements = () => {
-    resetAchievements()
-
-    toast({
-      title: "Achievements Reset",
-      description: "All achievements have been reset for debugging purposes.",
-    })
-
-    // Reload achievements
-    const updatedAchievements = getAllAchievements()
-    setAchievements(updatedAchievements)
-  }
 
   // Load data when component mounts or when tabs change
   useEffect(() => {
@@ -197,50 +113,6 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
           } catch (error) {
             console.error("Error loading daily challenges:", error)
             setDailyChallenges({})
-          }
-        } else if (activeTab === "achievements" && mode === "full") {
-          // Update and load achievements - wrap in try/catch to prevent crashes
-          try {
-            // First try to get all achievements as a fallback
-            let allAchievements = []
-            try {
-              allAchievements = getAllAchievements()
-            } catch (error) {
-              console.error("Error getting all achievements:", error)
-              allAchievements = []
-            }
-
-            // Then try to update them
-            let updatedAchievements = []
-            try {
-              updatedAchievements = updateAchievements()
-            } catch (error) {
-              console.error("Error updating achievements:", error)
-              updatedAchievements = allAchievements
-            }
-
-            setAchievements(updatedAchievements)
-
-            // Log achievement progress for debugging
-            console.log("Loaded achievements:", updatedAchievements)
-
-            // Specifically log legendary achievements
-            const legendaryHunter = updatedAchievements.find((a) => a?.id === "legendary_hunter")
-            const legendaryCollection = updatedAchievements.find((a) => a?.id === "legendary_collection")
-
-            if (legendaryHunter && legendaryHunter.progress) {
-              console.log(`Legendary Hunter: ${legendaryHunter.progress.current}/${legendaryHunter.progress.target}`)
-            }
-
-            if (legendaryCollection && legendaryCollection.progress) {
-              console.log(
-                `Legendary Collection: ${legendaryCollection.progress.current}/${legendaryCollection.progress.target}`,
-              )
-            }
-          } catch (error) {
-            console.error("Error loading achievements:", error)
-            // Set default achievements to prevent UI crashes
-            setAchievements([])
           }
         }
 
@@ -336,19 +208,6 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
   const filteredCollectionItems =
     activeRarity === "all" ? collectionItems : collectionItems.filter((item) => item.rarity === activeRarity)
 
-  // Filter achievements by category - add null checks and default to empty array
-  const filteredAchievements =
-    activeAchievementCategory === "all"
-      ? achievements || []
-      : activeAchievementCategory === "completed"
-        ? (achievements || []).filter((achievement) => achievement.isUnlocked)
-        : (achievements || []).filter((achievement) => achievement.category === activeAchievementCategory)
-
-  // Add these computed values after the filteredAchievements definition - add null checks
-  const completedAchievements = (achievements || []).filter((a) => a.isUnlocked)
-  const filteredInProgressAchievements =
-    activeAchievementCategory === "completed" ? [] : filteredAchievements.filter((a) => !a.isUnlocked)
-
   const handleClearHistory = () => {
     clearPlayerHistory()
     setMostUsedItems([])
@@ -377,16 +236,6 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     uncommon: collectionItems.filter((item) => item.rarity === "uncommon").length,
     common: collectionItems.filter((item) => item.rarity === "common" || !item.rarity).length,
     all: collectionItems.length,
-  }
-
-  // Count achievements by category - add null check
-  const achievementCounts = {
-    all: achievements?.length || 0,
-    rare: achievements?.filter((a) => a.category === "rare").length || 0,
-    gameplay: achievements?.filter((a) => a.category === "gameplay").length || 0,
-    genre: achievements?.filter((a) => a.category === "genre").length || 0,
-    actor: achievements?.filter((a) => a.category === "actor").length || 0,
-    unlocked: achievements?.filter((a) => a.isUnlocked).length || 0,
   }
 
   // Get rank color
@@ -424,32 +273,6 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     }
   }
 
-  // Get achievement rarity color
-  const getAchievementRarityColor = (rarity: string): string => {
-    switch (rarity) {
-      case "legendary":
-        return "bg-gradient-to-r from-amber-500 to-amber-700 border-amber-600"
-      case "epic":
-        return "bg-gradient-to-r from-purple-500 to-purple-700 border-purple-600"
-      case "rare":
-        return "bg-gradient-to-r from-blue-500 to-indigo-700 border-indigo-600"
-      case "uncommon":
-        return "bg-gradient-to-r from-green-500 to-green-700 border-green-600"
-      default:
-        return "bg-gradient-to-r from-gray-500 to-gray-700 border-gray-600"
-    }
-  }
-
-  // Function to open achievement details modal
-  const openAchievementDetails = (achievement: Achievement) => {
-    setSelectedAchievement(achievement)
-  }
-
-  // Function to close achievement details modal
-  const closeAchievementDetails = () => {
-    setSelectedAchievement(null)
-  }
-
   return (
     <Card className="w-full border-0 rounded-none sm:rounded-lg sm:border">
       <CardHeader>
@@ -459,11 +282,6 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
             Your Movie Game Stats
           </span>
           <div className="flex items-center gap-2">
-            {mode === "full" && (
-              <Button variant="outline" size="sm" onClick={handleResetAchievements}>
-                Reset Achievements
-              </Button>
-            )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -548,12 +366,12 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Achievements</p>
-                <p className="text-xl font-semibold text-green-600">{achievementCounts.unlocked}</p>
-              </div>
-              <div>
                 <p className="text-sm text-muted-foreground">Daily Challenges</p>
                 <p className="text-xl font-semibold text-red-500">{accountScore.dailyChallengesCompleted}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Collection %</p>
+                <p className="text-xl font-semibold text-green-500">{accountScore.totalPercentage.toFixed(2)}%</p>
               </div>
             </div>
           </div>
@@ -618,7 +436,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
 
         <Tabs
           defaultValue="most-used"
-          onValueChange={(value) => setActiveTab(value as "most-used" | "collection" | "challenges" | "achievements")}
+          onValueChange={(value) => setActiveTab(value as "most-used" | "collection" | "challenges")}
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
             <div className="overflow-x-auto pb-2 hide-scrollbar w-full sm:w-auto">
@@ -635,16 +453,10 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
                   <Target className="h-4 w-4" />
                   <span>Challenges</span>
                 </TabsTrigger>
-                {mode === "full" && (
-                  <TabsTrigger value="achievements" className="flex items-center gap-1">
-                    <Award className="h-4 w-4" />
-                    <span>Achievements</span>
-                  </TabsTrigger>
-                )}
               </TabsList>
             </div>
 
-            {activeTab !== "challenges" && (mode === "simple" || activeTab !== "achievements") && (
+            {activeTab !== "challenges" && (
               <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-start">
                 <Button
                   size="sm"
@@ -873,306 +685,8 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
               </div>
             )}
           </TabsContent>
-
-          {mode === "full" && activeTab === "achievements" && (
-            <div className="mb-4 text-center">
-              <h3 className="text-lg font-medium flex items-center justify-center gap-2">
-                <Award className="h-5 w-5 text-amber-500" />
-                <span>Achievements</span>
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Unlock achievements by completing special tasks in the game!
-              </p>
-              <div className="mt-3 text-sm font-medium">
-                <span className="text-green-600">{achievementCounts.unlocked}</span> of {achievementCounts.all}{" "}
-                achievements unlocked
-              </div>
-            </div>
-          )}
-
-          {/* Add a try-catch wrapper around the achievement rendering */}
-          {mode === "full" && activeTab === "achievements" && (
-            <div className="flex flex-wrap gap-2 mb-4 justify-center">
-              {(() => {
-                try {
-                  return (
-                    <>
-                      <Button
-                        size="sm"
-                        variant={activeAchievementCategory === "all" ? "default" : "outline"}
-                        onClick={() => setActiveAchievementCategory("all")}
-                        className="text-xs"
-                      >
-                        All ({achievementCounts.all})
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={activeAchievementCategory === "rare" ? "default" : "outline"}
-                        onClick={() => setActiveAchievementCategory("rare")}
-                        className="text-xs"
-                      >
-                        Rare ({achievementCounts.rare})
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={activeAchievementCategory === "gameplay" ? "default" : "outline"}
-                        onClick={() => setActiveAchievementCategory("gameplay")}
-                        className="text-xs"
-                      >
-                        Gameplay ({achievementCounts.gameplay})
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={activeAchievementCategory === "genre" ? "default" : "outline"}
-                        onClick={() => setActiveAchievementCategory("genre")}
-                        className="text-xs"
-                      >
-                        Genre ({achievementCounts.genre})
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={activeAchievementCategory === "actor" ? "default" : "outline"}
-                        onClick={() => setActiveAchievementCategory("actor")}
-                        className="text-xs"
-                      >
-                        Actor ({achievementCounts.actor})
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={activeAchievementCategory === "completed" ? "default" : "outline"}
-                        onClick={() => setActiveAchievementCategory("completed")}
-                        className="text-xs"
-                      >
-                        Completed ({achievementCounts.unlocked})
-                      </Button>
-                    </>
-                  )
-                } catch (error) {
-                  console.error("Error rendering achievement buttons:", error)
-                  return <p className="text-red-500">Error loading achievement categories</p>
-                }
-              })()}
-            </div>
-          )}
-
-          {mode === "full" && (
-            <TabsContent value="achievements" className="mt-0">
-              {activeAchievementCategory === "completed" && completedAchievements.length > 0 ? (
-                <div className="space-y-4">
-                  <h4 className="text-base font-medium mb-3 flex items-center gap-2">
-                    <Trophy className="h-4 w-4 text-amber-500" />
-                    <span>Completed Achievements</span>
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {completedAchievements.map((achievement) => (
-                      <div
-                        key={achievement.id}
-                        className="border rounded-lg p-3 bg-muted/20 cursor-pointer hover:bg-muted/30"
-                        onClick={() => openAchievementDetails(achievement)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
-                          >
-                            {getIconComponent(achievement.icon, 20)}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-medium text-sm">{achievement.name}</h4>
-                              <div
-                                className={`text-xs px-2 py-0.5 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
-                              >
-                                {getRarityDisplayName(achievement.rarity)}
-                              </div>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">{achievement.description}</p>
-                            <div className="mt-1 pt-1 border-t text-xs text-green-600 font-medium flex items-center gap-1">
-                              <CheckCircle className="h-3 w-3" />
-                              <span>Completed!</span>
-                              {achievement.contributingItems && achievement.contributingItems.length > 0 && (
-                                <span className="ml-auto text-muted-foreground flex items-center">
-                                  <Info className="h-3 w-3 mr-1" />
-                                  {achievement.contributingItems.length} items
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : activeAchievementCategory === "completed" ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No completed achievements yet.</p>
-                  <p className="text-sm mt-2">Keep playing to unlock achievements!</p>
-                </div>
-              ) : null}
-
-              {/* In-Progress Achievements */}
-              {filteredInProgressAchievements.length > 0 ? (
-                <div className="space-y-4">
-                  <h4 className="text-base font-medium mb-3 flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-blue-500" />
-                    <span>In Progress</span>
-                  </h4>
-                  {filteredInProgressAchievements.map((achievement) => (
-                    <div
-                      key={achievement.id}
-                      className="border rounded-lg p-4 bg-muted/5 cursor-pointer hover:bg-muted/10"
-                      onClick={() => openAchievementDetails(achievement)}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center ${getAchievementRarityColor(achievement.rarity)}`}
-                        >
-                          {getIconComponent(achievement.icon, 24)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-medium">{achievement.name}</h4>
-                            <div
-                              className={`text-xs px-2 py-1 rounded-full ${getAchievementRarityColor(achievement.rarity)} text-white`}
-                            >
-                              {getRarityDisplayName(achievement.rarity)}
-                            </div>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{achievement.description}</p>
-
-                          {achievement.progress && (
-                            <div className="mt-2">
-                              <div className="flex justify-between text-xs mb-1">
-                                <span>Progress</span>
-                                <span>
-                                  {achievement.progress.current} / {achievement.progress.target}
-                                </span>
-                              </div>
-                              <Progress
-                                value={(achievement.progress.current / achievement.progress.target) * 100}
-                                className="h-2"
-                              />
-                              {achievement.contributingItems && achievement.contributingItems.length > 0 && (
-                                <div className="mt-1 text-xs text-muted-foreground flex items-center">
-                                  <Info className="h-3 w-3 mr-1" />
-                                  <span>Click to see contributing items</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : activeAchievementCategory !== "completed" ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No in-progress achievements found in this category.</p>
-                  <p className="text-sm mt-2">Play more games to make progress!</p>
-                </div>
-              ) : null}
-            </TabsContent>
-          )}
         </Tabs>
       </CardContent>
-
-      {/* Achievement Details Modal */}
-      {selectedAchievement && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-          onClick={closeAchievementDetails}
-        >
-          <div
-            className="bg-background p-4 sm:p-6 rounded-lg w-[95vw] sm:w-full sm:max-w-2xl max-h-[80vh] sm:max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold flex items-center gap-2">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${getAchievementRarityColor(selectedAchievement.rarity)}`}
-                >
-                  {getIconComponent(selectedAchievement.icon, 16)}
-                </div>
-                <span>{selectedAchievement.name}</span>
-              </h3>
-              <Button variant="ghost" size="icon" onClick={closeAchievementDetails} className="h-8 w-8">
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </Button>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-muted-foreground">{selectedAchievement.description}</p>
-              <div
-                className={`mt-2 text-sm px-2 py-1 rounded-full inline-block ${getAchievementRarityColor(selectedAchievement.rarity)} text-white`}
-              >
-                {getRarityDisplayName(selectedAchievement.rarity)} Achievement
-              </div>
-            </div>
-
-            {selectedAchievement.progress && (
-              <div className="mb-6">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Progress</span>
-                  <span>
-                    {selectedAchievement.progress.current} / {selectedAchievement.progress.target}
-                  </span>
-                </div>
-                <Progress
-                  value={(selectedAchievement.progress.current / selectedAchievement.progress.target) * 100}
-                  className="h-3"
-                />
-                <p className="text-sm mt-1 text-muted-foreground">
-                  {selectedAchievement.isUnlocked
-                    ? "Achievement completed!"
-                    : `${selectedAchievement.progress.target - selectedAchievement.progress.current} more to go`}
-                </p>
-              </div>
-            )}
-
-            {selectedAchievement.contributingItems && selectedAchievement.contributingItems.length > 0 ? (
-              <div>
-                <h4 className="text-lg font-medium mb-3">Contributing Items</h4>
-                <p className="text-sm text-muted-foreground mb-3">
-                  These items helped you progress toward this achievement:
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {selectedAchievement.contributingItems.map((item) => (
-                    <div key={`${item.id}-${item.type}`} className="flex flex-col items-center border rounded-lg p-2">
-                      <div className="relative h-24 w-20 mb-2 rounded-md overflow-hidden shadow-sm">
-                        {item.image ? (
-                          <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-                        ) : (
-                          <div className="h-full w-full bg-muted flex items-center justify-center">
-                            {item.type === "movie" ? (
-                              <Film size={20} className="text-muted-foreground" />
-                            ) : (
-                              <User size={20} className="text-muted-foreground" />
-                            )}
-                          </div>
-                        )}
-                        {item.rarity && item.rarity !== "common" && (
-                          <RarityOverlay rarity={item.rarity as Rarity} showLabel={true} size="sm" />
-                        )}
-                      </div>
-                      <div className="text-center">
-                        <p className="font-medium text-xs truncate max-w-[100px]" title={item.name}>
-                          {item.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">{item.type}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(item.date)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4 text-muted-foreground">
-                <p>No contributing items recorded for this achievement.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </Card>
   )
 }

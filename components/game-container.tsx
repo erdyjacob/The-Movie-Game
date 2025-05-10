@@ -22,9 +22,6 @@ import { initializeCache, setupCachePersistence } from "@/lib/api-cache"
 // Add this import at the top
 import { DailyChallengeToast } from "./daily-challenge-toast"
 
-// Add this import at the top of the file - make sure to import trackLegendaryItem
-import { updateAchievementProgress, unlockAchievement, trackLegendaryItem } from "@/lib/achievements"
-
 // Add the track import at the top of the file with other imports
 import { track } from "@vercel/analytics/react"
 
@@ -67,9 +64,6 @@ export default function GameContainer() {
   // Add this state variable
   const [showDailyChallengeToast, setShowDailyChallengeToast] = useState(false)
   const [completedChallengeItem, setCompletedChallengeItem] = useState<GameItem | null>(null)
-
-  // Add this state variable near the top of the component with other state variables
-  const [gameAchievementProgress, setGameAchievementProgress] = useState<Record<string, number>>({})
 
   // Inside the GameContainer component, add this effect to initialize the cache
   useEffect(() => {
@@ -520,8 +514,7 @@ export default function GameContainer() {
       dailyChallengeCompleted: false,
     }))
 
-    // Reset game achievement progress
-    setGameAchievementProgress({})
+    // Achievement tracking removed for stability
   }, [])
 
   const restartGame = useCallback(() => {
@@ -591,164 +584,6 @@ export default function GameContainer() {
 
       // Add to player history
       addToPlayerHistory(newItem)
-
-      // Track achievements
-      if (newItem.selectedBy === "player") {
-        // Create a copy of the current progress
-        const updatedProgress = { ...gameAchievementProgress }
-
-        // Check for legendary items - use the imported trackLegendaryItem function
-        if (newItem.rarity === "legendary") {
-          console.log("Found legendary item:", newItem.name)
-
-          // Track legendary item found
-          track("legendary_item_found", {
-            itemId: newItem.id,
-            itemName: newItem.name,
-            itemType: newItem.type,
-            gameMode: gameState.gameMode,
-            score: gameState.score,
-          })
-
-          // Call the trackLegendaryItem function from achievements.ts
-          trackLegendaryItem(newItem)
-
-          // Update the local game state for UI display
-          const currentProgress = updatedProgress["legendary_hunter"] || 0
-          updatedProgress["legendary_hunter"] = currentProgress + 1
-        }
-
-        // Check for actor-specific achievements
-        if (newItem.type === "actor") {
-          // Jason Statham achievement
-          if (newItem.name.toLowerCase().includes("jason statham")) {
-            const currentProgress = updatedProgress["fully_cranked"] || 0
-            updatedProgress["fully_cranked"] = currentProgress + 1
-            updateAchievementProgress("fully_cranked", 1) // Now increments by 1
-          }
-
-          // Dwayne Johnson achievement
-          if (
-            newItem.name.toLowerCase().includes("dwayne johnson") ||
-            newItem.name.toLowerCase().includes("the rock")
-          ) {
-            const currentProgress = updatedProgress["the_rock_star"] || 0
-            updatedProgress["the_rock_star"] = currentProgress + 1
-            updateAchievementProgress("the_rock_star", 1) // Now increments by 1
-          }
-
-          // Nicolas Cage achievement
-          if (
-            newItem.name.toLowerCase().includes("nicolas cage") ||
-            newItem.name.toLowerCase().includes("nicholas cage")
-          ) {
-            const currentProgress = updatedProgress["cage_match"] || 0
-            updatedProgress["cage_match"] = currentProgress + 1
-            updateAchievementProgress("cage_match", 1) // Now increments by 1
-          }
-
-          // Kevin Bacon achievement (partial tracking)
-          if (newItem.name.toLowerCase().includes("kevin bacon")) {
-            const currentProgress = updatedProgress["six_degrees"] || 0
-            updatedProgress["six_degrees"] = currentProgress + 1
-            updateAchievementProgress("six_degrees", 1) // Now increments by 1
-          }
-        }
-
-        // Check for genre achievements (simplified version)
-        if (newItem.type === "movie") {
-          // This is simplified - in a real implementation, you'd check genre IDs
-          const title = newItem.name.toLowerCase()
-          const overview = newItem.details?.overview?.toLowerCase() || ""
-
-          // Rom-Com detection
-          if (
-            (title.includes("love") || title.includes("romance") || overview.includes("romantic")) &&
-            (title.includes("comedy") || overview.includes("comedy"))
-          ) {
-            const currentProgress = updatedProgress["aw_cute"] || 0
-            updatedProgress["aw_cute"] = currentProgress + 1
-            updateAchievementProgress("aw_cute", 1) // Now increments by 1
-          }
-
-          // Horror detection
-          if (
-            title.includes("horror") ||
-            overview.includes("horror") ||
-            title.includes("scary") ||
-            overview.includes("scary") ||
-            title.includes("terror") ||
-            overview.includes("terror")
-          ) {
-            const currentProgress = updatedProgress["screamer"] || 0
-            updatedProgress["screamer"] = currentProgress + 1
-            updateAchievementProgress("screamer", 1) // Now increments by 1
-          }
-
-          // Sci-fi detection
-          if (
-            title.includes("space") ||
-            overview.includes("space") ||
-            title.includes("sci-fi") ||
-            overview.includes("sci-fi") ||
-            title.includes("alien") ||
-            overview.includes("alien")
-          ) {
-            const currentProgress = updatedProgress["space_race"] || 0
-            updatedProgress["space_race"] = currentProgress + 1
-            updateAchievementProgress("space_race", 1) // Now increments by 1
-          }
-
-          // Action detection
-          if (
-            title.includes("action") ||
-            overview.includes("action") ||
-            title.includes("explosion") ||
-            overview.includes("explosion") ||
-            title.includes("mission") ||
-            overview.includes("mission")
-          ) {
-            const currentProgress = updatedProgress["locked_n_loaded"] || 0
-            updatedProgress["locked_n_loaded"] = currentProgress + 1
-            updateAchievementProgress("locked_n_loaded", 1) // Now increments by 1
-          }
-
-          // Comedy detection
-          if (
-            title.includes("comedy") ||
-            overview.includes("comedy") ||
-            title.includes("funny") ||
-            overview.includes("funny") ||
-            title.includes("laugh") ||
-            overview.includes("laugh")
-          ) {
-            const currentProgress = updatedProgress["mr_funny"] || 0
-            updatedProgress["mr_funny"] = currentProgress + 1
-            updateAchievementProgress("mr_funny", 1) // Now increments by 1
-          }
-        }
-
-        // Update the game achievement progress state
-        setGameAchievementProgress(updatedProgress)
-      }
-
-      // Check for chain reaction achievement
-      if (gameState.history.length >= 15) {
-        unlockAchievement("chain_reaction")
-
-        // Track achievement unlock
-        track("achievement_unlocked", {
-          achievementId: "chain_reaction",
-          achievementName: "Chain Reaction",
-          gameMode: gameState.gameMode,
-          score: gameState.score,
-        })
-
-        // Update local state for UI display
-        const updatedProgress = { ...gameAchievementProgress }
-        updatedProgress["chain_reaction"] = 1
-        setGameAchievementProgress(updatedProgress)
-      }
 
       // Check if this is the daily challenge item
       let isDailyChallenge = false
@@ -821,7 +656,6 @@ export default function GameContainer() {
       gameState.usedIds,
       gameState.dailyChallengeCompleted,
       dailyChallenge,
-      gameAchievementProgress,
       gameState.history.length,
       gameState.score,
       gameState.strikes,
@@ -881,7 +715,6 @@ export default function GameContainer() {
           gameMode={gameState.gameMode}
           newUnlocks={gameState.newUnlocks}
           dailyChallengeCompleted={gameState.dailyChallengeCompleted}
-          achievementProgress={gameAchievementProgress}
         />
       )}
 
