@@ -75,20 +75,6 @@ export const ACHIEVEMENTS: Achievement[] = [
     },
     contributingItems: [],
   },
-  {
-    id: "foreign_film_buff",
-    name: "Foreign Film Buff",
-    description: "Collected movies in 10 different languages",
-    category: "rare",
-    rarity: "rare",
-    icon: "Globe",
-    isUnlocked: false,
-    progress: {
-      current: 0,
-      target: 10,
-    },
-    contributingItems: [],
-  },
 
   // Gameplay Achievements
   {
@@ -130,20 +116,6 @@ export const ACHIEVEMENTS: Achievement[] = [
     progress: {
       current: 0,
       target: 10,
-    },
-    contributingItems: [],
-  },
-  {
-    id: "daily_devotion",
-    name: "Daily Devotion",
-    description: "Completed 7 daily challenges in a row",
-    category: "gameplay",
-    rarity: "rare",
-    icon: "Calendar",
-    isUnlocked: false,
-    progress: {
-      current: 0,
-      target: 7,
     },
     contributingItems: [],
   },
@@ -260,34 +232,6 @@ export const ACHIEVEMENTS: Achievement[] = [
     contributingItems: [],
   },
   {
-    id: "cage_match",
-    name: "Cage Match",
-    description: "Used Nicolas Cage 10 times in one week",
-    category: "actor",
-    rarity: "rare",
-    icon: "Box",
-    isUnlocked: false,
-    progress: {
-      current: 0,
-      target: 10,
-    },
-    contributingItems: [],
-  },
-  {
-    id: "six_degrees",
-    name: "Six Degrees of Bacon",
-    description: "Connected to Kevin Bacon in under 6 steps",
-    category: "actor",
-    rarity: "uncommon",
-    icon: "Network",
-    isUnlocked: false,
-    progress: {
-      current: 0,
-      target: 6,
-    },
-    contributingItems: [],
-  },
-  {
     id: "method_actor",
     name: "Method Actor",
     description: "Used the same actor in 3 consecutive games",
@@ -316,7 +260,24 @@ export function loadAchievements(): Achievement[] {
         const parsed = JSON.parse(savedAchievements)
         // Validate the parsed data
         if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
-          return parsed
+          // Filter out the removed achievements
+          const filteredAchievements = parsed.filter(
+            (achievement) =>
+              !["six_degrees", "cage_match", "foreign_film_buff", "daily_devotion"].includes(achievement.id),
+          )
+
+          // Check if we have all current achievements
+          const currentAchievementIds = ACHIEVEMENTS.map((a) => a.id)
+          const existingAchievementIds = filteredAchievements.map((a) => a.id)
+
+          // Add any missing achievements
+          for (const achievement of ACHIEVEMENTS) {
+            if (!existingAchievementIds.includes(achievement.id)) {
+              filteredAchievements.push(achievement)
+            }
+          }
+
+          return filteredAchievements
         }
       } catch (error) {
         console.error("Error parsing achievements:", error)
@@ -421,6 +382,7 @@ export function updateAchievements(): Achievement[] {
                     image: movie.image,
                     date: movie.date,
                     rarity: movie.rarity,
+                    genres: movie.genres,
                   })
                 }
               })
@@ -501,6 +463,7 @@ export function updateAchievements(): Achievement[] {
                     image: item.image,
                     date: item.date || new Date().toISOString(),
                     rarity: item.rarity,
+                    genres: item.genres,
                   })
                 }
               })
@@ -514,6 +477,304 @@ export function updateAchievements(): Achievement[] {
             console.log(`${achievement.id}: ${achievement.progress.current}/${achievement.progress.target}`)
           }
           break
+
+        // Genre-based achievements
+        case "aw_cute":
+          if (achievement.progress) {
+            // Count rom-com movies
+            const romComMovies = Array.isArray(playerHistory.movies)
+              ? playerHistory.movies.filter(
+                  (movie) =>
+                    movie.genres?.some((genre) => genre.toLowerCase().includes("romance")) &&
+                    movie.genres?.some((genre) => genre.toLowerCase().includes("comedy")),
+                )
+              : []
+
+            // Update progress
+            achievement.progress.current = romComMovies.length
+            achievement.isUnlocked = romComMovies.length >= achievement.progress.target
+
+            // Update contributing items
+            if (!achievement.contributingItems) {
+              achievement.contributingItems = []
+            }
+
+            // Add rom-com movies to contributing items if they're not already there
+            romComMovies.forEach((movie) => {
+              if (!achievement.contributingItems?.some((item) => item.id === movie.id)) {
+                achievement.contributingItems?.push({
+                  id: movie.id,
+                  name: movie.name,
+                  type: "movie",
+                  image: movie.image,
+                  date: movie.date,
+                  rarity: movie.rarity,
+                  genres: movie.genres,
+                })
+              }
+            })
+
+            // Limit to the most recent 20 contributing items
+            if (achievement.contributingItems.length > 20) {
+              achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+            }
+          }
+          break
+
+        case "screamer":
+          if (achievement.progress) {
+            // Count horror movies
+            const horrorMovies = Array.isArray(playerHistory.movies)
+              ? playerHistory.movies.filter((movie) =>
+                  movie.genres?.some((genre) => genre.toLowerCase().includes("horror")),
+                )
+              : []
+
+            // Update progress
+            achievement.progress.current = horrorMovies.length
+            achievement.isUnlocked = horrorMovies.length >= achievement.progress.target
+
+            // Update contributing items
+            if (!achievement.contributingItems) {
+              achievement.contributingItems = []
+            }
+
+            // Add horror movies to contributing items if they're not already there
+            horrorMovies.forEach((movie) => {
+              if (!achievement.contributingItems?.some((item) => item.id === movie.id)) {
+                achievement.contributingItems?.push({
+                  id: movie.id,
+                  name: movie.name,
+                  type: "movie",
+                  image: movie.image,
+                  date: movie.date,
+                  rarity: movie.rarity,
+                  genres: movie.genres,
+                })
+              }
+            })
+
+            // Limit to the most recent 20 contributing items
+            if (achievement.contributingItems.length > 20) {
+              achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+            }
+          }
+          break
+
+        case "space_race":
+          if (achievement.progress) {
+            // Count sci-fi movies
+            const scifiMovies = Array.isArray(playerHistory.movies)
+              ? playerHistory.movies.filter((movie) =>
+                  movie.genres?.some(
+                    (genre) =>
+                      genre.toLowerCase().includes("sci-fi") || genre.toLowerCase().includes("science fiction"),
+                  ),
+                )
+              : []
+
+            // Update progress
+            achievement.progress.current = scifiMovies.length
+            achievement.isUnlocked = scifiMovies.length >= achievement.progress.target
+
+            // Update contributing items
+            if (!achievement.contributingItems) {
+              achievement.contributingItems = []
+            }
+
+            // Add sci-fi movies to contributing items if they're not already there
+            scifiMovies.forEach((movie) => {
+              if (!achievement.contributingItems?.some((item) => item.id === movie.id)) {
+                achievement.contributingItems?.push({
+                  id: movie.id,
+                  name: movie.name,
+                  type: "movie",
+                  image: movie.image,
+                  date: movie.date,
+                  rarity: movie.rarity,
+                  genres: movie.genres,
+                })
+              }
+            })
+
+            // Limit to the most recent 20 contributing items
+            if (achievement.contributingItems.length > 20) {
+              achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+            }
+          }
+          break
+
+        case "locked_n_loaded":
+          if (achievement.progress) {
+            // Count action movies
+            const actionMovies = Array.isArray(playerHistory.movies)
+              ? playerHistory.movies.filter((movie) =>
+                  movie.genres?.some((genre) => genre.toLowerCase().includes("action")),
+                )
+              : []
+
+            // Update progress
+            achievement.progress.current = actionMovies.length
+            achievement.isUnlocked = actionMovies.length >= achievement.progress.target
+
+            // Update contributing items
+            if (!achievement.contributingItems) {
+              achievement.contributingItems = []
+            }
+
+            // Add action movies to contributing items if they're not already there
+            actionMovies.forEach((movie) => {
+              if (!achievement.contributingItems?.some((item) => item.id === movie.id)) {
+                achievement.contributingItems?.push({
+                  id: movie.id,
+                  name: movie.name,
+                  type: "movie",
+                  image: movie.image,
+                  date: movie.date,
+                  rarity: movie.rarity,
+                  genres: movie.genres,
+                })
+              }
+            })
+
+            // Limit to the most recent 20 contributing items
+            if (achievement.contributingItems.length > 20) {
+              achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+            }
+          }
+          break
+
+        case "mr_funny":
+          if (achievement.progress) {
+            // Count comedy movies
+            const comedyMovies = Array.isArray(playerHistory.movies)
+              ? playerHistory.movies.filter((movie) =>
+                  movie.genres?.some((genre) => genre.toLowerCase().includes("comedy")),
+                )
+              : []
+
+            // Update progress
+            achievement.progress.current = comedyMovies.length
+            achievement.isUnlocked = comedyMovies.length >= achievement.progress.target
+
+            // Update contributing items
+            if (!achievement.contributingItems) {
+              achievement.contributingItems = []
+            }
+
+            // Add comedy movies to contributing items if they're not already there
+            comedyMovies.forEach((movie) => {
+              if (!achievement.contributingItems?.some((item) => item.id === movie.id)) {
+                achievement.contributingItems?.push({
+                  id: movie.id,
+                  name: movie.name,
+                  type: "movie",
+                  image: movie.image,
+                  date: movie.date,
+                  rarity: movie.rarity,
+                  genres: movie.genres,
+                })
+              }
+            })
+
+            // Limit to the most recent 20 contributing items
+            if (achievement.contributingItems.length > 20) {
+              achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+            }
+          }
+          break
+
+        // Actor-based achievements
+        case "fully_cranked":
+          if (achievement.progress) {
+            // Count Jason Statham uses
+            const stathamUses = Array.isArray(playerHistory.actors)
+              ? playerHistory.actors.filter((actor) => actor.name.toLowerCase().includes("jason statham")).length
+              : 0
+
+            // Update progress
+            achievement.progress.current = stathamUses
+            achievement.isUnlocked = stathamUses >= achievement.progress.target
+
+            // Update contributing items
+            if (!achievement.contributingItems) {
+              achievement.contributingItems = []
+            }
+
+            // Add Jason Statham to contributing items if not already there
+            const stathamActors = Array.isArray(playerHistory.actors)
+              ? playerHistory.actors.filter((actor) => actor.name.toLowerCase().includes("jason statham"))
+              : []
+
+            stathamActors.forEach((actor) => {
+              if (!achievement.contributingItems?.some((item) => item.id === actor.id)) {
+                achievement.contributingItems?.push({
+                  id: actor.id,
+                  name: actor.name,
+                  type: "actor",
+                  image: actor.image,
+                  date: actor.date,
+                  rarity: actor.rarity,
+                })
+              }
+            })
+
+            // Limit to the most recent 20 contributing items
+            if (achievement.contributingItems.length > 20) {
+              achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+            }
+          }
+          break
+
+        case "the_rock_star":
+          if (achievement.progress) {
+            // Count Dwayne Johnson uses
+            const rockUses = Array.isArray(playerHistory.actors)
+              ? playerHistory.actors.filter(
+                  (actor) =>
+                    actor.name.toLowerCase().includes("dwayne johnson") ||
+                    actor.name.toLowerCase().includes("the rock"),
+                ).length
+              : 0
+
+            // Update progress
+            achievement.progress.current = rockUses
+            achievement.isUnlocked = rockUses >= achievement.progress.target
+
+            // Update contributing items
+            if (!achievement.contributingItems) {
+              achievement.contributingItems = []
+            }
+
+            // Add Dwayne Johnson to contributing items if not already there
+            const rockActors = Array.isArray(playerHistory.actors)
+              ? playerHistory.actors.filter(
+                  (actor) =>
+                    actor.name.toLowerCase().includes("dwayne johnson") ||
+                    actor.name.toLowerCase().includes("the rock"),
+                )
+              : []
+
+            rockActors.forEach((actor) => {
+              if (!achievement.contributingItems?.some((item) => item.id === actor.id)) {
+                achievement.contributingItems?.push({
+                  id: actor.id,
+                  name: actor.name,
+                  type: "actor",
+                  image: actor.image,
+                  date: actor.date,
+                  rarity: actor.rarity,
+                })
+              }
+            })
+
+            // Limit to the most recent 20 contributing items
+            if (achievement.contributingItems.length > 20) {
+              achievement.contributingItems = achievement.contributingItems.slice(0, 20)
+            }
+          }
+          break
+
         // Other achievements would be updated based on game events
         // We'll implement those in the game logic
       }
@@ -654,6 +915,7 @@ export function trackLegendaryItem(item: any): void {
             image: item.image,
             date: item.date || new Date().toISOString(),
             rarity: item.rarity,
+            genres: item.genres,
           })
         }
 
@@ -687,6 +949,7 @@ export function trackLegendaryItem(item: any): void {
             image: item.image,
             date: item.date || new Date().toISOString(),
             rarity: item.rarity,
+            genres: item.genres,
           })
         }
 

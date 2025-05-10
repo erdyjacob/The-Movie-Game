@@ -456,59 +456,52 @@ export default function GameOverScreen({
         }
         break
 
-      // Add more cases for other achievements as needed
+      // Genre-based achievements
+      case "aw_cute":
+        // Rom-com movies
+        return newUnlocks.movies.filter(
+          (movie) =>
+            movie.genres?.some((genre) => genre.toLowerCase().includes("romance")) &&
+            movie.genres?.some((genre) => genre.toLowerCase().includes("comedy")),
+        )
+      case "screamer":
+        // Horror movies
+        return newUnlocks.movies.filter((movie) =>
+          movie.genres?.some((genre) => genre.toLowerCase().includes("horror")),
+        )
+      case "space_race":
+        // Sci-fi movies
+        return newUnlocks.movies.filter((movie) =>
+          movie.genres?.some(
+            (genre) => genre.toLowerCase().includes("sci-fi") || genre.toLowerCase().includes("science fiction"),
+          ),
+        )
+      case "locked_n_loaded":
+        // Action movies
+        return newUnlocks.movies.filter((movie) =>
+          movie.genres?.some((genre) => genre.toLowerCase().includes("action")),
+        )
+      case "mr_funny":
+        // Comedy movies
+        return newUnlocks.movies.filter((movie) =>
+          movie.genres?.some((genre) => genre.toLowerCase().includes("comedy")),
+        )
+
+      // Actor-specific achievements
+      case "fully_cranked":
+        // Jason Statham
+        return newUnlocks.actors.filter((actor) => actor.name.toLowerCase().includes("jason statham"))
+      case "the_rock_star":
+        // Dwayne Johnson
+        return newUnlocks.actors.filter(
+          (actor) =>
+            actor.name.toLowerCase().includes("dwayne johnson") || actor.name.toLowerCase().includes("the rock"),
+        )
+      case "method_actor":
+        // Same actor in consecutive games - this is handled elsewhere
+        return []
 
       default:
-        // For other achievements, check if they're genre-based
-        if (achievementId === "aw_cute") {
-          // Rom-com movies
-          return newUnlocks.movies.filter(
-            (movie) =>
-              movie.genres?.some((genre) => genre.toLowerCase().includes("romance")) &&
-              movie.genres?.some((genre) => genre.toLowerCase().includes("comedy")),
-          )
-        } else if (achievementId === "screamer") {
-          // Horror movies
-          return newUnlocks.movies.filter((movie) =>
-            movie.genres?.some((genre) => genre.toLowerCase().includes("horror")),
-          )
-        } else if (achievementId === "space_race") {
-          // Sci-fi movies
-          return newUnlocks.movies.filter((movie) =>
-            movie.genres?.some(
-              (genre) => genre.toLowerCase().includes("sci-fi") || genre.toLowerCase().includes("science fiction"),
-            ),
-          )
-        } else if (achievementId === "locked_n_loaded") {
-          // Action movies
-          return newUnlocks.movies.filter((movie) =>
-            movie.genres?.some((genre) => genre.toLowerCase().includes("action")),
-          )
-        } else if (achievementId === "mr_funny") {
-          // Comedy movies
-          return newUnlocks.movies.filter((movie) =>
-            movie.genres?.some((genre) => genre.toLowerCase().includes("comedy")),
-          )
-        }
-
-        // Actor-specific achievements
-        if (achievementId === "fully_cranked") {
-          // Jason Statham
-          return newUnlocks.actors.filter((actor) => actor.name.toLowerCase().includes("jason statham"))
-        } else if (achievementId === "the_rock_star") {
-          // Dwayne Johnson
-          return newUnlocks.actors.filter(
-            (actor) =>
-              actor.name.toLowerCase().includes("dwayne johnson") || actor.name.toLowerCase().includes("the rock"),
-          )
-        } else if (achievementId === "cage_match") {
-          // Nicolas Cage
-          return newUnlocks.actors.filter(
-            (actor) =>
-              actor.name.toLowerCase().includes("nicolas cage") || actor.name.toLowerCase().includes("nicholas cage"),
-          )
-        }
-
         return []
     }
 
