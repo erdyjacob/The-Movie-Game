@@ -31,6 +31,9 @@ import { makeComputerSelection } from "@/lib/computer-selection"
 // Time limit for timed mode in seconds
 const TIME_LIMIT = 120 // 2 minutes
 
+// Import the saveConnection function at the top of the file
+import { saveConnection } from "@/lib/connection-tracking"
+
 export default function GameContainer() {
   const [gameState, setGameState] = useState<GameState>({
     status: "start",
@@ -584,6 +587,15 @@ export default function GameContainer() {
 
       // Add to player history
       addToPlayerHistory(newItem)
+
+      // Record the connection between the current item and the new item
+      if (gameState.currentItem && gameState.currentItem.type !== newItem.type) {
+        const movieItem = gameState.currentItem.type === "movie" ? gameState.currentItem : newItem
+        const actorItem = gameState.currentItem.type === "actor" ? gameState.currentItem : newItem
+
+        // Save the connection
+        saveConnection(movieItem.id, actorItem.id, movieItem.name, actorItem.name)
+      }
 
       // Check if this is the daily challenge item
       let isDailyChallenge = false

@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
+import ConnectionWebButton from "./connection-web-button"
+import { clearConnections } from "@/lib/connection-tracking"
 
 // Add these constants at the top of the file, after the imports
 // These represent estimated totals of collectible items in the game
@@ -212,6 +214,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     clearPlayerHistory()
     setMostUsedItems([])
     setCollectionItems([])
+    clearConnections()
 
     toast({
       title: "History Cleared",
@@ -431,6 +434,10 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
                 </div>
               </div>
             )}
+
+            <div className="mt-4">
+              <ConnectionWebButton className="w-full" />
+            </div>
           </div>
         </div>
 

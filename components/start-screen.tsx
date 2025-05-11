@@ -15,6 +15,7 @@ import { useMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import ConnectionWebButton from "./connection-web-button"
 
 // Custom animated button component
 const AnimatedButton = ({
@@ -437,6 +438,9 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
               <BarChart size={isMobile ? 16 : 18} />
               <span>View Your Stats</span>
             </AnimatedButton>
+
+            {/* Add Connection Web button */}
+            <ConnectionWebButton className="w-full mt-2" />
           </div>
         </div>
       </CardContent>

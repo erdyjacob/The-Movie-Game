@@ -17,6 +17,7 @@ import PlayerStats from "./player-stats"
 
 // Add the track import at the top of the file
 import { track } from "@vercel/analytics/react"
+import ConnectionWebButton from "./connection-web-button"
 
 // Update the props interface to remove achievement progress
 interface GameOverScreenProps {
@@ -385,7 +386,7 @@ export default function GameOverScreen({
       </CardContent>
       <CardFooter className="justify-center gap-3 pt-4 pb-6">
         {/* Make both buttons the same width with grid */}
-        <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+        <div className="grid grid-cols-3 gap-3 w-full max-w-md">
           <AnimatedButton
             variant="outline"
             size="lg"
@@ -395,6 +396,8 @@ export default function GameOverScreen({
             <BarChart size={16} />
             <span>View Stats</span>
           </AnimatedButton>
+
+          <ConnectionWebButton className="flex items-center justify-center w-full" />
 
           <AnimatedButton
             size="lg"
