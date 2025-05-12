@@ -171,7 +171,7 @@ export default function ConnectionWeb() {
 
       // Reset all nodes and links to normal opacity
       svg.selectAll(".node").style("opacity", 1)
-      svg.selectAll(".links line").style("opacity", 0.6)
+      svg.selectAll(".links line").style("opacity", 0.8) // Increased default opacity
 
       // If we have search results, highlight them
       if (results.length > 0) {
@@ -184,7 +184,7 @@ export default function ConnectionWeb() {
         svg.selectAll(".links line").style("opacity", (d: any) => {
           const sourceId = typeof d.source === "string" ? d.source : d.source.id
           const targetId = typeof d.target === "string" ? d.target : d.target.id
-          return resultIds.has(sourceId) || resultIds.has(targetId) ? 0.8 : 0.2
+          return resultIds.has(sourceId) || resultIds.has(targetId) ? 1 : 0.2
         })
       }
     }
@@ -278,7 +278,7 @@ export default function ConnectionWeb() {
       .force("x", d3.forceX(width / 2).strength(0.07))
       .force("y", d3.forceY(height / 2).strength(0.07))
 
-    // Create straight lines
+    // Create straight lines with improved visibility
     const link = container
       .append("g")
       .attr("class", "links")
@@ -286,9 +286,9 @@ export default function ConnectionWeb() {
       .data(filteredLinks)
       .enter()
       .append("line")
-      .attr("stroke", (d) => (d.source_type === "inferred" ? "#6b7280" : "#1e40af")) // Different color for inferred connections
-      .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", (d) => Math.sqrt(d.value))
+      .attr("stroke", (d) => (d.source_type === "inferred" ? "#4b5563" : "#2563eb")) // Darker colors for better contrast
+      .attr("stroke-opacity", 0.8) // Increased opacity for better visibility
+      .attr("stroke-width", (d) => Math.sqrt(d.value) + 1) // Increased line width
       .style("transition", "opacity 0.3s ease") // Add transition for smooth opacity changes
 
     // Create node groups
@@ -331,7 +331,7 @@ export default function ConnectionWeb() {
           const sourceId = typeof l.source === "string" ? l.source : l.source.id
           const targetId = typeof l.target === "string" ? l.target : l.target.id
 
-          return sourceId === currentNodeId || targetId === currentNodeId ? 0.9 : 0.2
+          return sourceId === currentNodeId || targetId === currentNodeId ? 1 : 0.2
         })
 
         event.stopPropagation()
@@ -343,7 +343,7 @@ export default function ConnectionWeb() {
         // Reset all opacities unless we're filtering by search
         if (!searchTerm.trim()) {
           svg.selectAll(".node").style("opacity", 1)
-          svg.selectAll(".links line").style("opacity", 0.6)
+          svg.selectAll(".links line").style("opacity", 0.8) // Maintain higher opacity
         } else {
           // If we have an active search, maintain the search highlighting
           const resultIds = new Set(searchResults.map((r) => r.id))
@@ -353,7 +353,7 @@ export default function ConnectionWeb() {
           svg.selectAll(".links line").style("opacity", (d: any) => {
             const sourceId = typeof d.source === "string" ? d.source : d.source.id
             const targetId = typeof d.target === "string" ? d.target : d.target.id
-            return resultIds.has(sourceId) || resultIds.has(targetId) ? 0.8 : 0.2
+            return resultIds.has(sourceId) || resultIds.has(targetId) ? 1 : 0.2
           })
         }
       })
@@ -496,7 +496,7 @@ export default function ConnectionWeb() {
       // Reset all opacities unless we're filtering by search
       if (!searchTerm.trim()) {
         svg.selectAll(".node").style("opacity", 1)
-        svg.selectAll(".links line").style("opacity", 0.6)
+        svg.selectAll(".links line").style("opacity", 0.8) // Maintain higher opacity
       }
     })
 
@@ -558,7 +558,7 @@ export default function ConnectionWeb() {
     if (svgRef.current) {
       const svg = d3.select(svgRef.current)
       svg.selectAll(".node").style("opacity", 1)
-      svg.selectAll(".links line").style("opacity", 0.6)
+      svg.selectAll(".links line").style("opacity", 0.8) // Maintain higher opacity
     }
   }
 
@@ -773,11 +773,11 @@ export default function ConnectionWeb() {
       {/* Connection type legend */}
       <div className="mt-2 flex items-center justify-end gap-4 text-xs text-muted-foreground">
         <div className="flex items-center">
-          <div className="w-4 h-1 bg-blue-700 mr-1"></div>
+          <div className="w-4 h-1.5 bg-blue-600 mr-1"></div>
           <span>Explicit connections</span>
         </div>
         <div className="flex items-center">
-          <div className="w-4 h-1 bg-gray-500 mr-1"></div>
+          <div className="w-4 h-1.5 bg-gray-600 mr-1"></div>
           <span>Inferred connections</span>
         </div>
       </div>

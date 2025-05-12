@@ -81,7 +81,7 @@ export function loadConnections(): Connection[] {
       existingConnectionsSet.add(`${conn.movieId}-${conn.actorId}`)
     })
 
-    // Get player history
+    // Get player history - this contains ALL historical unlocks
     const playerHistory = safeParseJSON(localStorage.getItem("movieGamePlayerHistory"), { movies: [], actors: [] })
 
     // Create maps of discovered movies and actors for quick lookup
@@ -95,7 +95,9 @@ export function loadConnections(): Connection[] {
       discoveredActors.set(actor.id, actor)
     })
 
-    console.log(`Found ${discoveredMovies.size} discovered movies and ${discoveredActors.size} discovered actors`)
+    console.log(
+      `Found ${discoveredMovies.size} discovered movies and ${discoveredActors.size} discovered actors in complete history`,
+    )
 
     // If we have no discovered items, just return existing connections
     if (discoveredMovies.size === 0 || discoveredActors.size === 0) {
@@ -118,7 +120,7 @@ export function loadConnections(): Connection[] {
     const movieNames = new Map<number, string>()
     const actorNames = new Map<number, string>()
 
-    // First pass: extract all movie and actor data
+    // First pass: extract all movie and actor data from the API cache
     Object.entries(apiCache).forEach(([key, value]: [string, any]) => {
       if (!value || !value.data) return
 
@@ -126,9 +128,6 @@ export function loadConnections(): Connection[] {
       if (key.includes("/movie/") && key.includes("/credits")) {
         const movieId = extractId(key, "movie")
         if (!movieId) return
-
-        // Only process if we've discovered this movie
-        if (!discoveredMovies.has(movieId)) return
 
         const credits = value.data
         if (!credits.cast || !Array.isArray(credits.cast)) return
@@ -156,9 +155,6 @@ export function loadConnections(): Connection[] {
       if (key.includes("/person/") && key.includes("/movie_credits")) {
         const actorId = extractId(key, "person")
         if (!actorId) return
-
-        // Only process if we've discovered this actor
-        if (!discoveredActors.has(actorId)) return
 
         const credits = value.data
         if (!credits.cast || !Array.isArray(credits.cast)) return
@@ -199,7 +195,7 @@ export function loadConnections(): Connection[] {
       }
     })
 
-    console.log(`Extracted credits for ${movieCredits.size} movies and ${actorCredits.size} actors`)
+    console.log(`Extracted credits for ${movieCredits.size} movies and ${actorCredits.size} actors from API cache`)
 
     // Now create connections based on the extracted data
     let newConnectionsCount = 0
