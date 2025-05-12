@@ -4,14 +4,15 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import * as d3 from "d3"
-import { ZoomIn, ZoomOut, RefreshCw } from "lucide-react"
+import { ZoomIn, ZoomOut, RefreshCw, RotateCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { getRarityColor } from "@/lib/rarity"
 import { loadPlayerHistory } from "@/lib/player-history"
-import { loadConnections } from "@/lib/connection-tracking"
+import { loadConnections, refreshAllConnections } from "@/lib/connection-tracking"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Define the node and link types for our graph
 interface Node extends d3.SimulationNodeDatum {
@@ -34,6 +35,7 @@ export default function ConnectionWeb() {
   const [nodes, setNodes] = useState<Node[]>([])
   const [links, setLinks] = useState<Link[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [filterRarity, setFilterRarity] = useState<string | null>(null)
@@ -42,74 +44,106 @@ export default function ConnectionWeb() {
   const [imageQuality] = useState<"low" | "medium" | "high">("low")
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<Node[]>([])
+  const [syncSuccess, setSyncSuccess] = useState<boolean | null>(null)
 
   // Load player history and build the graph data
-  useEffect(() => {
-    const buildGraphData = () => {
-      setLoading(true)
+  const buildGraphData = () => {
+    setLoading(true)
 
-      try {
-        // Load player history
-        const history = loadPlayerHistory()
+    try {
+      // Load player history
+      const history = loadPlayerHistory()
 
-        // Load actual connections
-        const connections = loadConnections()
+      // Load actual connections
+      const connections = loadConnections()
 
-        // Create nodes from movies and actors
-        const movieNodes: Node[] = history.movies.map((movie) => ({
-          id: `movie-${movie.id}`,
-          name: movie.name,
-          type: "movie",
-          image: movie.image,
-          rarity: movie.rarity,
-          count: movie.count,
-        }))
+      // Create nodes from movies and actors
+      const movieNodes: Node[] = history.movies.map((movie) => ({
+        id: `movie-${movie.id}`,
+        name: movie.name,
+        type: "movie",
+        image: movie.image,
+        rarity: movie.rarity,
+        count: movie.count,
+      }))
 
-        const actorNodes: Node[] = history.actors.map((actor) => ({
-          id: `actor-${actor.id}`,
-          name: actor.name,
-          type: "actor",
-          image: actor.image,
-          rarity: actor.rarity,
-          count: actor.count,
-        }))
+      const actorNodes: Node[] = history.actors.map((actor) => ({
+        id: `actor-${actor.id}`,
+        name: actor.name,
+        type: "actor",
+        image: actor.image,
+        rarity: actor.rarity,
+        count: actor.count,
+      }))
 
-        // Combine all nodes
-        const allNodes = [...movieNodes, ...actorNodes]
+      // Combine all nodes
+      const allNodes = [...movieNodes, ...actorNodes]
 
-        // Create a set of node IDs for quick lookup
-        const nodeIds = new Set(allNodes.map((node) => node.id))
+      // Create a set of node IDs for quick lookup
+      const nodeIds = new Set(allNodes.map((node) => node.id))
 
-        // Filter connections to only include those where both movie and actor nodes exist
-        const validConnections = connections.filter((connection) => {
-          const movieId = `movie-${connection.movieId}`
-          const actorId = `actor-${connection.actorId}`
-          return nodeIds.has(movieId) && nodeIds.has(actorId)
-        })
+      // Filter connections to only include those where both movie and actor nodes exist
+      const validConnections = connections.filter((connection) => {
+        const movieId = `movie-${connection.movieId}`
+        const actorId = `actor-${connection.actorId}`
+        return nodeIds.has(movieId) && nodeIds.has(actorId)
+      })
 
-        // Create links based on valid connections
-        const allLinks: Link[] = validConnections.map((connection) => ({
-          source: `movie-${connection.movieId}`,
-          target: `actor-${connection.actorId}`,
-          value: 1,
-        }))
+      // Create links based on valid connections
+      const allLinks: Link[] = validConnections.map((connection) => ({
+        source: `movie-${connection.movieId}`,
+        target: `actor-${connection.actorId}`,
+        value: 1,
+      }))
 
-        setConnectionCount(validConnections.length)
-        setNodes(allNodes)
-        setLinks(allLinks)
-      } catch (error) {
-        console.error("Error building graph data:", error)
-        // Set empty arrays to prevent further errors
-        setNodes([])
-        setLinks([])
-        setConnectionCount(0)
-      } finally {
-        setLoading(false)
-      }
+      setConnectionCount(validConnections.length)
+      setNodes(allNodes)
+      setLinks(allLinks)
+    } catch (error) {
+      console.error("Error building graph data:", error)
+      // Set empty arrays to prevent further errors
+      setNodes([])
+      setLinks([])
+      setConnectionCount(0)
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     buildGraphData()
   }, [])
+
+  // Handle sync button click
+  const handleSync = async () => {
+    setSyncing(true)
+    setSyncSuccess(null)
+
+    try {
+      // Call the refreshAllConnections function to rebuild all connections
+      refreshAllConnections()
+
+      // Rebuild the graph data with the refreshed connections
+      buildGraphData()
+
+      setSyncSuccess(true)
+
+      // Reset success message after 3 seconds
+      setTimeout(() => {
+        setSyncSuccess(null)
+      }, 3000)
+    } catch (error) {
+      console.error("Error syncing connections:", error)
+      setSyncSuccess(false)
+
+      // Reset error message after 3 seconds
+      setTimeout(() => {
+        setSyncSuccess(null)
+      }, 3000)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   // Handle search functionality
   useEffect(() => {
@@ -583,8 +617,37 @@ export default function ConnectionWeb() {
           </div>
         </div>
 
-        {/* Zoom controls */}
+        {/* Controls */}
         <div className="flex items-center gap-2">
+          {/* Sync button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className={`relative ${
+                    syncSuccess === true ? "border-green-500" : syncSuccess === false ? "border-red-500" : ""
+                  }`}
+                >
+                  <RotateCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                  {syncSuccess === true && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-green-500 rounded-full"></span>
+                  )}
+                  {syncSuccess === false && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Sync connections</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Zoom controls */}
           <Button variant="outline" size="icon" onClick={handleZoomOut}>
             <ZoomOut className="h-4 w-4" />
           </Button>
@@ -599,9 +662,10 @@ export default function ConnectionWeb() {
       </div>
 
       <div className="relative flex-1 border rounded-lg overflow-hidden">
-        {loading ? (
+        {loading || syncing ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            {syncing && <p className="absolute mt-16 text-sm text-muted-foreground">Syncing connections...</p>}
           </div>
         ) : nodes.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center">
