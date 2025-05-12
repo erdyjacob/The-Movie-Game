@@ -675,6 +675,22 @@ export default function GameContainer() {
     ],
   )
 
+  // Find the startRegularGame function - around line 420
+  // Replace this function:
+  const startRegularGame = () => {
+    // Use default settings (medium difficulty, all filters enabled)
+    const defaultDifficulty = "medium"
+    const defaultFilters = {
+      includeAnimated: true,
+      includeSequels: true,
+      includeForeign: true,
+    }
+    onStart(defaultDifficulty, defaultFilters, "timed")
+  }
+
+  // Define onStart here, before it's used
+  const onStart = startGame
+
   return (
     <div className="w-full max-w-3xl">
       {/* Remove the header when on the start screen */}

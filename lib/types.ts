@@ -127,3 +127,12 @@ export interface AccountScore {
   moviesCount?: number
   actorsCount?: number
 }
+
+export interface Connection {
+  movieId: number
+  actorId: number
+  movieName: string
+  actorName: string
+  timestamp: string // ISO string
+  gameId?: string // Optional game session identifier
+}

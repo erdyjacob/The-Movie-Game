@@ -13,8 +13,6 @@ import { getDailyChallenge } from "@/lib/daily-challenge"
 import Link from "next/link"
 import { useMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
 import ConnectionWebButton from "./connection-web-button"
 
 // Custom animated button component
@@ -231,98 +229,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
           )}
         </div>
 
-        {/* Game Modifiers dropdown - styled like How to Play */}
-        <div className="w-full mt-2">
-          <Button
-            variant="ghost"
-            className="flex w-full justify-between py-1 sm:py-2 font-medium text-sm sm:text-base"
-            onClick={toggleGameModifiers}
-            type="button"
-          >
-            Game Modifiers
-            {gameModifiersOpen ? (
-              <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />
-            ) : (
-              <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
-            )}
-          </Button>
-
-          {gameModifiersOpen && (
-            <div className="px-2 sm:px-4 pb-2 sm:pb-4 pt-1">
-              <div className="text-xs sm:text-sm space-y-4 bg-muted/30 p-2 sm:p-3 rounded-md">
-                {/* Difficulty Selector - Removed header */}
-                <div className="grid grid-cols-3 gap-1 sm:gap-2 w-full">
-                  <Button
-                    variant={difficulty === "easy" ? "default" : "outline"}
-                    onClick={() => setDifficulty("easy")}
-                    disabled={loading}
-                    size="sm"
-                    className="text-xs sm:text-sm"
-                  >
-                    Easy
-                  </Button>
-                  <Button
-                    variant={difficulty === "medium" ? "default" : "outline"}
-                    onClick={() => setDifficulty("medium")}
-                    disabled={loading}
-                    size="sm"
-                    className="text-xs sm:text-sm"
-                  >
-                    Medium
-                  </Button>
-                  <Button
-                    variant={difficulty === "hard" ? "default" : "outline"}
-                    onClick={() => setDifficulty("hard")}
-                    disabled={loading}
-                    size="sm"
-                    className="text-xs sm:text-sm"
-                  >
-                    Hard
-                  </Button>
-                </div>
-
-                {/* Movie Filters - Removed header */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between py-1">
-                    <Label htmlFor="animated" className="text-xs sm:text-sm cursor-pointer">
-                      Include Animated Movies
-                    </Label>
-                    <Switch
-                      id="animated"
-                      checked={filters.includeAnimated}
-                      onCheckedChange={() => handleFilterChange("includeAnimated")}
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between py-1">
-                    <Label htmlFor="sequels" className="text-xs sm:text-sm cursor-pointer">
-                      Include Movie Sequels
-                    </Label>
-                    <Switch
-                      id="sequels"
-                      checked={filters.includeSequels}
-                      onCheckedChange={() => handleFilterChange("includeSequels")}
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between py-1">
-                    <Label htmlFor="foreign" className="text-xs sm:text-sm cursor-pointer">
-                      Include Foreign Films
-                    </Label>
-                    <Switch
-                      id="foreign"
-                      checked={filters.includeForeign}
-                      onCheckedChange={() => handleFilterChange("includeForeign")}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Game Modifiers dropdown removed - code preserved for future implementation */}
       </CardHeader>
       <CardContent className="space-y-4 sm:space-y-8 px-3 sm:px-6">
         {/* Redesigned Daily Challenge - Now a Game Mode */}
@@ -445,14 +352,29 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
         </div>
       </CardContent>
       <CardFooter className="flex flex-col pt-2 pb-4 sm:pb-6">
-        {/* Add survey link at the bottom */}
-        <div className="w-full text-center mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Having fun?{" "}
-            <Link href="https://forms.gle/ppmQ7XcoX6i4xUEz9" className="text-blue-500 hover:underline" target="_blank">
-              Take our survey
+        {/* Footer with survey link and TMDB attribution */}
+        <div className="w-full flex flex-col sm:flex-row sm:justify-between items-center mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
+          {/* Left: Survey link */}
+          <div className="mb-2 sm:mb-0 text-left">
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Having fun?{" "}
+              <Link
+                href="https://forms.gle/ppmQ7XcoX6i4xUEz9"
+                className="text-blue-500 hover:underline"
+                target="_blank"
+              >
+                Take our survey
+              </Link>
+            </p>
+          </div>
+
+          {/* Right: TMDB attribution */}
+          <div className="flex items-center">
+            <span className="text-xs sm:text-sm text-muted-foreground mr-2">Data provided by</span>
+            <Link href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">
+              <Image src="/images/tmdb-logo.svg" alt="TMDB Logo" width={80} height={15} className="h-4 sm:h-5 w-auto" />
             </Link>
-          </p>
+          </div>
         </div>
       </CardFooter>
 

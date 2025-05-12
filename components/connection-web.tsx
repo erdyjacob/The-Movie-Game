@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import * as d3 from "d3"
-import { Film, User, ZoomIn, ZoomOut, RefreshCw } from "lucide-react"
+import { ZoomIn, ZoomOut, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -34,7 +34,6 @@ export default function ConnectionWeb() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [filterRarity, setFilterRarity] = useState<string | null>(null)
-  const [filterType, setFilterType] = useState<"all" | "movie" | "actor">("all")
   const [connectionCount, setConnectionCount] = useState(0)
   const [showImages] = useState(true)
   const [imageQuality] = useState<"low" | "medium" | "high">("low")
@@ -162,19 +161,8 @@ export default function ConnectionWeb() {
       })
     }
 
-    if (filterType !== "all") {
-      filteredNodes = filteredNodes.filter((node) => node.type === filterType)
-      // Keep links where at least one end has the filtered type
-      filteredLinks = filteredLinks.filter((link) => {
-        const sourceId = typeof link.source === "string" ? link.source : link.source.id
-        const targetId = typeof link.target === "string" ? link.target : link.target.id
-
-        const sourceNode = filteredNodes.find((n) => n.id === sourceId)
-        const targetNode = filteredNodes.find((n) => n.id === targetId)
-
-        return sourceNode && targetNode
-      })
-    }
+    // Remove the type filtering from the D3 visualization effect
+    // In the useEffect for D3 visualization, remove this block:
 
     // Create a zoom behavior
     const zoom = d3
@@ -304,8 +292,10 @@ export default function ConnectionWeb() {
       .append("text")
       .attr("dy", (d) => 10 + (d.count || 1) * 2 + 10)
       .attr("text-anchor", "middle")
-      .attr("fill", "#333")
+      .attr("fill", "#fff") // Changed from #333 to #fff for white text
       .attr("font-size", "8px")
+      .attr("stroke", "#000") // Add a thin black outline for better contrast
+      .attr("stroke-width", "0.5px") // Thin outline
       .text((d) => (d.name.length > 15 ? d.name.substring(0, 15) + "..." : d.name))
 
     // Update positions on each tick of the simulation
@@ -347,7 +337,7 @@ export default function ConnectionWeb() {
     return () => {
       simulation.stop()
     }
-  }, [nodes, links, loading, filterRarity, filterType, showImages, imageQuality])
+  }, [nodes, links, loading, filterRarity, showImages, imageQuality])
 
   // Handle zoom in button
   const handleZoomIn = () => {
@@ -385,40 +375,19 @@ export default function ConnectionWeb() {
     svg.transition().call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(1))
   }
 
+  // Now let's reorganize the UI - replace the header section with this:
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h2 className="text-xl font-bold">Your Movie Connection Web</h2>
-          <p className="text-sm text-muted-foreground">
-            {connectionCount} connections between {nodes.filter((n) => n.type === "movie").length} movies and{" "}
-            {nodes.filter((n) => n.type === "actor").length} actors
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setFilterType("all")}>
-            All
-          </Button>
-          <Button
-            variant={filterType === "movie" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilterType("movie")}
-          >
-            <Film className="h-4 w-4 mr-1" />
-            Movies
-          </Button>
-          <Button
-            variant={filterType === "actor" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilterType("actor")}
-          >
-            <User className="h-4 w-4 mr-1" />
-            Actors
-          </Button>
-        </div>
+      <div className="mb-4">
+        <h2 className="text-xl font-bold">Your Movie Connection Web</h2>
+        <p className="text-sm text-muted-foreground">
+          {connectionCount} connections between {nodes.filter((n) => n.type === "movie").length} movies and{" "}
+          {nodes.filter((n) => n.type === "actor").length} actors
+        </p>
       </div>
 
-      <div className="flex gap-4 mb-4">
+      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
+        {/* Rarity filter */}
         <div className="flex-1">
           <div className="text-sm mb-1">Filter by Rarity:</div>
           <div className="flex flex-wrap gap-2">
@@ -467,6 +436,7 @@ export default function ConnectionWeb() {
           </div>
         </div>
 
+        {/* Zoom controls */}
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handleZoomOut}>
             <ZoomOut className="h-4 w-4" />
@@ -481,9 +451,7 @@ export default function ConnectionWeb() {
         </div>
       </div>
 
-      {/* Display options removed for simplicity */}
-      <div className="mb-4"></div>
-
+      {/* Remove the "Display options" section since we're simplifying */}
       <div className="relative flex-1 border rounded-lg overflow-hidden">
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -503,7 +471,19 @@ export default function ConnectionWeb() {
                     <h3 className="font-bold">{selectedNode.name}</h3>
                     <p className="text-sm text-muted-foreground capitalize">{selectedNode.type}</p>
                     {selectedNode.rarity && (
-                      <Badge className={`mt-1 ${getRarityColor(selectedNode.rarity)}`}>
+                      <Badge
+                        className={`mt-1 text-white ${
+                          selectedNode.rarity === "legendary"
+                            ? "bg-amber-500 hover:bg-amber-600"
+                            : selectedNode.rarity === "epic"
+                              ? "bg-purple-500 hover:bg-purple-600"
+                              : selectedNode.rarity === "rare"
+                                ? "bg-blue-500 hover:bg-blue-600"
+                                : selectedNode.rarity === "uncommon"
+                                  ? "bg-green-500 hover:bg-green-600"
+                                  : "bg-gray-500 hover:bg-gray-600"
+                        }`}
+                      >
                         {selectedNode.rarity.charAt(0).toUpperCase() + selectedNode.rarity.slice(1)}
                       </Badge>
                     )}

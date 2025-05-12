@@ -16,6 +16,12 @@ import { Label } from "@/components/ui/label"
 import { Settings, Check } from "lucide-react"
 import type { Difficulty, GameFilters } from "@/lib/types"
 
+/**
+ * NOTE: This component is currently not used in the UI.
+ * It's preserved for potential future implementation.
+ * The game modifiers functionality has been temporarily removed from the UI.
+ */
+
 interface GameModifiersProps {
   difficulty: Difficulty
   setDifficulty: (difficulty: Difficulty) => void
