@@ -6,6 +6,7 @@ export interface Connection {
   actorName: string
   timestamp: string // ISO string
   gameId?: string // Optional game session identifier
+  source?: "explicit" | "inferred" // How the connection was created
 }
 
 // Store for connections
@@ -28,6 +29,7 @@ export function saveConnection(movieId: number, actorId: number, movieName: stri
         movieName,
         actorName,
         timestamp: new Date().toISOString(),
+        source: "explicit", // This is an explicit connection made during gameplay
       })
 
       // Save back to localStorage
@@ -38,156 +40,266 @@ export function saveConnection(movieId: number, actorId: number, movieName: stri
   }
 }
 
+// Helper function to safely parse JSON with a fallback
+function safeParseJSON(jsonString: string | null, fallback: any = null): any {
+  if (!jsonString) return fallback
+  try {
+    return JSON.parse(jsonString)
+  } catch (e) {
+    console.error("Error parsing JSON:", e)
+    return fallback
+  }
+}
+
+// Helper function to extract ID from TMDB API cache key
+function extractId(key: string, type: "movie" | "person"): number | null {
+  const parts = key.split("/")
+  const index = parts.indexOf(type)
+  if (index >= 0 && index + 1 < parts.length) {
+    const id = Number.parseInt(parts[index + 1])
+    return isNaN(id) ? null : id
+  }
+  return null
+}
+
 // Load all connections
 export function loadConnections(): Connection[] {
   if (typeof window === "undefined") return []
 
   try {
-    // Get explicitly saved connections
+    console.log("Loading connections...")
+
+    // Get existing connections - NEVER clear these unless explicitly requested
     const savedConnections = localStorage.getItem("movieGameConnections")
-    const connections: Connection[] = savedConnections ? JSON.parse(savedConnections) : []
+    const connections: Connection[] = safeParseJSON(savedConnections, [])
 
-    // Also infer connections from player history and TMDB API data
-    try {
-      const playerHistory = localStorage.getItem("movieGamePlayerHistory")
-      if (playerHistory) {
-        const history = JSON.parse(playerHistory)
+    console.log(`Found ${connections.length} existing connections`)
 
-        // Get TMDB API data to find connections
-        const tmdbData = localStorage.getItem("tmdbApiCache")
-        if (tmdbData) {
-          const apiCache = JSON.parse(tmdbData)
+    // Create a set of existing connections for quick lookup
+    const existingConnectionsSet = new Set<string>()
+    connections.forEach((conn) => {
+      existingConnectionsSet.add(`${conn.movieId}-${conn.actorId}`)
+    })
 
-          // Create maps for quick lookups
-          const movieToActorsMap: Record<number, { id: number; name: string }[]> = {}
-          const actorToMoviesMap: Record<number, { id: number; title: string }[]> = {}
-          const movieNames: Record<number, string> = {}
-          const actorNames: Record<number, string> = {}
+    // Get player history
+    const playerHistory = safeParseJSON(localStorage.getItem("movieGamePlayerHistory"), { movies: [], actors: [] })
 
-          // Extract movie credits data from cache
-          Object.entries(apiCache).forEach(([key, value]: [string, any]) => {
-            // Extract movie credits (actors in a movie)
-            if (key.includes("/movie/") && key.includes("/credits") && value.data && value.data.cast) {
-              const movieId = Number.parseInt(key.split("/movie/")[1].split("/")[0])
-              const actors = value.data.cast.map((actor: any) => ({
-                id: actor.id,
-                name: actor.name,
-              }))
-              movieToActorsMap[movieId] = actors
-            }
+    // Create maps of discovered movies and actors for quick lookup
+    const discoveredMovies = new Map()
+    playerHistory.movies.forEach((movie: any) => {
+      discoveredMovies.set(movie.id, movie)
+    })
 
-            // Extract actor movie credits (movies an actor was in)
-            if (key.includes("/person/") && key.includes("/movie_credits") && value.data && value.data.cast) {
-              const actorId = Number.parseInt(key.split("/person/")[1].split("/")[0])
-              const movies = value.data.cast.map((movie: any) => ({
-                id: movie.id,
-                title: movie.title,
-              }))
-              actorToMoviesMap[actorId] = movies
-            }
+    const discoveredActors = new Map()
+    playerHistory.actors.forEach((actor: any) => {
+      discoveredActors.set(actor.id, actor)
+    })
 
-            // Extract movie details for names
-            if (key.includes("/movie/") && !key.includes("/credits") && value.data && value.data.title) {
-              const movieId = Number.parseInt(key.split("/movie/")[1].split("/")[0])
-              movieNames[movieId] = value.data.title
-            }
+    console.log(`Found ${discoveredMovies.size} discovered movies and ${discoveredActors.size} discovered actors`)
 
-            // Extract actor details for names
-            if (key.includes("/person/") && !key.includes("/movie_credits") && value.data && value.data.name) {
-              const actorId = Number.parseInt(key.split("/person/")[1].split("/")[0])
-              actorNames[actorId] = value.data.name
-            }
-          })
-
-          // Build a set of all movie IDs and actor IDs in player history
-          const movieIds = new Set(history.movies.map((m: any) => m.id))
-          const actorIds = new Set(history.actors.map((a: any) => a.id))
-
-          // Create a map of existing connections for quick lookup
-          const existingConnections = new Set<string>()
-          connections.forEach((conn) => {
-            existingConnections.add(`${conn.movieId}-${conn.actorId}`)
-          })
-
-          // For each movie in player history, check all its actors
-          movieIds.forEach((movieId: number) => {
-            const actors = movieToActorsMap[movieId] || []
-
-            // Find the movie name from history or cache
-            const movieObj = history.movies.find((m: any) => m.id === movieId)
-            const movieName = movieObj ? movieObj.name : movieNames[movieId] || `Movie ${movieId}`
-
-            actors.forEach((actor) => {
-              // Only add if the actor is also in player history
-              if (actorIds.has(actor.id)) {
-                const connectionKey = `${movieId}-${actor.id}`
-
-                // Check if this connection already exists
-                if (!existingConnections.has(connectionKey)) {
-                  // Find actor name from history or cache
-                  const actorObj = history.actors.find((a: any) => a.id === actor.id)
-                  const actorName = actorObj ? actorObj.name : actor.name || actorNames[actor.id] || `Actor ${actor.id}`
-
-                  connections.push({
-                    movieId,
-                    actorId: actor.id,
-                    movieName,
-                    actorName,
-                    timestamp: new Date().toISOString(),
-                  })
-
-                  existingConnections.add(connectionKey)
-                }
-              }
-            })
-          })
-
-          // For each actor in player history, check all their movies
-          actorIds.forEach((actorId: number) => {
-            const movies = actorToMoviesMap[actorId] || []
-
-            // Find the actor name from history or cache
-            const actorObj = history.actors.find((a: any) => a.id === actorId)
-            const actorName = actorObj ? actorObj.name : actorNames[actorId] || `Actor ${actorId}`
-
-            movies.forEach((movie) => {
-              // Only add if the movie is also in player history
-              if (movieIds.has(movie.id)) {
-                const connectionKey = `${movie.id}-${actorId}`
-
-                // Check if this connection already exists
-                if (!existingConnections.has(connectionKey)) {
-                  // Find movie name from history or cache
-                  const movieObj = history.movies.find((m: any) => m.id === movie.id)
-                  const movieName = movieObj
-                    ? movieObj.name
-                    : movie.title || movieNames[movie.id] || `Movie ${movie.id}`
-
-                  connections.push({
-                    movieId: movie.id,
-                    actorId,
-                    movieName,
-                    actorName,
-                    timestamp: new Date().toISOString(),
-                  })
-
-                  existingConnections.add(connectionKey)
-                }
-              }
-            })
-          })
-        }
-      }
-    } catch (e) {
-      console.error("Error inferring connections from player history:", e)
+    // If we have no discovered items, just return existing connections
+    if (discoveredMovies.size === 0 || discoveredActors.size === 0) {
+      return connections
     }
 
-    // Save the enhanced connections back to localStorage
+    // Get TMDB API cache
+    const apiCache = safeParseJSON(localStorage.getItem("tmdbApiCache"), {})
+
+    // If we have no API cache, just return existing connections
+    if (Object.keys(apiCache).length === 0) {
+      return connections
+    }
+
+    console.log(`Found ${Object.keys(apiCache).length} API cache entries`)
+
+    // Extract movie credits (which actors are in which movies)
+    const movieCredits = new Map<number, Set<number>>()
+    const actorCredits = new Map<number, Set<number>>()
+    const movieNames = new Map<number, string>()
+    const actorNames = new Map<number, string>()
+
+    // First pass: extract all movie and actor data
+    Object.entries(apiCache).forEach(([key, value]: [string, any]) => {
+      if (!value || !value.data) return
+
+      // Extract movie credits (actors in a movie)
+      if (key.includes("/movie/") && key.includes("/credits")) {
+        const movieId = extractId(key, "movie")
+        if (!movieId) return
+
+        // Only process if we've discovered this movie
+        if (!discoveredMovies.has(movieId)) return
+
+        const credits = value.data
+        if (!credits.cast || !Array.isArray(credits.cast)) return
+
+        // Create a set for this movie's actors if it doesn't exist
+        if (!movieCredits.has(movieId)) {
+          movieCredits.set(movieId, new Set())
+        }
+
+        // Add all cast members
+        credits.cast.forEach((actor: any) => {
+          if (!actor || !actor.id) return
+          movieCredits.get(movieId)?.add(actor.id)
+
+          // Store actor name
+          if (actor.name) {
+            actorNames.set(actor.id, actor.name)
+          }
+        })
+
+        console.log(`Movie ${movieId} has ${movieCredits.get(movieId)?.size || 0} actors in credits`)
+      }
+
+      // Extract actor movie credits
+      if (key.includes("/person/") && key.includes("/movie_credits")) {
+        const actorId = extractId(key, "person")
+        if (!actorId) return
+
+        // Only process if we've discovered this actor
+        if (!discoveredActors.has(actorId)) return
+
+        const credits = value.data
+        if (!credits.cast || !Array.isArray(credits.cast)) return
+
+        // Create a set for this actor's movies if it doesn't exist
+        if (!actorCredits.has(actorId)) {
+          actorCredits.set(actorId, new Set())
+        }
+
+        // Add all movies
+        credits.cast.forEach((movie: any) => {
+          if (!movie || !movie.id) return
+          actorCredits.get(actorId)?.add(movie.id)
+
+          // Store movie name
+          if (movie.title) {
+            movieNames.set(movie.id, movie.title)
+          }
+        })
+
+        console.log(`Actor ${actorId} has ${actorCredits.get(actorId)?.size || 0} movies in credits`)
+      }
+
+      // Extract movie details for names
+      if (key.includes("/movie/") && !key.includes("/credits") && value.data && value.data.title) {
+        const movieId = extractId(key, "movie")
+        if (movieId) {
+          movieNames.set(movieId, value.data.title)
+        }
+      }
+
+      // Extract actor details for names
+      if (key.includes("/person/") && !key.includes("/movie_credits") && value.data && value.data.name) {
+        const actorId = extractId(key, "person")
+        if (actorId) {
+          actorNames.set(actorId, value.data.name)
+        }
+      }
+    })
+
+    console.log(`Extracted credits for ${movieCredits.size} movies and ${actorCredits.size} actors`)
+
+    // Now create connections based on the extracted data
+    let newConnectionsCount = 0
+
+    // For each discovered movie, check if any discovered actors are in its cast
+    discoveredMovies.forEach((movieData, movieId) => {
+      const actorsInMovie = movieCredits.get(movieId)
+      if (!actorsInMovie) {
+        console.log(`No credit data found for movie ${movieId} (${movieData.name})`)
+        return
+      }
+
+      // Check each actor in this movie
+      actorsInMovie.forEach((actorId) => {
+        // Only create connection if we've discovered this actor
+        if (!discoveredActors.has(actorId)) return
+
+        // Check if this connection already exists
+        const connectionKey = `${movieId}-${actorId}`
+        if (existingConnectionsSet.has(connectionKey)) return
+
+        // Get names for the connection
+        const movieName = movieData.name || movieNames.get(movieId) || `Movie ${movieId}`
+        const actorData = discoveredActors.get(actorId)
+        const actorName = actorData.name || actorNames.get(actorId) || `Actor ${actorId}`
+
+        // Create the new connection
+        connections.push({
+          movieId,
+          actorId,
+          movieName,
+          actorName,
+          timestamp: new Date().toISOString(),
+          source: "inferred", // This is an inferred connection
+        })
+
+        // Add to our set to avoid duplicates
+        existingConnectionsSet.add(connectionKey)
+        newConnectionsCount++
+      })
+    })
+
+    // For each discovered actor, check if any discovered movies are in their filmography
+    discoveredActors.forEach((actorData, actorId) => {
+      const moviesForActor = actorCredits.get(actorId)
+      if (!moviesForActor) {
+        console.log(`No credit data found for actor ${actorId} (${actorData.name})`)
+        return
+      }
+
+      // Check each movie this actor was in
+      moviesForActor.forEach((movieId) => {
+        // Only create connection if we've discovered this movie
+        if (!discoveredMovies.has(movieId)) return
+
+        // Check if this connection already exists
+        const connectionKey = `${movieId}-${actorId}`
+        if (existingConnectionsSet.has(connectionKey)) return
+
+        // Get names for the connection
+        const movieData = discoveredMovies.get(movieId)
+        const movieName = movieData.name || movieNames.get(movieId) || `Movie ${movieId}`
+        const actorName = actorData.name || actorNames.get(actorId) || `Actor ${actorId}`
+
+        // Create the new connection
+        connections.push({
+          movieId,
+          actorId,
+          movieName,
+          actorName,
+          timestamp: new Date().toISOString(),
+          source: "inferred", // This is an inferred connection
+        })
+
+        // Add to our set to avoid duplicates
+        existingConnectionsSet.add(connectionKey)
+        newConnectionsCount++
+      })
+    })
+
+    console.log(`Added ${newConnectionsCount} new inferred connections`)
+    console.log(`Total connections: ${connections.length}`)
+
+    // Save all connections back to localStorage
     localStorage.setItem("movieGameConnections", JSON.stringify(connections))
 
     return connections
   } catch (error) {
     console.error("Error loading connections:", error)
+
+    // In case of error, try to return existing connections to avoid data loss
+    try {
+      const savedConnections = localStorage.getItem("movieGameConnections")
+      if (savedConnections) {
+        return JSON.parse(savedConnections)
+      }
+    } catch (e) {
+      console.error("Failed to recover existing connections:", e)
+    }
+
     return []
   }
 }
@@ -202,14 +314,85 @@ export function clearConnections(): void {
 export function refreshAllConnections(): Connection[] {
   if (typeof window === "undefined") return []
 
-  // Clear existing connections to rebuild them from scratch
-  const savedConnections = localStorage.getItem("movieGameConnections")
-  const explicitConnections: Connection[] = savedConnections ? JSON.parse(savedConnections) : []
+  try {
+    console.log("Refreshing connections...")
 
-  // Call loadConnections to rebuild all connections
-  const allConnections = loadConnections()
+    // IMPORTANT: We no longer clear existing connections
+    // This ensures we don't lose data if something goes wrong
 
-  console.log(`Refreshed connections: ${allConnections.length} total (${explicitConnections.length} explicit)`)
+    // Just call loadConnections to add any new connections
+    const allConnections = loadConnections()
 
-  return allConnections
+    console.log(`Refreshed connections: ${allConnections.length} total`)
+
+    return allConnections
+  } catch (error) {
+    console.error("Error refreshing connections:", error)
+
+    // In case of error, try to return existing connections
+    try {
+      const savedConnections = localStorage.getItem("movieGameConnections")
+      if (savedConnections) {
+        return JSON.parse(savedConnections)
+      }
+    } catch (e) {
+      console.error("Failed to recover existing connections:", e)
+    }
+
+    return []
+  }
+}
+
+// Debug function to log connection data
+export function debugConnectionData(): void {
+  if (typeof window === "undefined") return
+
+  console.log("=== CONNECTION DEBUG INFO ===")
+
+  // Log player history
+  const playerHistory = safeParseJSON(localStorage.getItem("movieGamePlayerHistory"), { movies: [], actors: [] })
+  console.log(`Player History: ${playerHistory.movies.length} movies, ${playerHistory.actors.length} actors`)
+
+  // Log sample movie and actor
+  if (playerHistory.movies.length > 0) {
+    console.log("Sample movie:", playerHistory.movies[0])
+  }
+  if (playerHistory.actors.length > 0) {
+    console.log("Sample actor:", playerHistory.actors[0])
+  }
+
+  // Log API cache info
+  const apiCache = safeParseJSON(localStorage.getItem("tmdbApiCache"), {})
+  console.log(`API Cache: ${Object.keys(apiCache).length} entries`)
+
+  // Find sample movie credits and actor credits
+  const movieCreditsKey = Object.keys(apiCache).find((key) => key.includes("/movie/") && key.includes("/credits"))
+  const actorCreditsKey = Object.keys(apiCache).find(
+    (key) => key.includes("/person/") && key.includes("/movie_credits"),
+  )
+
+  if (movieCreditsKey) {
+    console.log("Sample movie credits key:", movieCreditsKey)
+    console.log("Sample movie credits data structure:", Object.keys(apiCache[movieCreditsKey]?.data || {}))
+    if (apiCache[movieCreditsKey]?.data?.cast) {
+      console.log("Sample cast entry:", apiCache[movieCreditsKey].data.cast[0])
+    }
+  }
+
+  if (actorCreditsKey) {
+    console.log("Sample actor credits key:", actorCreditsKey)
+    console.log("Sample actor credits data structure:", Object.keys(apiCache[actorCreditsKey]?.data || {}))
+    if (apiCache[actorCreditsKey]?.data?.cast) {
+      console.log("Sample movie entry:", apiCache[actorCreditsKey].data.cast[0])
+    }
+  }
+
+  // Log connections
+  const connections = safeParseJSON(localStorage.getItem("movieGameConnections"), [])
+  console.log(`Connections: ${connections.length} total`)
+  if (connections.length > 0) {
+    console.log("Sample connection:", connections[0])
+  }
+
+  console.log("=== END DEBUG INFO ===")
 }

@@ -4,14 +4,14 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import * as d3 from "d3"
-import { ZoomIn, ZoomOut, RefreshCw, RotateCw } from "lucide-react"
+import { ZoomIn, ZoomOut, RefreshCw, RotateCw, Bug } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { getRarityColor } from "@/lib/rarity"
 import { loadPlayerHistory } from "@/lib/player-history"
-import { loadConnections, refreshAllConnections } from "@/lib/connection-tracking"
+import { loadConnections, refreshAllConnections, debugConnectionData } from "@/lib/connection-tracking"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Define the node and link types for our graph
@@ -28,6 +28,7 @@ interface Link extends d3.SimulationLinkDatum<Node> {
   source: string | Node
   target: string | Node
   value: number
+  source_type?: "explicit" | "inferred"
 }
 
 export default function ConnectionWeb() {
@@ -45,6 +46,7 @@ export default function ConnectionWeb() {
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<Node[]>([])
   const [syncSuccess, setSyncSuccess] = useState<boolean | null>(null)
+  const [debugMode, setDebugMode] = useState(false)
 
   // Load player history and build the graph data
   const buildGraphData = () => {
@@ -94,6 +96,7 @@ export default function ConnectionWeb() {
         source: `movie-${connection.movieId}`,
         target: `actor-${connection.actorId}`,
         value: 1,
+        source_type: connection.source,
       }))
 
       setConnectionCount(validConnections.length)
@@ -143,6 +146,12 @@ export default function ConnectionWeb() {
     } finally {
       setSyncing(false)
     }
+  }
+
+  // Handle debug button click
+  const handleDebug = () => {
+    debugConnectionData()
+    setDebugMode(!debugMode)
   }
 
   // Handle search functionality
@@ -251,7 +260,7 @@ export default function ConnectionWeb() {
     // Create a container group for the graph
     const container = svg.append("g").attr("class", "container")
 
-    // Create a force simulation with adjusted parameters for closer nodes
+    // Create a force simulation with adjusted parameters for better layout
     const simulation = d3
       .forceSimulation<Node>(filteredNodes)
       .force(
@@ -260,16 +269,16 @@ export default function ConnectionWeb() {
           .forceLink<Node, Link>()
           .id((d) => d.id)
           .links(filteredLinks)
-          .distance(80), // Reduced from 100 to bring nodes closer
+          .distance(100), // Increased distance for better spacing
       )
-      .force("charge", d3.forceManyBody().strength(-200)) // Reduced repulsion force
+      .force("charge", d3.forceManyBody().strength(-300)) // Increased repulsion
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(35)) // Ensure nodes don't overlap
+      .force("collision", d3.forceCollide().radius(45)) // Increased collision radius
       // Add x and y forces to prevent nodes from getting too far from center
-      .force("x", d3.forceX(width / 2).strength(0.05))
-      .force("y", d3.forceY(height / 2).strength(0.05))
+      .force("x", d3.forceX(width / 2).strength(0.07))
+      .force("y", d3.forceY(height / 2).strength(0.07))
 
-    // Create links
+    // Create straight lines
     const link = container
       .append("g")
       .attr("class", "links")
@@ -277,7 +286,7 @@ export default function ConnectionWeb() {
       .data(filteredLinks)
       .enter()
       .append("line")
-      .attr("stroke", "#999")
+      .attr("stroke", (d) => (d.source_type === "inferred" ? "#6b7280" : "#1e40af")) // Different color for inferred connections
       .attr("stroke-opacity", 0.6)
       .attr("stroke-width", (d) => Math.sqrt(d.value))
       .style("transition", "opacity 0.3s ease") // Add transition for smooth opacity changes
@@ -350,10 +359,13 @@ export default function ConnectionWeb() {
       })
       .call(d3.drag<SVGGElement, Node>().on("start", dragstarted).on("drag", dragged).on("end", dragended))
 
-    // Add circles to nodes
+    // Fixed node size
+    const nodeRadius = 20
+
+    // Add circles to nodes with fixed size
     node
       .append("circle")
-      .attr("r", (d) => 10 + (d.count || 1) * 2)
+      .attr("r", nodeRadius) // Fixed size for all nodes
       .attr("fill", (d) => {
         if (d.rarity) {
           return getRarityColor(d.rarity).replace("text-", "").replace("-500", "")
@@ -370,13 +382,12 @@ export default function ConnectionWeb() {
 
       node.each(function (d) {
         const nodeGroup = d3.select(this)
-        const radius = 10 + (d.count || 1) * 2
 
         // Create a unique ID for each clipPath
         const clipId = `clip-${d.id.replace(/[^a-zA-Z0-9]/g, "-")}`
 
         // Add clipPath to defs
-        defs.append("clipPath").attr("id", clipId).append("circle").attr("r", radius)
+        defs.append("clipPath").attr("id", clipId).append("circle").attr("r", nodeRadius)
 
         // Only add image if there's a valid URL
         if (d.image) {
@@ -384,10 +395,10 @@ export default function ConnectionWeb() {
           nodeGroup
             .append("image")
             .attr("xlink:href", formatImageUrl(d.image))
-            .attr("x", -radius)
-            .attr("y", -radius)
-            .attr("width", radius * 2)
-            .attr("height", radius * 2)
+            .attr("x", -nodeRadius)
+            .attr("y", -nodeRadius)
+            .attr("width", nodeRadius * 2)
+            .attr("height", nodeRadius * 2)
             .attr("clip-path", `url(#${clipId})`)
             .attr("preserveAspectRatio", "xMidYMid slice")
             .attr("crossorigin", "anonymous") // Add crossorigin attribute
@@ -413,19 +424,40 @@ export default function ConnectionWeb() {
         .text((d) => (d.type === "movie" ? "🎬" : "👤"))
     }
 
-    // Add labels to nodes - removed stroke for better readability
+    // Add text background for better readability
+    node
+      .append("rect")
+      .attr("y", nodeRadius + 2) // Position based on fixed node radius
+      .attr("height", 14)
+      .attr("rx", 2)
+      .attr("ry", 2)
+      .attr("fill", "rgba(0, 0, 0, 0.6)")
+      .attr("width", (d) => {
+        // Calculate width based on text length (approximate)
+        const displayName = d.name.length > 15 ? d.name.substring(0, 15) + "..." : d.name
+        return displayName.length * 5 + 10 // Approximate width based on character count
+      })
+      .attr("x", (d) => {
+        const displayName = d.name.length > 15 ? d.name.substring(0, 15) + "..." : d.name
+        return -(displayName.length * 5 + 10) / 2 // Center the background
+      })
+
+    // Add labels to nodes with improved readability
     node
       .append("text")
-      .attr("dy", (d) => 10 + (d.count || 1) * 2 + 10)
+      .attr("dy", nodeRadius + 12) // Position based on fixed node radius
       .attr("text-anchor", "middle")
       .attr("fill", "#fff") // White text
-      .attr("font-size", "8px")
-      // Removed stroke attributes to make text plain white
-      .text((d) => (d.name.length > 15 ? d.name.substring(0, 15) + "..." : d.name))
+      .attr("font-size", "10px") // Increased font size
+      .attr("font-weight", "500") // Medium weight for better readability
+      .text((d) => {
+        // Changed back to 15 characters before truncating
+        return d.name.length > 15 ? d.name.substring(0, 15) + "..." : d.name
+      })
 
     // Update positions on each tick of the simulation
     simulation.on("tick", () => {
-      // Prevent links from crossing by using curved paths instead of straight lines
+      // Update straight lines
       link
         .attr("x1", (d) => (d.source as Node).x || 0)
         .attr("y1", (d) => (d.source as Node).y || 0)
@@ -475,7 +507,7 @@ export default function ConnectionWeb() {
     return () => {
       simulation.stop()
     }
-  }, [nodes, links, loading, filterRarity, showImages, imageQuality, searchResults])
+  }, [nodes, links, loading, filterRarity, showImages, imageQuality, searchResults, debugMode])
 
   // Handle zoom in button
   const handleZoomIn = () => {
@@ -619,6 +651,25 @@ export default function ConnectionWeb() {
 
         {/* Controls */}
         <div className="flex items-center gap-2">
+          {/* Debug button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleDebug}
+                  className={debugMode ? "border-yellow-500" : ""}
+                >
+                  <Bug className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Debug connection data</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           {/* Sync button */}
           <TooltipProvider>
             <Tooltip>
@@ -717,6 +768,18 @@ export default function ConnectionWeb() {
             )}
           </>
         )}
+      </div>
+
+      {/* Connection type legend */}
+      <div className="mt-2 flex items-center justify-end gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center">
+          <div className="w-4 h-1 bg-blue-700 mr-1"></div>
+          <span>Explicit connections</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-4 h-1 bg-gray-500 mr-1"></div>
+          <span>Inferred connections</span>
+        </div>
       </div>
     </div>
   )
