@@ -372,7 +372,13 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
           <div className="flex items-center">
             <span className="text-xs sm:text-sm text-muted-foreground mr-2">Data provided by</span>
             <Link href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">
-              <Image src="/images/tmdb-logo.svg" alt="TMDB Logo" width={80} height={15} className="h-4 sm:h-5 w-auto" />
+              <Image
+                src="/images/tmdb-logo.svg"
+                alt="TMDB Logo"
+                width={70}
+                height={13}
+                className="h-3.5 sm:h-4.5 w-auto"
+              />
             </Link>
           </div>
         </div>

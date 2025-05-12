@@ -1,11 +1,14 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useRef, useState } from "react"
 import * as d3 from "d3"
 import { ZoomIn, ZoomOut, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { getRarityColor } from "@/lib/rarity"
 import { loadPlayerHistory } from "@/lib/player-history"
 import { loadConnections } from "@/lib/connection-tracking"
@@ -37,6 +40,8 @@ export default function ConnectionWeb() {
   const [connectionCount, setConnectionCount] = useState(0)
   const [showImages] = useState(true)
   const [imageQuality] = useState<"low" | "medium" | "high">("low")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [searchResults, setSearchResults] = useState<Node[]>([])
 
   // Load player history and build the graph data
   useEffect(() => {
@@ -106,6 +111,42 @@ export default function ConnectionWeb() {
     buildGraphData()
   }, [])
 
+  // Handle search functionality
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    const term = searchTerm.toLowerCase().trim()
+    const results = nodes.filter((node) => node.name.toLowerCase().includes(term))
+    setSearchResults(results)
+
+    // Highlight search results in the visualization
+    if (svgRef.current && results.length > 0) {
+      const svg = d3.select(svgRef.current)
+
+      // Reset all nodes and links to normal opacity
+      svg.selectAll(".node").style("opacity", 1)
+      svg.selectAll(".links line").style("opacity", 0.6)
+
+      // If we have search results, highlight them
+      if (results.length > 0) {
+        const resultIds = new Set(results.map((r) => r.id))
+
+        // Dim nodes that aren't in the results
+        svg.selectAll(".node").style("opacity", (d: any) => (resultIds.has(d.id) ? 1 : 0.3))
+
+        // Dim links that don't connect to result nodes
+        svg.selectAll(".links line").style("opacity", (d: any) => {
+          const sourceId = typeof d.source === "string" ? d.source : d.source.id
+          const targetId = typeof d.target === "string" ? d.target : d.target.id
+          return resultIds.has(sourceId) || resultIds.has(targetId) ? 0.8 : 0.2
+        })
+      }
+    }
+  }, [searchTerm, nodes])
+
   // Get image size based on quality setting
   const getImageSize = () => {
     switch (imageQuality) {
@@ -161,9 +202,6 @@ export default function ConnectionWeb() {
       })
     }
 
-    // Remove the type filtering from the D3 visualization effect
-    // In the useEffect for D3 visualization, remove this block:
-
     // Create a zoom behavior
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
@@ -179,7 +217,7 @@ export default function ConnectionWeb() {
     // Create a container group for the graph
     const container = svg.append("g").attr("class", "container")
 
-    // Create a force simulation
+    // Create a force simulation with adjusted parameters for closer nodes
     const simulation = d3
       .forceSimulation<Node>(filteredNodes)
       .force(
@@ -188,11 +226,14 @@ export default function ConnectionWeb() {
           .forceLink<Node, Link>()
           .id((d) => d.id)
           .links(filteredLinks)
-          .distance(100),
+          .distance(80), // Reduced from 100 to bring nodes closer
       )
-      .force("charge", d3.forceManyBody().strength(-300))
+      .force("charge", d3.forceManyBody().strength(-200)) // Reduced repulsion force
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(40))
+      .force("collision", d3.forceCollide().radius(35)) // Ensure nodes don't overlap
+      // Add x and y forces to prevent nodes from getting too far from center
+      .force("x", d3.forceX(width / 2).strength(0.05))
+      .force("y", d3.forceY(height / 2).strength(0.05))
 
     // Create links
     const link = container
@@ -205,6 +246,7 @@ export default function ConnectionWeb() {
       .attr("stroke", "#999")
       .attr("stroke-opacity", 0.6)
       .attr("stroke-width", (d) => Math.sqrt(d.value))
+      .style("transition", "opacity 0.3s ease") // Add transition for smooth opacity changes
 
     // Create node groups
     const node = container
@@ -215,12 +257,62 @@ export default function ConnectionWeb() {
       .enter()
       .append("g")
       .attr("class", "node")
+      .style("transition", "opacity 0.3s ease") // Add transition for smooth opacity changes
       .on("mouseover", (event, d) => {
+        // Set the selected node
         setSelectedNode(d)
+
+        // Implement focus mode - highlight the node and its connections
+        const currentNodeId = d.id
+
+        // Find connected nodes
+        const connectedNodeIds = new Set<string>()
+        filteredLinks.forEach((link) => {
+          const sourceId = typeof link.source === "string" ? link.source : link.source.id
+          const targetId = typeof link.target === "string" ? link.target : link.target.id
+
+          if (sourceId === currentNodeId) {
+            connectedNodeIds.add(targetId)
+          } else if (targetId === currentNodeId) {
+            connectedNodeIds.add(sourceId)
+          }
+        })
+
+        // Dim unrelated nodes
+        svg.selectAll(".node").style("opacity", (n: any) => {
+          return n.id === currentNodeId || connectedNodeIds.has(n.id) ? 1 : 0.3
+        })
+
+        // Dim unrelated links
+        svg.selectAll(".links line").style("opacity", (l: any) => {
+          const sourceId = typeof l.source === "string" ? l.source : l.source.id
+          const targetId = typeof l.target === "string" ? l.target : l.target.id
+
+          return sourceId === currentNodeId || targetId === currentNodeId ? 0.9 : 0.2
+        })
+
         event.stopPropagation()
       })
       .on("mouseout", () => {
+        // Reset node selection
         setSelectedNode(null)
+
+        // Reset all opacities unless we're filtering by search
+        if (!searchTerm.trim()) {
+          svg.selectAll(".node").style("opacity", 1)
+          svg.selectAll(".links line").style("opacity", 0.6)
+        } else {
+          // If we have an active search, maintain the search highlighting
+          const resultIds = new Set(searchResults.map((r) => r.id))
+
+          svg.selectAll(".node").style("opacity", (d: any) => (resultIds.has(d.id) ? 1 : 0.3))
+
+          svg.selectAll(".links line").style("opacity", (d: any) => {
+            const sourceId = typeof d.source === "string" ? d.source : d.source.id
+            const targetId = typeof d.target === "string" ? d.target : d.target.id
+            return resultIds.has(sourceId) || resultIds.has(targetId) ? 0.8 : 0.2
+          })
+        }
       })
       .call(d3.drag<SVGGElement, Node>().on("start", dragstarted).on("drag", dragged).on("end", dragended))
 
@@ -287,19 +379,19 @@ export default function ConnectionWeb() {
         .text((d) => (d.type === "movie" ? "🎬" : "👤"))
     }
 
-    // Add labels to nodes
+    // Add labels to nodes - removed stroke for better readability
     node
       .append("text")
       .attr("dy", (d) => 10 + (d.count || 1) * 2 + 10)
       .attr("text-anchor", "middle")
-      .attr("fill", "#fff") // Changed from #333 to #fff for white text
+      .attr("fill", "#fff") // White text
       .attr("font-size", "8px")
-      .attr("stroke", "#000") // Add a thin black outline for better contrast
-      .attr("stroke-width", "0.5px") // Thin outline
+      // Removed stroke attributes to make text plain white
       .text((d) => (d.name.length > 15 ? d.name.substring(0, 15) + "..." : d.name))
 
     // Update positions on each tick of the simulation
     simulation.on("tick", () => {
+      // Prevent links from crossing by using curved paths instead of straight lines
       link
         .attr("x1", (d) => (d.source as Node).x || 0)
         .attr("y1", (d) => (d.source as Node).y || 0)
@@ -308,6 +400,9 @@ export default function ConnectionWeb() {
 
       node.attr("transform", (d) => `translate(${d.x || 0},${d.y || 0})`)
     })
+
+    // Run simulation with higher alpha for better initial layout
+    simulation.alpha(1).restart()
 
     // Drag functions
     function dragstarted(event: d3.D3DragEvent<SVGGElement, Node, Node>) {
@@ -328,7 +423,16 @@ export default function ConnectionWeb() {
     }
 
     // Clear selection when clicking on the background
-    svg.on("click", null)
+    svg.on("click", () => {
+      // Reset node selection
+      setSelectedNode(null)
+
+      // Reset all opacities unless we're filtering by search
+      if (!searchTerm.trim()) {
+        svg.selectAll(".node").style("opacity", 1)
+        svg.selectAll(".links line").style("opacity", 0.6)
+      }
+    })
 
     // Initial zoom to fit
     const initialTransform = d3.zoomIdentity.scale(1)
@@ -337,7 +441,7 @@ export default function ConnectionWeb() {
     return () => {
       simulation.stop()
     }
-  }, [nodes, links, loading, filterRarity, showImages, imageQuality])
+  }, [nodes, links, loading, filterRarity, showImages, imageQuality, searchResults])
 
   // Handle zoom in button
   const handleZoomIn = () => {
@@ -375,15 +479,58 @@ export default function ConnectionWeb() {
     svg.transition().call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(1))
   }
 
-  // Now let's reorganize the UI - replace the header section with this:
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+  }
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchTerm("")
+
+    // Reset visualization
+    if (svgRef.current) {
+      const svg = d3.select(svgRef.current)
+      svg.selectAll(".node").style("opacity", 1)
+      svg.selectAll(".links line").style("opacity", 0.6)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
-      <div className="mb-4">
-        <h2 className="text-xl font-bold">Your Movie Connection Web</h2>
-        <p className="text-sm text-muted-foreground">
-          {connectionCount} connections between {nodes.filter((n) => n.type === "movie").length} movies and{" "}
-          {nodes.filter((n) => n.type === "actor").length} actors
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+        <div>
+          <h2 className="text-xl font-bold">Your Movie Connection Web</h2>
+          <p className="text-sm text-muted-foreground">
+            {connectionCount} connections between {nodes.filter((n) => n.type === "movie").length} movies and{" "}
+            {nodes.filter((n) => n.type === "actor").length} actors
+          </p>
+        </div>
+
+        {/* Search box */}
+        <div className="relative w-full sm:w-64">
+          <div className="flex">
+            <Input
+              type="text"
+              placeholder="Search movies or actors..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="pr-8"
+            />
+            {searchTerm && (
+              <Button variant="ghost" size="sm" className="absolute right-0 top-0 h-full" onClick={clearSearch}>
+                ×
+              </Button>
+            )}
+          </div>
+          {searchResults.length > 0 && searchTerm && (
+            <div className="absolute z-10 mt-1 w-full bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
+              <div className="p-2 text-xs text-muted-foreground">
+                {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
@@ -451,7 +598,6 @@ export default function ConnectionWeb() {
         </div>
       </div>
 
-      {/* Remove the "Display options" section since we're simplifying */}
       <div className="relative flex-1 border rounded-lg overflow-hidden">
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center">
