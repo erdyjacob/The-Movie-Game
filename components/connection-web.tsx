@@ -227,9 +227,12 @@ export default function ConnectionWeb() {
       .enter()
       .append("g")
       .attr("class", "node")
-      .on("click", (event, d) => {
+      .on("mouseover", (event, d) => {
         setSelectedNode(d)
         event.stopPropagation()
+      })
+      .on("mouseout", () => {
+        setSelectedNode(null)
       })
       .call(d3.drag<SVGGElement, Node>().on("start", dragstarted).on("drag", dragged).on("end", dragended))
 
@@ -335,9 +338,7 @@ export default function ConnectionWeb() {
     }
 
     // Clear selection when clicking on the background
-    svg.on("click", () => {
-      setSelectedNode(null)
-    })
+    svg.on("click", null)
 
     // Initial zoom to fit
     const initialTransform = d3.zoomIdentity.scale(1)
@@ -496,7 +497,7 @@ export default function ConnectionWeb() {
           <>
             <svg ref={svgRef} width="100%" height="100%" className="bg-muted/20"></svg>
             {selectedNode && (
-              <Card className="absolute bottom-4 right-4 p-4 w-64 shadow-lg">
+              <Card className="absolute bottom-4 right-4 p-4 w-64 shadow-lg transition-opacity duration-150">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-bold">{selectedNode.name}</h3>
@@ -507,9 +508,6 @@ export default function ConnectionWeb() {
                       </Badge>
                     )}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedNode(null)}>
-                    ×
-                  </Button>
                 </div>
                 <div className="mt-2">
                   <p className="text-sm">Discovered {selectedNode.count} times</p>
