@@ -1,4 +1,6 @@
 // Define types for connections
+import { validateConnection } from "@/app/actions/validate-connection"
+
 export interface Connection {
   movieId: number
   actorId: number
@@ -6,7 +8,7 @@ export interface Connection {
   actorName: string
   timestamp: string // ISO string
   gameId?: string // Optional game session identifier
-  source?: "explicit" | "inferred" // How the connection was created
+  source?: "explicit" | "inferred" | "manual" // How the connection was created
 }
 
 // Store for connections
@@ -391,4 +393,102 @@ export function debugConnectionData(): void {
   }
 
   console.log("=== END DEBUG INFO ===")
+}
+
+// Function to check if an actor was in a movie using TMDB API cache
+export async function validateActorInMovie(movieId: number, actorId: number): Promise<boolean> {
+  if (typeof window === "undefined") return false
+
+  try {
+    // First check the API cache
+    const apiCache = safeParseJSON(localStorage.getItem("tmdbApiCache"), {})
+
+    // Look for movie credits in cache
+    const movieCreditsKey = Object.keys(apiCache).find((key) => key.includes(`/movie/${movieId}/credits`))
+
+    if (movieCreditsKey && apiCache[movieCreditsKey]?.data?.cast) {
+      // Check if actor is in the cast
+      const isInCast = apiCache[movieCreditsKey].data.cast.some((actor: any) => actor.id === actorId)
+      if (isInCast) return true
+    }
+
+    // Look for actor movie credits in cache
+    const actorCreditsKey = Object.keys(apiCache).find((key) => key.includes(`/person/${actorId}/movie_credits`))
+
+    if (actorCreditsKey && apiCache[actorCreditsKey]?.data?.cast) {
+      // Check if movie is in the actor's filmography
+      const isInFilmography = apiCache[actorCreditsKey].data.cast.some((movie: any) => movie.id === movieId)
+      if (isInFilmography) return true
+    }
+
+    // If not found in cache, we'll need to use the server action
+    // We can't access the API key directly in client code
+    return false
+  } catch (error) {
+    console.error("Error validating actor in movie:", error)
+    return false
+  }
+}
+
+// Function to manually add a connection after validation
+export async function addManualConnection(
+  movieId: number,
+  actorId: number,
+  movieName: string,
+  actorName: string,
+): Promise<{ success: boolean; message: string }> {
+  if (typeof window === "undefined") return { success: false, message: "Cannot run in server environment" }
+
+  try {
+    // First check if this connection already exists
+    const savedConnections = localStorage.getItem("movieGameConnections")
+    const connections: Connection[] = safeParseJSON(savedConnections, [])
+
+    const connectionExists = connections.some((conn) => conn.movieId === movieId && conn.actorId === actorId)
+
+    if (connectionExists) {
+      return { success: false, message: "Connection already exists" }
+    }
+
+    // Validate that the actor was actually in the movie
+    // First check the cache
+    let isValid = await validateActorInMovie(movieId, actorId)
+
+    // If not found in cache, use the server action
+    if (!isValid) {
+      console.log("Validating connection using server action...")
+      isValid = await validateConnection(movieId, actorId)
+    }
+
+    if (!isValid) {
+      return {
+        success: false,
+        message: "Could not verify that this actor appeared in this movie",
+      }
+    }
+
+    // Add the new connection
+    connections.push({
+      movieId,
+      actorId,
+      movieName,
+      actorName,
+      timestamp: new Date().toISOString(),
+      source: "manual", // This is a manually added connection
+    })
+
+    // Save back to localStorage
+    localStorage.setItem("movieGameConnections", JSON.stringify(connections))
+
+    return {
+      success: true,
+      message: `Successfully connected ${actorName} to ${movieName}`,
+    }
+  } catch (error) {
+    console.error("Error adding manual connection:", error)
+    return {
+      success: false,
+      message: "An error occurred while adding the connection",
+    }
+  }
 }

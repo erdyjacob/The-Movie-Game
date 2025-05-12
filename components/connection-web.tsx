@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import * as d3 from "d3"
-import { ZoomIn, ZoomOut, RefreshCw, RotateCw, Bug } from "lucide-react"
+import { ZoomIn, ZoomOut, RefreshCw, RotateCw, Bug, Link } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +13,7 @@ import { getRarityColor } from "@/lib/rarity"
 import { loadPlayerHistory } from "@/lib/player-history"
 import { loadConnections, refreshAllConnections, debugConnectionData } from "@/lib/connection-tracking"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { AddConnectionDialog } from "./add-connection-dialog"
 
 // Define the node and link types for our graph
 interface Node extends d3.SimulationNodeDatum {
@@ -24,17 +25,17 @@ interface Node extends d3.SimulationNodeDatum {
   count: number
 }
 
-interface Link extends d3.SimulationLinkDatum<Node> {
+interface GraphLink extends d3.SimulationLinkDatum<Node> {
   source: string | Node
   target: string | Node
   value: number
-  source_type?: "explicit" | "inferred"
+  source_type?: "explicit" | "inferred" | "manual"
 }
 
 export default function ConnectionWeb() {
   const svgRef = useRef<SVGSVGElement>(null)
   const [nodes, setNodes] = useState<Node[]>([])
-  const [links, setLinks] = useState<Link[]>([])
+  const [links, setLinks] = useState<GraphLink[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
@@ -47,6 +48,7 @@ export default function ConnectionWeb() {
   const [searchResults, setSearchResults] = useState<Node[]>([])
   const [syncSuccess, setSyncSuccess] = useState<boolean | null>(null)
   const [debugMode, setDebugMode] = useState(false)
+  const [addConnectionOpen, setAddConnectionOpen] = useState(false)
 
   // Load player history and build the graph data
   const buildGraphData = () => {
@@ -92,7 +94,7 @@ export default function ConnectionWeb() {
       })
 
       // Create links based on valid connections
-      const allLinks: Link[] = validConnections.map((connection) => ({
+      const allLinks: GraphLink[] = validConnections.map((connection) => ({
         source: `movie-${connection.movieId}`,
         target: `actor-${connection.actorId}`,
         value: 1,
@@ -152,6 +154,17 @@ export default function ConnectionWeb() {
   const handleDebug = () => {
     debugConnectionData()
     setDebugMode(!debugMode)
+  }
+
+  // Handle add connection button click
+  const handleAddConnection = () => {
+    setAddConnectionOpen(true)
+  }
+
+  // Handle connection added
+  const handleConnectionAdded = () => {
+    // Rebuild the graph data to include the new connection
+    buildGraphData()
   }
 
   // Handle search functionality
@@ -266,7 +279,7 @@ export default function ConnectionWeb() {
       .force(
         "link",
         d3
-          .forceLink<Node, Link>()
+          .forceLink<Node, GraphLink>()
           .id((d) => d.id)
           .links(filteredLinks)
           .distance(100), // Increased distance for better spacing
@@ -286,7 +299,11 @@ export default function ConnectionWeb() {
       .data(filteredLinks)
       .enter()
       .append("line")
-      .attr("stroke", (d) => (d.source_type === "inferred" ? "#4b5563" : "#2563eb")) // Darker colors for better contrast
+      .attr("stroke", (d) => {
+        if (d.source_type === "manual") return "#f97316" // Orange for manual connections
+        if (d.source_type === "inferred") return "#4b5563" // Gray for inferred
+        return "#2563eb" // Blue for explicit
+      })
       .attr("stroke-opacity", 0.8) // Increased opacity for better visibility
       .attr("stroke-width", (d) => Math.sqrt(d.value) + 1) // Increased line width
       .style("transition", "opacity 0.3s ease") // Add transition for smooth opacity changes
@@ -651,6 +668,20 @@ export default function ConnectionWeb() {
 
         {/* Controls */}
         <div className="flex items-center gap-2">
+          {/* Add Connection button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleAddConnection}>
+                  <Link className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Add manual connection</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           {/* Debug button */}
           <TooltipProvider>
             <Tooltip>
@@ -780,7 +811,18 @@ export default function ConnectionWeb() {
           <div className="w-4 h-1.5 bg-gray-600 mr-1"></div>
           <span>Inferred connections</span>
         </div>
+        <div className="flex items-center">
+          <div className="w-4 h-1.5 bg-orange-500 mr-1"></div>
+          <span>Manual connections</span>
+        </div>
       </div>
+
+      {/* Add Connection Dialog */}
+      <AddConnectionDialog
+        open={addConnectionOpen}
+        onOpenChange={setAddConnectionOpen}
+        onConnectionAdded={handleConnectionAdded}
+      />
     </div>
   )
 }
