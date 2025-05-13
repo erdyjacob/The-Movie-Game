@@ -11,12 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { getRarityColor } from "@/lib/rarity"
 import { loadPlayerHistory } from "@/lib/player-history"
-import {
-  loadConnections,
-  refreshAllConnections,
-  debugConnectionData,
-  refreshConnections,
-} from "@/lib/connection-tracking"
+import { loadConnections, refreshAllConnections, debugConnectionData } from "@/lib/connection-tracking"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AddConnectionDialog } from "./add-connection-dialog"
 import { useRouter } from "next/navigation"
@@ -57,6 +52,8 @@ export default function ConnectionWeb() {
   const [syncSuccess, setSyncSuccess] = useState<boolean | null>(null)
   const [debugMode, setDebugMode] = useState(false)
   const [addConnectionOpen, setAddConnectionOpen] = useState(false)
+  const [backgroundFetchActive, setBackgroundFetchActive] = useState(false)
+  const [backgroundFetchProgress, setBackgroundFetchProgress] = useState({ current: 0, total: 0 })
 
   // Load player history and build the graph data
   const buildGraphData = () => {
@@ -124,32 +121,63 @@ export default function ConnectionWeb() {
   }
 
   useEffect(() => {
-    loadConnections()
+    // First, build the graph with existing data
+    buildGraphData()
 
-    // Fetch missing credits data for all items in player history
+    // Then, start the background fetch process
     const fetchMissingCreditsData = async () => {
-      const history = loadPlayerHistory()
+      try {
+        setBackgroundFetchActive(true)
+        const history = loadPlayerHistory()
 
-      // Process movies first (usually fewer)
-      for (const movie of history.movies) {
-        await fetchAndCacheCredits({ id: movie.id, type: "movie" })
-        // Small delay to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 100))
+        // Calculate total items to process
+        const totalItems = history.movies.length + history.actors.length
+        setBackgroundFetchProgress({ current: 0, total: totalItems })
+
+        // Process a limited number of items to avoid overwhelming the browser
+        const MAX_ITEMS_TO_PROCESS = 5
+
+        // Process movies first (usually fewer)
+        const moviesToProcess = history.movies.slice(0, MAX_ITEMS_TO_PROCESS)
+        for (let i = 0; i < moviesToProcess.length; i++) {
+          const movie = moviesToProcess[i]
+          await fetchAndCacheCredits({ id: movie.id, type: "movie" })
+          // Update progress
+          setBackgroundFetchProgress((prev) => ({
+            current: prev.current + 1,
+            total: prev.total,
+          }))
+          // Small delay to avoid rate limiting
+          await new Promise((resolve) => setTimeout(resolve, 100))
+        }
+
+        // Then process actors
+        const actorsToProcess = history.actors.slice(0, MAX_ITEMS_TO_PROCESS)
+        for (let i = 0; i < actorsToProcess.length; i++) {
+          const actor = actorsToProcess[i]
+          await fetchAndCacheCredits({ id: actor.id, type: "actor" })
+          // Update progress
+          setBackgroundFetchProgress((prev) => ({
+            current: prev.current + 1,
+            total: prev.total,
+          }))
+          // Small delay to avoid rate limiting
+          await new Promise((resolve) => setTimeout(resolve, 100))
+        }
+
+        // Refresh connections after fetching data
+        refreshAllConnections()
+        // Rebuild the graph with the new connections
+        buildGraphData()
+      } catch (error) {
+        console.error("Error fetching missing credits data:", error)
+      } finally {
+        setBackgroundFetchActive(false)
       }
-
-      // Then process actors
-      for (const actor of history.actors) {
-        await fetchAndCacheCredits({ id: actor.id, type: "actor" })
-        // Small delay to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 100))
-      }
-
-      // Refresh connections after fetching all data
-      refreshConnections()
     }
 
     // Run in the background
-    fetchMissingCreditsData().catch(console.error)
+    fetchMissingCreditsData()
   }, [])
 
   // Handle sync button click
@@ -797,9 +825,19 @@ export default function ConnectionWeb() {
 
       <div className="relative flex-1 border rounded-lg overflow-hidden">
         {loading || syncing ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            {syncing && <p className="absolute mt-16 text-sm text-muted-foreground">Syncing connections...</p>}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+            {syncing && <p className="text-sm text-muted-foreground">Syncing connections...</p>}
+            {backgroundFetchActive && (
+              <div className="mt-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Fetching data for connections ({backgroundFetchProgress.current}/{backgroundFetchProgress.total})
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This may take a moment. You can still use the visualization.
+                </p>
+              </div>
+            )}
           </div>
         ) : nodes.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center">
