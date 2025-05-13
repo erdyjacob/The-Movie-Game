@@ -946,3 +946,36 @@ export async function clearApiCache(): Promise<void> {
   })
   console.log("API cache cleared")
 }
+
+// Add this new function to the tmdb-api.ts file
+
+// Fetch and cache credits data for a movie or actor
+export async function fetchAndCacheCredits(item: { id: number; type: "movie" | "actor" }): Promise<void> {
+  try {
+    // Check if we already have this data cached
+    const cacheKey =
+      item.type === "movie"
+        ? `${BASE_URL}/movie/${item.id}/credits?api_key=${API_KEY}&language=en-US`
+        : `${BASE_URL}/person/${item.id}/movie_credits?api_key=${API_KEY}&language=en-US`
+
+    const cachedData = getCachedItem<any>(cacheKey)
+    if (cachedData) {
+      console.log(`Credits data for ${item.type} ${item.id} already cached`)
+      return
+    }
+
+    console.log(`Fetching credits data for ${item.type} ${item.id}`)
+
+    // Fetch the credits data
+    if (item.type === "movie") {
+      await cachedFetch(`${BASE_URL}/movie/${item.id}/credits?api_key=${API_KEY}&language=en-US`, {})
+      console.log(`Cached credits data for movie ${item.id}`)
+    } else {
+      await cachedFetch(`${BASE_URL}/person/${item.id}/movie_credits?api_key=${API_KEY}&language=en-US`, {})
+      console.log(`Cached credits data for actor ${item.id}`)
+    }
+  } catch (error) {
+    console.error(`Error fetching credits data for ${item.type} ${item.id}:`, error)
+    // Continue even if fetching fails - we don't want to block the game
+  }
+}

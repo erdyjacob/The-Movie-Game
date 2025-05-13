@@ -11,10 +11,16 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { getRarityColor } from "@/lib/rarity"
 import { loadPlayerHistory } from "@/lib/player-history"
-import { loadConnections, refreshAllConnections, debugConnectionData } from "@/lib/connection-tracking"
+import {
+  loadConnections,
+  refreshAllConnections,
+  debugConnectionData,
+  refreshConnections,
+} from "@/lib/connection-tracking"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AddConnectionDialog } from "./add-connection-dialog"
 import { useRouter } from "next/navigation"
+import { fetchAndCacheCredits } from "@/lib/tmdb-api"
 
 // Define the node and link types for our graph
 interface Node extends d3.SimulationNodeDatum {
@@ -118,7 +124,32 @@ export default function ConnectionWeb() {
   }
 
   useEffect(() => {
-    buildGraphData()
+    loadConnections()
+
+    // Fetch missing credits data for all items in player history
+    const fetchMissingCreditsData = async () => {
+      const history = loadPlayerHistory()
+
+      // Process movies first (usually fewer)
+      for (const movie of history.movies) {
+        await fetchAndCacheCredits({ id: movie.id, type: "movie" })
+        // Small delay to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+
+      // Then process actors
+      for (const actor of history.actors) {
+        await fetchAndCacheCredits({ id: actor.id, type: "actor" })
+        // Small delay to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+
+      // Refresh connections after fetching all data
+      refreshConnections()
+    }
+
+    // Run in the background
+    fetchMissingCreditsData().catch(console.error)
   }, [])
 
   // Handle sync button click

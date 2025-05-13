@@ -1,5 +1,6 @@
 import type { GameItem, PlayerHistory, PlayerHistoryItem } from "./types"
 import { calculateActorRarity, calculateMovieRarity } from "./rarity"
+import { fetchAndCacheCredits } from "./tmdb-api"
 
 // Maximum number of items to store in history
 const MAX_HISTORY_ITEMS = 100
@@ -133,6 +134,16 @@ export function addToPlayerHistory(item: GameItem): void {
     }
 
     savePlayerHistory(history)
+
+    // Fetch and cache credits data for the item to enable connection inference
+    if (typeof window !== "undefined") {
+      // Use setTimeout to avoid blocking the UI
+      setTimeout(() => {
+        fetchAndCacheCredits({ id: item.id, type: item.type }).catch((err) =>
+          console.error("Error fetching credits data:", err),
+        )
+      }, 100)
+    }
   } catch (error) {
     console.error("Error adding to player history:", error)
   }
