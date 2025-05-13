@@ -492,3 +492,192 @@ export async function addManualConnection(
     }
   }
 }
+
+// NEW DEBUGGING FUNCTIONS
+
+// Function to inspect cache for a specific movie
+export async function inspectCacheForMovie(movieId: number): Promise<any> {
+  if (typeof window === "undefined") return null
+
+  try {
+    const apiCache = safeParseJSON(localStorage.getItem("tmdbApiCache"), {})
+
+    // Find movie details in cache
+    const movieDetailsKey = Object.keys(apiCache).find(
+      (key) => key.includes(`/movie/${movieId}`) && !key.includes("/credits"),
+    )
+
+    // Find movie credits in cache
+    const movieCreditsKey = Object.keys(apiCache).find((key) => key.includes(`/movie/${movieId}/credits`))
+
+    const result: any = {
+      movieId,
+      movieDetailsKey,
+      movieCreditsKey,
+      movieDetails: null,
+      movieCredits: null,
+      actorInCredits: false,
+    }
+
+    // Extract movie details
+    if (movieDetailsKey && apiCache[movieDetailsKey]?.data) {
+      result.movieDetails = apiCache[movieDetailsKey].data
+    }
+
+    // Extract movie credits
+    if (movieCreditsKey && apiCache[movieCreditsKey]?.data) {
+      result.movieCredits = apiCache[movieCreditsKey].data
+    }
+
+    return result
+  } catch (error) {
+    console.error("Error inspecting cache for movie:", error)
+    return null
+  }
+}
+
+// Function to inspect cache for a specific actor
+export async function inspectCacheForActor(actorId: number): Promise<any> {
+  if (typeof window === "undefined") return null
+
+  try {
+    const apiCache = safeParseJSON(localStorage.getItem("tmdbApiCache"), {})
+
+    // Find actor details in cache
+    const actorDetailsKey = Object.keys(apiCache).find(
+      (key) => key.includes(`/person/${actorId}`) && !key.includes("/movie_credits"),
+    )
+
+    // Find actor credits in cache
+    const actorCreditsKey = Object.keys(apiCache).find((key) => key.includes(`/person/${actorId}/movie_credits`))
+
+    const result: any = {
+      actorId,
+      actorDetailsKey,
+      actorCreditsKey,
+      actorDetails: null,
+      actorCredits: null,
+      movieInCredits: false,
+    }
+
+    // Extract actor details
+    if (actorDetailsKey && apiCache[actorDetailsKey]?.data) {
+      result.actorDetails = apiCache[actorDetailsKey].data
+    }
+
+    // Extract actor credits
+    if (actorCreditsKey && apiCache[actorCreditsKey]?.data) {
+      result.actorCredits = apiCache[actorCreditsKey].data
+    }
+
+    return result
+  } catch (error) {
+    console.error("Error inspecting cache for actor:", error)
+    return null
+  }
+}
+
+// Function to test if a connection would be inferred
+export async function testInferConnection(movieId: number, actorId: number): Promise<any> {
+  if (typeof window === "undefined") return null
+
+  try {
+    // Check if connection already exists
+    const savedConnections = localStorage.getItem("movieGameConnections")
+    const connections: Connection[] = safeParseJSON(savedConnections, [])
+    const connectionExists = connections.some((conn) => conn.movieId === movieId && conn.actorId === actorId)
+
+    // Get player history
+    const playerHistory = safeParseJSON(localStorage.getItem("movieGamePlayerHistory"), { movies: [], actors: [] })
+
+    // Check if movie and actor are discovered
+    const movieDiscovered = playerHistory.movies.some((movie: any) => movie.id === movieId)
+    const actorDiscovered = playerHistory.actors.some((actor: any) => actor.id === actorId)
+
+    // Get API cache
+    const apiCache = safeParseJSON(localStorage.getItem("tmdbApiCache"), {})
+
+    // Check movie credits
+    const movieCreditsKey = Object.keys(apiCache).find((key) => key.includes(`/movie/${movieId}/credits`))
+
+    let foundInMovieCredits = false
+    if (movieCreditsKey && apiCache[movieCreditsKey]?.data?.cast) {
+      foundInMovieCredits = apiCache[movieCreditsKey].data.cast.some((actor: any) => actor.id === actorId)
+    }
+
+    // Check actor credits
+    const actorCreditsKey = Object.keys(apiCache).find((key) => key.includes(`/person/${actorId}/movie_credits`))
+
+    let foundInActorCredits = false
+    if (actorCreditsKey && apiCache[actorCreditsKey]?.data?.cast) {
+      foundInActorCredits = apiCache[actorCreditsKey].data.cast.some((movie: any) => movie.id === movieId)
+    }
+
+    // Determine if connection would be inferred
+    let wouldBeInferred = false
+    let reason = ""
+
+    if (!movieDiscovered) {
+      reason = "Movie not discovered in player history"
+    } else if (!actorDiscovered) {
+      reason = "Actor not discovered in player history"
+    } else if (!foundInMovieCredits && !foundInActorCredits) {
+      reason = "Connection not found in either movie or actor credits"
+    } else {
+      wouldBeInferred = true
+    }
+
+    return {
+      movieId,
+      actorId,
+      connectionExists,
+      movieDiscovered,
+      actorDiscovered,
+      foundInMovieCredits,
+      foundInActorCredits,
+      wouldBeInferred,
+      reason,
+    }
+  } catch (error) {
+    console.error("Error testing inference connection:", error)
+    return null
+  }
+}
+
+// Function to force refresh movie credits
+export async function forceRefreshMovieCredits(movieId: number): Promise<{ success: boolean; message: string }> {
+  try {
+    // We need to use the server action to refresh the credits
+    const result = await validateConnection(movieId, 0, true)
+
+    return {
+      success: result,
+      message: result ? "Successfully refreshed movie credits" : "Failed to refresh movie credits",
+    }
+  } catch (error) {
+    console.error("Error refreshing movie credits:", error)
+    return {
+      success: false,
+      message: "An error occurred while refreshing movie credits",
+    }
+  }
+}
+
+// Function to force refresh actor credits
+export async function forceRefreshActorCredits(actorId: number): Promise<{ success: boolean; message: string }> {
+  try {
+    // We need to use the server action to refresh the credits
+    const result = await validateConnection(0, actorId, true)
+
+    return {
+      success: result,
+      message: result ? "Successfully refreshed actor credits" : "Failed to refresh actor credits",
+    }
+  } catch (error) {
+    console.error("Error refreshing actor credits:", error)
+    return {
+      success: false,
+      message: "An error occurred while refreshing actor credits",
+    }
+  }
+}

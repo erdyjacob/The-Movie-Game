@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import * as d3 from "d3"
-import { ZoomIn, ZoomOut, RefreshCw, RotateCw, Bug, Link } from "lucide-react"
+import { ZoomIn, ZoomOut, RefreshCw, RotateCw, Bug, Link, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +14,7 @@ import { loadPlayerHistory } from "@/lib/player-history"
 import { loadConnections, refreshAllConnections, debugConnectionData } from "@/lib/connection-tracking"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AddConnectionDialog } from "./add-connection-dialog"
+import { useRouter } from "next/navigation"
 
 // Define the node and link types for our graph
 interface Node extends d3.SimulationNodeDatum {
@@ -33,6 +34,7 @@ interface GraphLink extends d3.SimulationLinkDatum<Node> {
 }
 
 export default function ConnectionWeb() {
+  const router = useRouter()
   const svgRef = useRef<SVGSVGElement>(null)
   const [nodes, setNodes] = useState<Node[]>([])
   const [links, setLinks] = useState<GraphLink[]>([])
@@ -165,6 +167,11 @@ export default function ConnectionWeb() {
   const handleConnectionAdded = () => {
     // Rebuild the graph data to include the new connection
     buildGraphData()
+  }
+
+  // Handle debug tools button click
+  const handleDebugTools = () => {
+    router.push("/connection-debug")
   }
 
   // Handle search functionality
@@ -668,6 +675,20 @@ export default function ConnectionWeb() {
 
         {/* Controls */}
         <div className="flex items-center gap-2">
+          {/* Debug Tools button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleDebugTools}>
+                  <Wrench className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Connection Debugger</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           {/* Add Connection button */}
           <TooltipProvider>
             <Tooltip>
