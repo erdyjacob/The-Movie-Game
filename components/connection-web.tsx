@@ -54,6 +54,7 @@ export default function ConnectionWeb() {
   const [addConnectionOpen, setAddConnectionOpen] = useState(false)
   const [backgroundFetchActive, setBackgroundFetchActive] = useState(false)
   const [backgroundFetchProgress, setBackgroundFetchProgress] = useState({ current: 0, total: 0 })
+  const [layoutQuality, setLayoutQuality] = useState<"low" | "medium" | "high">("medium")
 
   // Load player history and build the graph data
   const buildGraphData = () => {
@@ -236,6 +237,17 @@ export default function ConnectionWeb() {
     router.push("/connection-debug")
   }
 
+  // Handle layout quality change
+  const cycleLayoutQuality = () => {
+    if (layoutQuality === "low") {
+      setLayoutQuality("medium")
+    } else if (layoutQuality === "medium") {
+      setLayoutQuality("high")
+    } else {
+      setLayoutQuality("low")
+    }
+  }
+
   // Handle search functionality
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -342,6 +354,37 @@ export default function ConnectionWeb() {
     // Create a container group for the graph
     const container = svg.append("g").attr("class", "container")
 
+    // Set simulation parameters based on layout quality
+    let linkDistance = 100
+    let chargeStrength = -300
+    let collisionRadius = 45
+    let iterations = 10
+    let alphaDecay = 0.0228 // Default value
+
+    switch (layoutQuality) {
+      case "low":
+        linkDistance = 80
+        chargeStrength = -200
+        collisionRadius = 40
+        iterations = 5
+        alphaDecay = 0.05 // Faster cooling
+        break
+      case "medium":
+        linkDistance = 120
+        chargeStrength = -400
+        collisionRadius = 50
+        iterations = 20
+        alphaDecay = 0.02 // Default-ish
+        break
+      case "high":
+        linkDistance = 150
+        chargeStrength = -600
+        collisionRadius = 60
+        iterations = 50
+        alphaDecay = 0.01 // Slower cooling for better layout
+        break
+    }
+
     // Create a force simulation with adjusted parameters for better layout
     const simulation = d3
       .forceSimulation<Node>(filteredNodes)
@@ -351,23 +394,103 @@ export default function ConnectionWeb() {
           .forceLink<Node, GraphLink>()
           .id((d) => d.id)
           .links(filteredLinks)
-          .distance(100), // Increased distance for better spacing
+          .distance((d) => {
+            // Adjust link distance based on node types and connection type
+            if (d.source_type === "explicit") return linkDistance * 0.8
+            if (d.source_type === "manual") return linkDistance * 0.7
+            return linkDistance // Default for inferred
+          }),
       )
-      .force("charge", d3.forceManyBody().strength(-300)) // Increased repulsion
+      .force("charge", d3.forceManyBody().strength(chargeStrength))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(45)) // Increased collision radius
+      .force("collision", d3.forceCollide().radius(collisionRadius))
       // Add x and y forces to prevent nodes from getting too far from center
       .force("x", d3.forceX(width / 2).strength(0.07))
       .force("y", d3.forceY(height / 2).strength(0.07))
+      // Add a new force to minimize edge crossings
+      .force("link-repulsion", (alpha) => {
+        // This custom force tries to minimize edge crossings
+        // by adding repulsion between links
+        const linkNodes = filteredLinks.map((l) => ({
+          source: typeof l.source === "string" ? l.source : l.source.id,
+          target: typeof l.target === "string" ? l.target : l.target.id,
+          sourceNode: typeof l.source === "string" ? null : l.source,
+          targetNode: typeof l.target === "string" ? null : l.target,
+        }))
 
-    // Create straight lines with improved visibility
+        // For each pair of links
+        for (let i = 0; i < linkNodes.length; i++) {
+          const l1 = linkNodes[i]
+          if (!l1.sourceNode || !l1.targetNode) continue
+
+          for (let j = i + 1; j < linkNodes.length; j++) {
+            const l2 = linkNodes[j]
+            if (!l2.sourceNode || !l2.targetNode) continue
+
+            // Skip if links share a node (they will naturally not cross)
+            if (
+              l1.source === l2.source ||
+              l1.source === l2.target ||
+              l1.target === l2.source ||
+              l1.target === l2.target
+            ) {
+              continue
+            }
+
+            // Calculate midpoints of each link
+            const midpoint1 = {
+              x: (l1.sourceNode.x! + l1.targetNode.x!) / 2,
+              y: (l1.sourceNode.y! + l1.targetNode.y!) / 2,
+            }
+            const midpoint2 = {
+              x: (l2.sourceNode.x! + l2.targetNode.x!) / 2,
+              y: (l2.sourceNode.y! + l2.targetNode.y!) / 2,
+            }
+
+            // Calculate distance between midpoints
+            const dx = midpoint1.x - midpoint2.x
+            const dy = midpoint1.y - midpoint2.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
+
+            // Apply a small repulsive force between the midpoints
+            if (distance > 0 && distance < collisionRadius * 2) {
+              const repulsionForce = (alpha * 0.5) / distance
+              const moveX = dx * repulsionForce
+              const moveY = dy * repulsionForce
+
+              // Move the nodes of the first link away from the second
+              if (l1.sourceNode.x && l1.sourceNode.y) {
+                l1.sourceNode.x += moveX
+                l1.sourceNode.y += moveY
+              }
+              if (l1.targetNode.x && l1.targetNode.y) {
+                l1.targetNode.x += moveX
+                l1.targetNode.y += moveY
+              }
+
+              // Move the nodes of the second link away from the first
+              if (l2.sourceNode.x && l2.sourceNode.y) {
+                l2.sourceNode.x -= moveX
+                l2.sourceNode.y -= moveY
+              }
+              if (l2.targetNode.x && l2.targetNode.y) {
+                l2.targetNode.x -= moveX
+                l2.targetNode.y -= moveY
+              }
+            }
+          }
+        }
+      })
+      .alphaDecay(alphaDecay)
+
+    // Create curved links for better visibility and less overlap
     const link = container
       .append("g")
       .attr("class", "links")
-      .selectAll("line")
+      .selectAll("path") // Use paths instead of lines for curves
       .data(filteredLinks)
       .enter()
-      .append("line")
+      .append("path") // Use path for curved lines
       .attr("stroke", (d) => {
         if (d.source_type === "manual") return "#f97316" // Orange for manual connections
         if (d.source_type === "inferred") return "#4b5563" // Gray for inferred
@@ -375,6 +498,7 @@ export default function ConnectionWeb() {
       })
       .attr("stroke-opacity", 0.8) // Increased opacity for better visibility
       .attr("stroke-width", (d) => Math.sqrt(d.value) + 1) // Increased line width
+      .attr("fill", "none") // Important for paths
       .style("transition", "opacity 0.3s ease") // Add transition for smooth opacity changes
 
     // Create node groups
@@ -413,7 +537,7 @@ export default function ConnectionWeb() {
         })
 
         // Dim unrelated links
-        svg.selectAll(".links line").style("opacity", (l: any) => {
+        svg.selectAll(".links path").style("opacity", (l: any) => {
           const sourceId = typeof l.source === "string" ? l.source : l.source.id
           const targetId = typeof l.target === "string" ? l.target : l.target.id
 
@@ -429,14 +553,14 @@ export default function ConnectionWeb() {
         // Reset all opacities unless we're filtering by search
         if (!searchTerm.trim()) {
           svg.selectAll(".node").style("opacity", 1)
-          svg.selectAll(".links line").style("opacity", 0.8) // Maintain higher opacity
+          svg.selectAll(".links path").style("opacity", 0.8) // Maintain higher opacity
         } else {
           // If we have an active search, maintain the search highlighting
           const resultIds = new Set(searchResults.map((r) => r.id))
 
           svg.selectAll(".node").style("opacity", (d: any) => (resultIds.has(d.id) ? 1 : 0.3))
 
-          svg.selectAll(".links line").style("opacity", (d: any) => {
+          svg.selectAll(".links path").style("opacity", (d: any) => {
             const sourceId = typeof d.source === "string" ? d.source : d.source.id
             const targetId = typeof d.target === "string" ? d.target : d.target.id
             return resultIds.has(sourceId) || resultIds.has(targetId) ? 1 : 0.2
@@ -541,20 +665,53 @@ export default function ConnectionWeb() {
         return d.name.length > 15 ? d.name.substring(0, 15) + "..." : d.name
       })
 
+    // Function to generate curved paths between nodes
+    function linkArc(d: any) {
+      const sourceX = d.source.x || 0
+      const sourceY = d.source.y || 0
+      const targetX = d.target.x || 0
+      const targetY = d.target.y || 0
+
+      // Calculate the distance between nodes
+      const dx = targetX - sourceX
+      const dy = targetY - sourceY
+      const dr = Math.sqrt(dx * dx + dy * dy)
+
+      // Determine if we should curve the line
+      // Straight lines for very close nodes, curved for others
+      if (dr < nodeRadius * 3) {
+        return `M${sourceX},${sourceY}L${targetX},${targetY}`
+      }
+
+      // Calculate curvature based on distance and connection type
+      let curvature = 2
+      if (d.source_type === "explicit") curvature = 3
+      if (d.source_type === "manual") curvature = 4
+
+      // Generate a unique curve for each link to avoid overlaps
+      const curveOffset = (d.source.id.charCodeAt(0) + d.target.id.charCodeAt(0)) % 5
+      curvature += curveOffset * 0.5
+
+      // Create a curved path
+      return `M${sourceX},${sourceY}A${dr / curvature},${dr / curvature} 0 0,1 ${targetX},${targetY}`
+    }
+
     // Update positions on each tick of the simulation
     simulation.on("tick", () => {
-      // Update straight lines
-      link
-        .attr("x1", (d) => (d.source as Node).x || 0)
-        .attr("y1", (d) => (d.source as Node).y || 0)
-        .attr("x2", (d) => (d.target as Node).x || 0)
-        .attr("y2", (d) => (d.target as Node).y || 0)
+      // Update curved paths
+      link.attr("d", linkArc)
 
+      // Update node positions
       node.attr("transform", (d) => `translate(${d.x || 0},${d.y || 0})`)
     })
 
     // Run simulation with higher alpha for better initial layout
     simulation.alpha(1).restart()
+
+    // Run multiple iterations for better layout
+    for (let i = 0; i < iterations; i++) {
+      simulation.tick()
+    }
 
     // Drag functions
     function dragstarted(event: d3.D3DragEvent<SVGGElement, Node, Node>) {
@@ -582,7 +739,7 @@ export default function ConnectionWeb() {
       // Reset all opacities unless we're filtering by search
       if (!searchTerm.trim()) {
         svg.selectAll(".node").style("opacity", 1)
-        svg.selectAll(".links line").style("opacity", 0.8) // Maintain higher opacity
+        svg.selectAll(".links path").style("opacity", 0.8) // Maintain higher opacity
       }
     })
 
@@ -593,7 +750,7 @@ export default function ConnectionWeb() {
     return () => {
       simulation.stop()
     }
-  }, [nodes, links, loading, filterRarity, showImages, imageQuality, searchResults, debugMode])
+  }, [nodes, links, loading, filterRarity, showImages, imageQuality, searchResults, debugMode, layoutQuality])
 
   // Handle zoom in button
   const handleZoomIn = () => {
@@ -644,7 +801,7 @@ export default function ConnectionWeb() {
     if (svgRef.current) {
       const svg = d3.select(svgRef.current)
       svg.selectAll(".node").style("opacity", 1)
-      svg.selectAll(".links line").style("opacity", 0.8) // Maintain higher opacity
+      svg.selectAll(".links path").style("opacity", 0.8) // Maintain higher opacity
     }
   }
 
@@ -780,6 +937,45 @@ export default function ConnectionWeb() {
               </TooltipTrigger>
               <TooltipContent>
                 <p>Debug connection data</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Layout Quality button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={cycleLayoutQuality}
+                  className={`relative ${
+                    layoutQuality === "high"
+                      ? "border-green-500"
+                      : layoutQuality === "medium"
+                        ? "border-blue-500"
+                        : "border-gray-500"
+                  }`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <path d="M12 17h.01" />
+                  </svg>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Layout Quality: {layoutQuality}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
