@@ -166,7 +166,9 @@ export default function ConnectionWeb() {
         }
 
         // Refresh connections after fetching data
-        refreshAllConnections()
+        const newConnections = refreshAllConnections()
+        console.log(`Refreshed connections: ${newConnections.length} total`)
+
         // Rebuild the graph with the new connections
         buildGraphData()
       } catch (error) {
@@ -187,7 +189,8 @@ export default function ConnectionWeb() {
 
     try {
       // Call the refreshAllConnections function to rebuild all connections
-      refreshAllConnections()
+      const newConnections = refreshAllConnections()
+      console.log(`Synced connections: ${newConnections.length} total`)
 
       // Rebuild the graph data with the refreshed connections
       buildGraphData()

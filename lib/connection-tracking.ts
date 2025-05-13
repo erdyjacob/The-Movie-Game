@@ -92,13 +92,122 @@ export function refreshAllConnections(): Connection[] {
   try {
     console.log("Refreshing connections...")
 
-    // IMPORTANT: We no longer clear existing connections
-    // This ensures we don't lose data if something goes wrong
+    // Load existing connections
+    const existingConnections = loadConnections()
 
-    // Just call loadConnections to add any new connections
-    const allConnections = loadConnections()
+    // Create a map for quick lookup of existing connections
+    const connectionMap = new Map<string, Connection>()
+    existingConnections.forEach((conn) => {
+      const key = `${conn.movieId}-${conn.actorId}`
+      connectionMap.set(key, conn)
+    })
 
-    console.log(`Refreshed connections: ${allConnections.length} total`)
+    // Load player history
+    const playerHistory = safeParseJSON(localStorage.getItem("movieGamePlayerHistory"), { movies: [], actors: [] })
+
+    // Create maps for quick lookup
+    const movieMap = new Map()
+    playerHistory.movies.forEach((movie: any) => {
+      movieMap.set(movie.id, movie)
+    })
+
+    const actorMap = new Map()
+    playerHistory.actors.forEach((actor: any) => {
+      actorMap.set(actor.id, actor)
+    })
+
+    // Get TMDB API cache
+    const apiCache = safeParseJSON(localStorage.getItem("tmdbApiCache"), {})
+
+    // Infer connections from movie credits
+    const movieCreditsKeys = Object.keys(apiCache).filter((key) => key.includes("/movie/") && key.includes("/credits"))
+
+    for (const key of movieCreditsKeys) {
+      const movieId = extractId(key, "movie")
+      if (!movieId || !movieMap.has(movieId)) continue
+
+      const movie = movieMap.get(movieId)
+      const movieCredits = apiCache[key]?.data
+
+      if (movieCredits && movieCredits.cast && Array.isArray(movieCredits.cast)) {
+        for (const castMember of movieCredits.cast) {
+          const actorId = castMember.id
+
+          // Only create connections for actors in player history
+          if (!actorMap.has(actorId)) continue
+
+          const actor = actorMap.get(actorId)
+          const connectionKey = `${movieId}-${actorId}`
+
+          // Skip if connection already exists
+          if (connectionMap.has(connectionKey)) continue
+
+          // Create new inferred connection
+          const newConnection: Connection = {
+            movieId,
+            actorId,
+            movieName: movie.name,
+            actorName: actor.name,
+            timestamp: new Date().toISOString(),
+            source: "inferred",
+          }
+
+          connectionMap.set(connectionKey, newConnection)
+          console.log(`Inferred connection: ${movie.name} -> ${actor.name}`)
+        }
+      }
+    }
+
+    // Infer connections from actor credits
+    const actorCreditsKeys = Object.keys(apiCache).filter(
+      (key) => key.includes("/person/") && key.includes("/movie_credits"),
+    )
+
+    for (const key of actorCreditsKeys) {
+      const actorId = extractId(key, "person")
+      if (!actorId || !actorMap.has(actorId)) continue
+
+      const actor = actorMap.get(actorId)
+      const actorCredits = apiCache[key]?.data
+
+      if (actorCredits && actorCredits.cast && Array.isArray(actorCredits.cast)) {
+        for (const movie of actorCredits.cast) {
+          const movieId = movie.id
+
+          // Only create connections for movies in player history
+          if (!movieMap.has(movieId)) continue
+
+          const movieObj = movieMap.get(movieId)
+          const connectionKey = `${movieId}-${actorId}`
+
+          // Skip if connection already exists
+          if (connectionMap.has(connectionKey)) continue
+
+          // Create new inferred connection
+          const newConnection: Connection = {
+            movieId,
+            actorId,
+            movieName: movieObj.name,
+            actorName: actor.name,
+            timestamp: new Date().toISOString(),
+            source: "inferred",
+          }
+
+          connectionMap.set(connectionKey, newConnection)
+          console.log(`Inferred connection: ${movieObj.name} -> ${actor.name}`)
+        }
+      }
+    }
+
+    // Convert map back to array
+    const allConnections = Array.from(connectionMap.values())
+
+    // Save all connections back to localStorage
+    localStorage.setItem("movieGameConnections", JSON.stringify(allConnections))
+
+    console.log(
+      `Refreshed connections: ${allConnections.length} total (${allConnections.length - existingConnections.length} new)`,
+    )
 
     return allConnections
   } catch (error) {
@@ -183,7 +292,7 @@ export async function addManualConnection(
 
 // Function to refresh connections
 export function refreshConnections(): void {
-  loadConnections()
+  refreshAllConnections()
 }
 
 // Debug function to log connection data
@@ -198,6 +307,21 @@ export function debugConnectionData(): void {
   if (connections.length > 0) {
     console.log("Sample connection:", connections[0])
   }
+
+  // Log player history
+  const playerHistory = safeParseJSON(localStorage.getItem("movieGamePlayerHistory"), { movies: [], actors: [] })
+  console.log(`Player history: ${playerHistory.movies.length} movies, ${playerHistory.actors.length} actors`)
+
+  // Log API cache
+  const apiCache = safeParseJSON(localStorage.getItem("tmdbApiCache"), {})
+  const cacheKeys = Object.keys(apiCache)
+  console.log(`API cache: ${cacheKeys.length} items`)
+
+  // Count movie and actor credits in cache
+  const movieCreditsCount = cacheKeys.filter((key) => key.includes("/movie/") && key.includes("/credits")).length
+  const actorCreditsCount = cacheKeys.filter((key) => key.includes("/person/") && key.includes("/movie_credits")).length
+  console.log(`Movie credits in cache: ${movieCreditsCount}`)
+  console.log(`Actor credits in cache: ${actorCreditsCount}`)
 
   console.log("=== END DEBUG INFO ===")
 }
@@ -423,25 +547,5 @@ export async function forceRefreshActorCredits(actorId: number): Promise<{ succe
       success: false,
       message: "An error occurred while refreshing actor credits",
     }
-  }
-}
-
-// Function to infer connections from player history
-export async function inferConnections(): Promise<void> {
-  if (typeof window === "undefined") return
-
-  console.log("Inferring connections from player history...")
-
-  try {
-    // Load player history
-    // Load existing connections
-    // Get TMDB API cache
-    // Create maps of discovered movies and actors for quick lookup
-    // Infer connections between movies and actors
-    // Save all connections back to localStorage
-
-    console.log("Finished inferring connections.")
-  } catch (error) {
-    console.error("Error inferring connections:", error)
   }
 }
