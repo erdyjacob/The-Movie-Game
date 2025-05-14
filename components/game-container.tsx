@@ -625,6 +625,37 @@ export default function GameContainer() {
         }
       }
 
+      // Check if this is the daily challenge target and we're in daily challenge mode
+      if (
+        gameState.gameMode === "dailyChallenge" &&
+        dailyChallenge &&
+        newItem.id === dailyChallenge.id &&
+        newItem.type === dailyChallenge.type
+      ) {
+        // Player found the daily challenge target!
+        toast({
+          title: "Daily Challenge Completed! 🎉",
+          description: `Congratulations! You found ${dailyChallenge.name}!`,
+          variant: "success",
+        })
+
+        // Mark daily challenge as completed
+        markDailyChallengeCompleted()
+        saveDailyChallengeItem(newItem)
+
+        // End the game with success
+        setGameState((prev) => ({
+          ...prev,
+          status: "gameOver",
+          dailyChallengeCompleted: true,
+        }))
+
+        // Track this connection
+        // trackConnection(history[history.length - 1], newItem);
+
+        return // Exit early to prevent computer's turn
+      }
+
       // Determine the next turn phase based on the current phase
       let nextTurnPhase = gameState.turnPhase
       let isNextComputerTurn = false
@@ -693,45 +724,33 @@ export default function GameContainer() {
 
   return (
     <div className="w-full max-w-3xl">
-      {/* Remove the header when on the start screen */}
-      {gameState.status !== "start" && (
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold mb-3">The Movie Game</h1>
-          <p className="text-muted-foreground">
-            {gameState.gameMode === "dailyChallenge"
-              ? "Daily Challenge: Unlimited time, three strikes, find the daily target!"
-              : "Name an actor from the movie or a movie the actor was in!"}
-          </p>
-        </div>
-      )}
-
       {gameState.status === "start" && (
         <StartScreen onStart={startGame} highScore={gameState.highScore} loading={loading} />
       )}
 
-      {/* Remove or comment out this line: */}
-      {/* {loading && <PopcornLoader />} */}
-
       {gameState.status === "playing" && gameState.currentItem && (
-        <GameScreen
-          currentItem={gameState.currentItem}
-          score={gameState.score}
-          highScore={gameState.highScore}
-          onCorrectAnswer={updateGameState}
-          onIncorrectAnswer={handleIncorrectAnswer}
-          onGameOver={endGame}
-          isComputerTurn={gameState.isComputerTurn}
-          history={gameState.history}
-          usedIds={gameState.usedIds}
-          filters={gameState.filters}
-          strikes={gameState.strikes}
-          turnPhase={gameState.turnPhase}
-          difficulty={gameState.difficulty}
-          gameMode={gameState.gameMode}
-          timeRemaining={gameState.timeRemaining}
-          dailyChallenge={dailyChallenge}
-          dailyChallengeCompleted={gameState.dailyChallengeCompleted}
-        />
+        <>
+          {/* Logo is now inside the GameScreen component */}
+          <GameScreen
+            currentItem={gameState.currentItem}
+            score={gameState.score}
+            highScore={gameState.highScore}
+            onCorrectAnswer={updateGameState}
+            onIncorrectAnswer={handleIncorrectAnswer}
+            onGameOver={endGame}
+            isComputerTurn={gameState.isComputerTurn}
+            history={gameState.history}
+            usedIds={gameState.usedIds}
+            filters={gameState.filters}
+            strikes={gameState.strikes}
+            turnPhase={gameState.turnPhase}
+            difficulty={gameState.difficulty}
+            gameMode={gameState.gameMode}
+            timeRemaining={gameState.timeRemaining}
+            dailyChallenge={dailyChallenge}
+            dailyChallengeCompleted={gameState.dailyChallengeCompleted}
+          />
+        </>
       )}
 
       {gameState.status === "gameOver" && (

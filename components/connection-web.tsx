@@ -167,7 +167,7 @@ export default function ConnectionWeb() {
         }
 
         // Refresh connections after fetching data
-        const newConnections = refreshAllConnections()
+        const newConnections = await refreshAllConnections()
         console.log(`Refreshed connections: ${newConnections.length} total`)
 
         // Rebuild the graph with the new connections
@@ -483,14 +483,14 @@ export default function ConnectionWeb() {
       })
       .alphaDecay(alphaDecay)
 
-    // Create curved links for better visibility and less overlap
+    // Create straight lines with improved visibility
     const link = container
       .append("g")
       .attr("class", "links")
-      .selectAll("path") // Use paths instead of lines for curves
+      .selectAll("line")
       .data(filteredLinks)
       .enter()
-      .append("path") // Use path for curved lines
+      .append("line")
       .attr("stroke", (d) => {
         if (d.source_type === "manual") return "#f97316" // Orange for manual connections
         if (d.source_type === "inferred") return "#4b5563" // Gray for inferred
@@ -498,7 +498,6 @@ export default function ConnectionWeb() {
       })
       .attr("stroke-opacity", 0.8) // Increased opacity for better visibility
       .attr("stroke-width", (d) => Math.sqrt(d.value) + 1) // Increased line width
-      .attr("fill", "none") // Important for paths
       .style("transition", "opacity 0.3s ease") // Add transition for smooth opacity changes
 
     // Create node groups
@@ -537,7 +536,7 @@ export default function ConnectionWeb() {
         })
 
         // Dim unrelated links
-        svg.selectAll(".links path").style("opacity", (l: any) => {
+        svg.selectAll(".links line").style("opacity", (l: any) => {
           const sourceId = typeof l.source === "string" ? l.source : l.source.id
           const targetId = typeof l.target === "string" ? l.target : l.target.id
 
@@ -553,14 +552,14 @@ export default function ConnectionWeb() {
         // Reset all opacities unless we're filtering by search
         if (!searchTerm.trim()) {
           svg.selectAll(".node").style("opacity", 1)
-          svg.selectAll(".links path").style("opacity", 0.8) // Maintain higher opacity
+          svg.selectAll(".links line").style("opacity", 0.8) // Maintain higher opacity
         } else {
           // If we have an active search, maintain the search highlighting
           const resultIds = new Set(searchResults.map((r) => r.id))
 
           svg.selectAll(".node").style("opacity", (d: any) => (resultIds.has(d.id) ? 1 : 0.3))
 
-          svg.selectAll(".links path").style("opacity", (d: any) => {
+          svg.selectAll(".links line").style("opacity", (d: any) => {
             const sourceId = typeof d.source === "string" ? d.source : d.source.id
             const targetId = typeof d.target === "string" ? d.target : d.target.id
             return resultIds.has(sourceId) || resultIds.has(targetId) ? 1 : 0.2
@@ -665,43 +664,15 @@ export default function ConnectionWeb() {
         return d.name.length > 15 ? d.name.substring(0, 15) + "..." : d.name
       })
 
-    // Function to generate curved paths between nodes
-    function linkArc(d: any) {
-      const sourceX = d.source.x || 0
-      const sourceY = d.source.y || 0
-      const targetX = d.target.x || 0
-      const targetY = d.target.y || 0
-
-      // Calculate the distance between nodes
-      const dx = targetX - sourceX
-      const dy = targetY - sourceY
-      const dr = Math.sqrt(dx * dx + dy * dy)
-
-      // Determine if we should curve the line
-      // Straight lines for very close nodes, curved for others
-      if (dr < nodeRadius * 3) {
-        return `M${sourceX},${sourceY}L${targetX},${targetY}`
-      }
-
-      // Calculate curvature based on distance and connection type
-      let curvature = 2
-      if (d.source_type === "explicit") curvature = 3
-      if (d.source_type === "manual") curvature = 4
-
-      // Generate a unique curve for each link to avoid overlaps
-      const curveOffset = (d.source.id.charCodeAt(0) + d.target.id.charCodeAt(0)) % 5
-      curvature += curveOffset * 0.5
-
-      // Create a curved path
-      return `M${sourceX},${sourceY}A${dr / curvature},${dr / curvature} 0 0,1 ${targetX},${targetY}`
-    }
-
     // Update positions on each tick of the simulation
     simulation.on("tick", () => {
-      // Update curved paths
-      link.attr("d", linkArc)
+      // Update straight lines
+      link
+        .attr("x1", (d) => (d.source as Node).x || 0)
+        .attr("y1", (d) => (d.source as Node).y || 0)
+        .attr("x2", (d) => (d.target as Node).x || 0)
+        .attr("y2", (d) => (d.target as Node).y || 0)
 
-      // Update node positions
       node.attr("transform", (d) => `translate(${d.x || 0},${d.y || 0})`)
     })
 
@@ -722,7 +693,7 @@ export default function ConnectionWeb() {
 
     function dragged(event: d3.D3DragEvent<SVGGElement, Node, Node>) {
       event.subject.fx = event.x
-      event.subject.fy = event.subject.y
+      event.subject.fy = event.y
     }
 
     function dragended(event: d3.D3DragEvent<SVGGElement, Node, Node>) {
@@ -739,7 +710,7 @@ export default function ConnectionWeb() {
       // Reset all opacities unless we're filtering by search
       if (!searchTerm.trim()) {
         svg.selectAll(".node").style("opacity", 1)
-        svg.selectAll(".links path").style("opacity", 0.8) // Maintain higher opacity
+        svg.selectAll(".links line").style("opacity", 0.8) // Maintain higher opacity
       }
     })
 
@@ -801,7 +772,7 @@ export default function ConnectionWeb() {
     if (svgRef.current) {
       const svg = d3.select(svgRef.current)
       svg.selectAll(".node").style("opacity", 1)
-      svg.selectAll(".links path").style("opacity", 0.8) // Maintain higher opacity
+      svg.selectAll(".links line").style("opacity", 0.8) // Maintain higher opacity
     }
   }
 

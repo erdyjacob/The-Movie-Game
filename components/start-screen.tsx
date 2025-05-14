@@ -288,7 +288,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                     <AnimatedButton
                       onClick={startDailyChallenge}
                       disabled={dailyChallengeAttempted || loading}
-                      className="w-full mt-1 sm:mt-2 bg-gradient-to-r from-red-500 to-amber-600 hover:from-red-600 hover:to-amber-700"
+                      className="w-full mt-1 sm:mt-2 bg-gradient-to-r from-red-500 to-amber-600 hover:from-red-600 hover:to-amber-700 text-white"
                       size={isMobile ? "sm" : "default"}
                     >
                       {dailyChallengeAttempted ? "Already Attempted Today" : "Start Daily Challenge"}

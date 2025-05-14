@@ -1998,8 +1998,8 @@ packages:
   date-fns@4.1.0:
     resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
 
-  debug@4.4.0:
-    resolution: {integrity: sha512-6WTZ/IxCY/T6BALoZHaE4ctp9xm+Z5kY/pzYaCHRFeyVhojxlrm+46y68HA6hr0TcwEssoxNiDEUJQjfPZ/RYA==}
+  debug@4.4.1:
+    resolution: {integrity: sha512-KcKCqiftBJcZr++7ykoDIEwSa3XWowTfNPo92BYxjXiyYEVrUQh2aLyhxBCwww+heortUFxEJYcRzosstTEBYQ==}
     engines: {node: '>=6.0'}
     peerDependencies:
       supports-color: '*'
@@ -4057,7 +4057,7 @@ snapshots:
   '@sveltejs/vite-plugin-svelte-inspector@4.0.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.28.6)(vite@6.3.5(@types/node@22.0.0)(jiti@1.21.7)(yaml@2.7.1)))(svelte@5.28.6)(vite@6.3.5(@types/node@22.0.0)(jiti@1.21.7)(yaml@2.7.1))':
     dependencies:
       '@sveltejs/vite-plugin-svelte': 5.0.3(svelte@5.28.6)(vite@6.3.5(@types/node@22.0.0)(jiti@1.21.7)(yaml@2.7.1))
-      debug: 4.4.0
+      debug: 4.4.1
       svelte: 5.28.6
       vite: 6.3.5(@types/node@22.0.0)(jiti@1.21.7)(yaml@2.7.1)
     transitivePeerDependencies:
@@ -4066,7 +4066,7 @@ snapshots:
   '@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.28.6)(vite@6.3.5(@types/node@22.0.0)(jiti@1.21.7)(yaml@2.7.1))':
     dependencies:
       '@sveltejs/vite-plugin-svelte-inspector': 4.0.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.28.6)(vite@6.3.5(@types/node@22.0.0)(jiti@1.21.7)(yaml@2.7.1)))(svelte@5.28.6)(vite@6.3.5(@types/node@22.0.0)(jiti@1.21.7)(yaml@2.7.1))
-      debug: 4.4.0
+      debug: 4.4.1
       deepmerge: 4.3.1
       kleur: 4.1.5
       magic-string: 0.30.17
@@ -4489,7 +4489,7 @@ snapshots:
 
   date-fns@4.1.0: {}
 
-  debug@4.4.0:
+  debug@4.4.1:
     dependencies:
       ms: 2.1.3
 
