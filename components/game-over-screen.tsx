@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import type { GameItem, GameMode } from "@/lib/types"
 import GamePath from "./game-path"
 import { Clock, Film, Unlock, User, BarChart } from "lucide-react"
@@ -31,7 +31,6 @@ interface GameOverScreenProps {
     movies: GameItem[]
   }
   dailyChallengeCompleted?: boolean
-  strikes?: number
 }
 
 // Custom animated button component
@@ -235,10 +234,7 @@ export default function GameOverScreen({
   gameMode,
   newUnlocks,
   dailyChallengeCompleted,
-  strikes,
 }: GameOverScreenProps) {
-  // Add this near the top of the component where other variables are defined
-  const isDailyChallengeCompleted = gameMode === "dailyChallenge" && dailyChallengeCompleted
   const isNewHighScore = score > highScore
   const totalNewUnlocks = newUnlocks.actors.length + newUnlocks.movies.length
   const [statsOpen, setStatsOpen] = useState(false)
@@ -265,22 +261,7 @@ export default function GameOverScreen({
   return (
     <Card className="w-full">
       <CardHeader className="pb-4">
-        {/* Find the title section and modify it to include the daily challenge completion message */}
-        <CardTitle className="text-center text-xl sm:text-2xl">
-          {isDailyChallengeCompleted ? "Daily Challenge Completed! 🎉" : `Game Over! Final Score: ${score}`}
-        </CardTitle>
-        {/* Find the description section and modify it to include the daily challenge completion message */}
-        <CardDescription className="text-center">
-          {isDailyChallengeCompleted
-            ? "You successfully found today's target! Come back tomorrow for a new challenge."
-            : gameMode === "classic"
-              ? `You made ${strikes} mistakes.`
-              : gameMode === "timed"
-                ? "Time's up!"
-                : gameMode === "dailyChallenge" && !dailyChallengeCompleted
-                  ? "You didn't find today's target."
-                  : ""}
-        </CardDescription>
+        <CardTitle className="text-center text-2xl">Game Over</CardTitle>
       </CardHeader>
       <CardContent className="space-y-8 px-6">
         <div className="text-center py-2">

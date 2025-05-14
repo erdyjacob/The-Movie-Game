@@ -167,7 +167,7 @@ export default function ConnectionWeb() {
         }
 
         // Refresh connections after fetching data
-        const newConnections = await refreshAllConnections()
+        const newConnections = refreshAllConnections()
         console.log(`Refreshed connections: ${newConnections.length} total`)
 
         // Rebuild the graph with the new connections

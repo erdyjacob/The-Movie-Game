@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/react"
 import { Suspense } from "react"
-import AdminShortcut from "@/components/admin-shortcut"
+import TestDataLoader from "@/test-data-loader"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -28,9 +28,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <AdminShortcut />
           <Suspense>
             {children}
+            <TestDataLoader />
             <SpeedInsights />
             <Analytics />
           </Suspense>

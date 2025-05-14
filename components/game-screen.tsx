@@ -500,26 +500,9 @@ const GameScreen = memo(function GameScreen({
   // Calculate progress percentage for timed mode
   const timeProgress = timeRemaining !== undefined ? (timeRemaining / 120) * 100 : 100
 
-  // Logo dimensions - matching the start page
-  const logoWidth = 200
-  const logoHeight = 100
-  const logoSrc = "/images/TheMovieGame.svg"
-
   return (
     <Card className="w-full">
       <CardHeader className="pb-2 sm:pb-4">
-        {/* Add the logo at the top of the card */}
-        <div className="flex justify-center mb-4">
-          <Image
-            src={logoSrc || "/placeholder.svg"}
-            alt="The Movie Game Logo"
-            width={logoWidth}
-            height={logoHeight}
-            priority
-            className="h-auto"
-          />
-        </div>
-
         <CardTitle className="text-center text-lg sm:text-xl">
           Score: {score} {score > highScore && "(New High Score!)"}
         </CardTitle>
@@ -560,14 +543,14 @@ const GameScreen = memo(function GameScreen({
               className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium ${
                 dailyChallengeCompleted
                   ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                  : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                  : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
               }`}
             >
               <Target size={isMobile ? 10 : 12} />
               <span>
                 {dailyChallengeCompleted
-                  ? "Daily Challenge Completed! 🎉"
-                  : `Target: Find ${dailyChallenge.type === "movie" ? "movie" : "actor"} "${dailyChallenge.name}"`}
+                  ? "Daily Challenge Completed!"
+                  : `Find ${dailyChallenge.type === "movie" ? "movie" : "actor"} "${dailyChallenge.name}"`}
               </span>
             </div>
           </div>

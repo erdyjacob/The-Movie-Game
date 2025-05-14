@@ -1,14 +1,9 @@
 "use server"
 
 import type { TMDBMovie, TMDBActor, Difficulty, GameFilters } from "@/lib/types"
-import { getCachedItem, setCachedItem, clearExpiredCache } from "./api-cache"
+import { getCachedItem, setCachedItem, clearExpiredCache, initializeCache } from "./api-cache"
 
-// Check if API key exists but only log a warning, don't throw an error
 const API_KEY = process.env.TMDB_API_KEY
-if (!API_KEY) {
-  console.warn("TMDB_API_KEY environment variable is not set. Using fallback data.")
-}
-
 const BASE_URL = "https://api.themoviedb.org/3"
 
 // Animation genre ID in TMDB
@@ -48,7 +43,7 @@ const FALLBACK_MOVIES = [
   {
     id: 1,
     title: "The Shawshank Redemption",
-    poster_path: "/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg",
+    poster_path: null,
     release_date: "1994-09-23",
     overview:
       "Framed in the 1940s for the double murder of his wife and her lover, upstanding banker Andy Dufresne begins a new life at the Shawshank prison, where he puts his accounting skills to work for an amoral warden.",
@@ -60,7 +55,7 @@ const FALLBACK_MOVIES = [
   {
     id: 2,
     title: "The Godfather",
-    poster_path: "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
+    poster_path: null,
     release_date: "1972-03-14",
     overview: "Spanning the years 1945 to 1955, a chronicle of the fictional Italian-American Corleone crime family.",
     vote_count: 14673,
@@ -71,7 +66,7 @@ const FALLBACK_MOVIES = [
   {
     id: 3,
     title: "The Dark Knight",
-    poster_path: "/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
+    poster_path: null,
     release_date: "2008-07-16",
     overview:
       "Batman raises the stakes in his war on crime. With the help of Lt. Jim Gordon and District Attorney Harvey Dent, Batman sets out to dismantle the remaining criminal organizations that plague the streets.",
@@ -80,507 +75,907 @@ const FALLBACK_MOVIES = [
     genre_ids: [18, 28, 80, 53],
     original_language: "en",
   },
-  {
-    id: 4,
-    title: "Pulp Fiction",
-    poster_path: "/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg",
-    release_date: "1994-09-10",
-    overview:
-      "A burger-loving hit man, his philosophical partner, a drug-addled gangster's moll and a washed-up boxer converge in this sprawling, comedic crime caper.",
-    vote_count: 21000,
-    popularity: 65.432,
-    genre_ids: [53, 80],
-    original_language: "en",
-  },
-  {
-    id: 5,
-    title: "Fight Club",
-    poster_path: "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
-    release_date: "1999-10-15",
-    overview:
-      "A ticking-time-bomb insomniac and a slippery soap salesman channel primal male aggression into a shocking new form of therapy.",
-    vote_count: 20500,
-    popularity: 61.543,
-    genre_ids: [18, 53],
-    original_language: "en",
-  },
-  {
-    id: 6,
-    title: "Forrest Gump",
-    poster_path: "/saHP97rTPS5eLmrLQEcANmKrsFl.jpg",
-    release_date: "1994-07-06",
-    overview:
-      "A man with a low IQ has accomplished great things in his life and been present during significant historic events—in each case, far exceeding what anyone imagined he could do.",
-    vote_count: 19800,
-    popularity: 58.765,
-    genre_ids: [35, 18, 10749],
-    original_language: "en",
-  },
-  {
-    id: 7,
-    title: "Inception",
-    poster_path: "/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
-    release_date: "2010-07-15",
-    overview:
-      "Cobb, a skilled thief who commits corporate espionage by infiltrating the subconscious of his targets is offered a chance to regain his old life as payment for a task considered to be impossible.",
-    vote_count: 19500,
-    popularity: 55.987,
-    genre_ids: [28, 878, 12],
-    original_language: "en",
-  },
-  {
-    id: 8,
-    title: "The Matrix",
-    poster_path: "/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
-    release_date: "1999-03-30",
-    overview:
-      "Set in the 22nd century, The Matrix tells the story of a computer hacker who joins a group of underground insurgents fighting the vast and powerful computers who now rule the earth.",
-    vote_count: 19200,
-    popularity: 53.219,
-    genre_ids: [28, 878],
-    original_language: "en",
-  },
-  {
-    id: 9,
-    title: "Goodfellas",
-    poster_path: "/aKuFiU82s5ISJpGZp7YkIr3kCUd.jpg",
-    release_date: "1990-09-12",
-    overview:
-      "The true story of Henry Hill, a half-Irish, half-Sicilian Brooklyn kid who is adopted by neighbourhood gangsters at an early age and climbs the ranks of a Mafia family under the guidance of Jimmy Conway.",
-    vote_count: 18900,
-    popularity: 50.432,
-    genre_ids: [18, 80],
-    original_language: "en",
-  },
-  {
-    id: 10,
-    title: "The Silence of the Lambs",
-    poster_path: "/uS9m8OBk1A8eM9I042bx8XXpqAq.jpg",
-    release_date: "1991-02-01",
-    overview:
-      "Clarice Starling is a top student at the FBI's training academy. Jack Crawford wants Clarice to interview Dr. Hannibal Lecter, a brilliant psychiatrist who is also a violent psychopath, serving life behind bars for various acts of murder and cannibalism.",
-    vote_count: 18600,
-    popularity: 48.765,
-    genre_ids: [80, 18, 53, 27],
-    original_language: "en",
-  },
 ]
 
 const FALLBACK_ACTORS = [
   {
     id: 1,
     name: "Tom Hanks",
-    profile_path: "/xndWFsBlClOJFRdhSt4NBwiPq0o.jpg",
+    profile_path: null,
     popularity: 60.123,
-    known_for: [
-      { id: 6, title: "Forrest Gump" },
-      { id: 11, title: "Saving Private Ryan" },
-      { id: 12, title: "Cast Away" },
-    ],
   },
   {
     id: 2,
     name: "Morgan Freeman",
-    profile_path: "/oIciQWrLmUkXnwN9wkL2EC8q4r6.jpg",
+    profile_path: null,
     popularity: 55.456,
-    known_for: [
-      { id: 1, title: "The Shawshank Redemption" },
-      { id: 13, title: "Se7en" },
-      { id: 14, title: "The Dark Knight" },
-    ],
   },
   {
     id: 3,
     name: "Leonardo DiCaprio",
-    profile_path: "/wo2hJpn04vbtmh0B9utCFdsQhxM.jpg",
+    profile_path: null,
     popularity: 58.789,
-    known_for: [
-      { id: 15, title: "Titanic" },
-      { id: 7, title: "Inception" },
-      { id: 16, title: "The Wolf of Wall Street" },
-    ],
-  },
-  {
-    id: 4,
-    name: "Robert De Niro",
-    profile_path: "/cT8htcckIuyI1Lqwt1CvD02ynTh.jpg",
-    popularity: 54.321,
-    known_for: [
-      { id: 17, title: "The Godfather Part II" },
-      { id: 9, title: "Goodfellas" },
-      { id: 18, title: "Taxi Driver" },
-    ],
-  },
-  {
-    id: 5,
-    name: "Meryl Streep",
-    profile_path: "/pU56HiYGgj5KnALsRmBjZGj6Qeo.jpg",
-    popularity: 52.987,
-    known_for: [
-      { id: 19, title: "The Devil Wears Prada" },
-      { id: 20, title: "Sophie's Choice" },
-      { id: 21, title: "Mamma Mia!" },
-    ],
-  },
-  // Add more fallback actors with common IDs that might be in the player history
-  {
-    id: 31,
-    name: "Tom Cruise",
-    profile_path: "/8qBylBsQf4llkGrWR3qAsOtOU8O.jpg",
-    popularity: 57.123,
-    known_for: [
-      { id: 22, title: "Mission: Impossible" },
-      { id: 23, title: "Top Gun" },
-      { id: 24, title: "Minority Report" },
-    ],
-  },
-  {
-    id: 192,
-    name: "Morgan Freeman",
-    profile_path: "/oIciQWrLmUkXnwN9wkL2EC8q4r6.jpg",
-    popularity: 55.456,
-    known_for: [
-      { id: 1, title: "The Shawshank Redemption" },
-      { id: 13, title: "Se7en" },
-      { id: 14, title: "The Dark Knight" },
-    ],
-  },
-  {
-    id: 203,
-    name: "Daniel Radcliffe",
-    profile_path: "/iPg0J9UzAlVRpYuXlTxPvXJVFFf.jpg",
-    popularity: 48.765,
-    known_for: [
-      { id: 25, title: "Harry Potter and the Philosopher's Stone" },
-      { id: 26, title: "Harry Potter and the Chamber of Secrets" },
-      { id: 27, title: "Harry Potter and the Prisoner of Azkaban" },
-    ],
-  },
-  {
-    id: 287,
-    name: "Brad Pitt",
-    profile_path: "/kU3B75TyRiCgE270EyZnHjfivoq.jpg",
-    popularity: 56.432,
-    known_for: [
-      { id: 5, title: "Fight Club" },
-      { id: 28, title: "Se7en" },
-      { id: 29, title: "Ocean's Eleven" },
-    ],
-  },
-  {
-    id: 500,
-    name: "Sigourney Weaver",
-    profile_path: "/sLGN0VTyJ5ZElG6d5eW7xrYEKMB.jpg",
-    popularity: 45.123,
-    known_for: [
-      { id: 30, title: "Alien" },
-      { id: 31, title: "Avatar" },
-      { id: 32, title: "Ghostbusters" },
-    ],
   },
 ]
 
-// Fallback movie credits data
-const FALLBACK_MOVIE_CREDITS = {
-  1: [1, 2], // Shawshank Redemption -> Tom Hanks, Morgan Freeman
-  2: [4], // The Godfather -> Robert De Niro
-  3: [2, 3], // The Dark Knight -> Morgan Freeman, Leonardo DiCaprio
-  4: [4], // Pulp Fiction -> Robert De Niro
-  5: [3, 287], // Fight Club -> Leonardo DiCaprio, Brad Pitt
-  6: [1, 5], // Forrest Gump -> Tom Hanks, Meryl Streep
-  7: [3], // Inception -> Leonardo DiCaprio
-  8: [2], // The Matrix -> Morgan Freeman
-  9: [4], // Goodfellas -> Robert De Niro
-  10: [5], // The Silence of the Lambs -> Meryl Streep
+// Retry configuration
+const MAX_RETRIES = 3
+const INITIAL_RETRY_DELAY = 1000 // 1 second
+
+// Request tracking for rate limiting
+const requestTimestamps: number[] = []
+const MAX_REQUESTS_PER_SECOND = 4 // TMDB allows 4 requests per second
+
+// Initialize cache on server
+if (typeof window !== "undefined") {
+  initializeCache()
+  // Clear expired items every hour
+  setInterval(clearExpiredCache, 60 * 60 * 1000)
 }
 
-// Fallback actor movie credits data
-const FALLBACK_ACTOR_MOVIES = {
-  1: [1, 6], // Tom Hanks -> Shawshank Redemption, Forrest Gump
-  2: [1, 3, 8], // Morgan Freeman -> Shawshank Redemption, Dark Knight, Matrix
-  3: [3, 5, 7], // Leonardo DiCaprio -> Dark Knight, Fight Club, Inception
-  4: [2, 4, 9], // Robert De Niro -> Godfather, Pulp Fiction, Goodfellas
-  5: [6, 10], // Meryl Streep -> Forrest Gump, Silence of the Lambs
-  31: [22, 23, 24], // Tom Cruise -> Mission Impossible, Top Gun, Minority Report
-  192: [1, 13, 14], // Morgan Freeman -> Shawshank Redemption, Se7en, Dark Knight
-  203: [25, 26, 27], // Daniel Radcliffe -> Harry Potter movies
-  287: [5, 28, 29], // Brad Pitt -> Fight Club, Se7en, Ocean's Eleven
-  500: [30, 31, 32], // Sigourney Weaver -> Alien, Avatar, Ghostbusters
-}
+// Function to throttle requests to stay within rate limits
+async function throttleRequests(): Promise<void> {
+  const now = Date.now()
 
-// Helper function to get fallback movie credits
-function getFallbackMovieCredits(movieId: number): TMDBActor[] {
-  const actorIds = FALLBACK_MOVIE_CREDITS[movieId as keyof typeof FALLBACK_MOVIE_CREDITS] || []
-  return actorIds.map((id) => {
-    // First try to find the exact actor ID
-    const actor = FALLBACK_ACTORS.find((actor) => actor.id === id)
-    if (actor) return actor
-
-    // If not found, return the first fallback actor
-    return FALLBACK_ACTORS[0]
-  })
-}
-
-// Helper function to get fallback actor movies
-function getFallbackActorMovies(actorId: number): TMDBMovie[] {
-  const movieIds = FALLBACK_ACTOR_MOVIES[actorId as keyof typeof FALLBACK_ACTOR_MOVIES] || []
-
-  // If we don't have specific fallback data for this actor ID, return some default movies
-  if (movieIds.length === 0) {
-    console.log(`No specific fallback data for actor ID ${actorId}, using default movies`)
-    return FALLBACK_MOVIES.slice(0, 3)
+  // Remove timestamps older than 1 second
+  while (requestTimestamps.length > 0 && now - requestTimestamps[0] > 1000) {
+    requestTimestamps.shift()
   }
 
-  return movieIds.map((id) => {
-    // First try to find the exact movie ID
-    const movie = FALLBACK_MOVIES.find((movie) => movie.id === id)
-    if (movie) return movie
+  // If we've made too many requests in the last second, wait
+  if (requestTimestamps.length >= MAX_REQUESTS_PER_SECOND) {
+    const oldestRequest = requestTimestamps[0]
+    const timeToWait = 1000 - (now - oldestRequest) + 50 // Add 50ms buffer
 
-    // If not found, return the first fallback movie
-    return FALLBACK_MOVIES[0]
-  })
-}
-
-async function fetchTMDB(endpoint: string, cache: RequestCache = "force-cache") {
-  // If API key is missing, use fallback data immediately
-  if (!API_KEY) {
-    console.warn(`Using fallback data for ${endpoint} because TMDB API key is not set.`)
-    return getFallbackDataForEndpoint(endpoint)
-  }
-
-  const url = `${BASE_URL}${endpoint}${endpoint.includes("?") ? "&" : "?"}api_key=${API_KEY}&language=en-US`
-
-  // Check cache first
-  const cachedData = getCachedItem(url)
-  if (cachedData) {
-    return cachedData
-  }
-
-  try {
-    const response = await fetch(url, { cache })
-
-    // Handle 404 errors specifically - use fallback data
-    if (response.status === 404) {
-      console.warn(`Resource not found (404) for ${endpoint}, using fallback data`)
-      const fallbackData = getFallbackDataForEndpoint(endpoint)
-      setCachedItem(url, fallbackData, url) // Cache the fallback data to avoid repeated 404s
-      return fallbackData
+    if (timeToWait > 0) {
+      console.log(`Rate limiting: waiting ${timeToWait}ms before next request`)
+      await new Promise((resolve) => setTimeout(resolve, timeToWait))
     }
-
-    if (!response.ok) {
-      console.error(`TMDB API error: ${response.status} ${response.statusText} for ${url}`)
-      return getFallbackDataForEndpoint(endpoint)
-    }
-
-    const data = await response.json()
-    setCachedItem(url, data, url)
-    return data
-  } catch (error) {
-    console.error(`Failed to fetch data from TMDB API for ${url}:`, error)
-    return getFallbackDataForEndpoint(endpoint)
   }
+
+  // Add current timestamp to the list
+  requestTimestamps.push(Date.now())
 }
 
-// Helper function to get appropriate fallback data based on the endpoint
-function getFallbackDataForEndpoint(endpoint: string) {
-  // Extract IDs from endpoints
-  let movieId: number | null = null
-  let actorId: number | null = null
+// Optimized fetch function with caching, retry logic, and rate limiting
+async function cachedFetch(url: string, options: RequestInit = {}): Promise<any> {
+  // Create a cache key from the URL and any body content
+  const cacheKey = url + (options.body ? JSON.stringify(options.body) : "")
 
-  if (endpoint.includes("/movie/") && endpoint.includes("/credits")) {
-    movieId = extractIdFromEndpoint(endpoint, "/movie/")
-    return { cast: getFallbackMovieCredits(movieId || 1) }
+  // Check if we have a valid cached response
+  const cachedResponse = getCachedItem<any>(cacheKey)
+  if (cachedResponse) {
+    console.log(`Cache hit for: ${url.substring(0, 50)}...`)
+    return cachedResponse
   }
 
-  if (endpoint.includes("/person/") && endpoint.includes("/movie_credits")) {
-    actorId = extractIdFromEndpoint(endpoint, "/person/")
-    return { cast: getFallbackActorMovies(actorId || 1) }
+  console.log(`Cache miss for: ${url.substring(0, 50)}...`)
+
+  // Apply rate limiting
+  await throttleRequests()
+
+  // Implement retry logic with exponential backoff
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      // Add a small delay between retries (except for the first attempt)
+      if (attempt > 0) {
+        const backoffDelay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1)
+        await new Promise((resolve) => setTimeout(resolve, backoffDelay))
+        console.log(`Retry attempt ${attempt + 1} for: ${url.substring(0, 50)}...`)
+      }
+
+      const response = await fetch(url, {
+        ...options,
+        next: { revalidate: 60 }, // Add revalidation to help with caching
+      })
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Cache the response
+      setCachedItem(cacheKey, data, url)
+
+      return data
+    } catch (error) {
+      console.error(`Error fetching ${url} (attempt ${attempt + 1}):`, error)
+      lastError = error instanceof Error ? error : new Error(String(error))
+    }
   }
 
-  if (endpoint.includes("/discover/movie")) {
+  // If we get here, all retry attempts failed
+  console.error(`All retry attempts failed for: ${url}`)
+
+  // Check if we have an older cached version we can use
+  const cachedItem = getCachedItem<any>(cacheKey)
+  if (cachedItem) {
+    console.log(`Using expired cache for: ${url.substring(0, 50)}...`)
+    return cachedItem
+  }
+
+  // If this is a movie credits request, return a fallback
+  if (url.includes("/movie/") && url.includes("/credits")) {
+    console.log(`Using fallback data for movie credits`)
+    return {
+      id: Number.parseInt(url.split("/movie/")[1].split("/")[0]),
+      cast: FALLBACK_ACTORS.map((actor) => ({
+        ...actor,
+        character: "Character",
+      })),
+    }
+  }
+
+  // If this is an actor movie credits request, return a fallback
+  if (url.includes("/person/") && url.includes("/movie_credits")) {
+    console.log(`Using fallback data for actor movie credits`)
+    return {
+      id: Number.parseInt(url.split("/person/")[1].split("/")[0]),
+      cast: FALLBACK_MOVIES,
+    }
+  }
+
+  // For other requests, return appropriate fallback data
+  if (url.includes("/discover/movie")) {
+    console.log(`Using fallback movie data`)
     return { results: FALLBACK_MOVIES }
   }
 
-  if (endpoint.includes("/person/popular")) {
+  if (url.includes("/person/popular")) {
+    console.log(`Using fallback actor data`)
     return { results: FALLBACK_ACTORS }
   }
 
-  // Default fallback
-  return { results: [] }
+  // If we can't determine a specific fallback, throw the last error
+  throw lastError || new Error(`Failed to fetch ${url} after ${MAX_RETRIES} attempts`)
 }
 
-// Helper function to extract IDs from endpoints
-function extractIdFromEndpoint(endpoint: string, prefix: string): number | null {
+// Function to check if a movie is likely a sequel based on its title
+function isLikelySequel(movie: TMDBMovie): boolean {
+  // Check if the movie belongs to a collection
+  if (movie.belongs_to_collection) {
+    return true
+  }
+
+  const title = movie.title || ""
+
+  // Check for common sequel indicators in the title
+  const sequelPatterns = [
+    /\d+$/, // Ends with a number (e.g., "Terminator 2")
+    /part\s+\d+/i, // Contains "Part" followed by a number (e.g., "Part II")
+    /chapter\s+\d+/i, // Contains "Chapter" followed by a number
+    /\d+\s*:\s*.+/, // Number followed by colon (e.g., "2: Judgment Day")
+    /the\s+\w+\s+\d+/i, // "The" followed by word and number (e.g., "The Purge 2")
+    /\s+\d+\s*:/, // Space, number, colon (e.g., "Alien 3: ")
+    /\s+\d+$/, // Space followed by number at end (e.g., "Die Hard 2")
+    /\s+\d+\s*$/, // Space, number, optional space at end
+    /\s+\w+\s+\d+$/, // Space, word, space, number at end
+    /\s+\w+\s+\d+\s*$/, // Space, word, space, number, optional space at end
+  ]
+
+  return sequelPatterns.some((pattern) => pattern.test(title))
+}
+
+// Function to check if a movie belongs to a common franchise
+function isCommonFranchise(movie: TMDBMovie): boolean {
+  const title = movie.title?.toLowerCase() || ""
+  const overview = movie.overview?.toLowerCase() || ""
+
+  return COMMON_FRANCHISES.some((franchise) => title.includes(franchise) || overview.includes(franchise))
+}
+
+// Function to check if a movie is from a recently used franchise
+function isRecentlyUsedFranchise(movie: TMDBMovie): boolean {
+  const title = movie.title?.toLowerCase() || ""
+
+  return recentlyUsedFranchises.some((franchise) => title.includes(franchise))
+}
+
+// Function to add a franchise to the recently used list
+function addToRecentFranchises(movie: TMDBMovie) {
+  // Extract potential franchise name (first 1-2 words of title)
+  const title = movie.title || ""
+  const franchiseWords = title.split(" ").slice(0, 2).join(" ").toLowerCase()
+
+  // Only add if it's not already in the list
+  if (!recentlyUsedFranchises.includes(franchiseWords)) {
+    recentlyUsedFranchises.push(franchiseWords)
+
+    // Keep the list at a maximum size
+    if (recentlyUsedFranchises.length > MAX_RECENT_FRANCHISES) {
+      recentlyUsedFranchises.shift()
+    }
+  }
+}
+
+// Function to check if a movie is a foreign film (non-English)
+function isForeignFilm(movie: TMDBMovie): boolean {
+  return movie.original_language !== "en"
+}
+
+// Function to check if a movie is a documentary
+function isDocumentary(movie: TMDBMovie): boolean {
+  // Check if genre_ids array contains the documentary genre ID
+  if (movie.genre_ids && Array.isArray(movie.genre_ids)) {
+    return movie.genre_ids.includes(DOCUMENTARY_GENRE_ID)
+  }
+
+  // If the movie has genres array instead of genre_ids
+  if (movie.genres && Array.isArray(movie.genres)) {
+    return movie.genres.some((genre) => genre.id === DOCUMENTARY_GENRE_ID)
+  }
+
+  // Check title and overview for documentary keywords
+  const title = movie.title?.toLowerCase() || ""
+  const overview = movie.overview?.toLowerCase() || ""
+  const documentaryKeywords = [
+    "documentary",
+    "documenting",
+    "real-life story",
+    "true story",
+    "behind the scenes",
+    "making of",
+  ]
+
+  return documentaryKeywords.some((keyword) => title.includes(keyword) || overview.includes(keyword))
+}
+
+// Function to check if a movie is too niche (extremely low popularity or vote count)
+function isTooNicheMovie(movie: TMDBMovie): boolean {
+  const popularity = movie.popularity || 0
+  const voteCount = movie.vote_count || 0
+
+  // Filter out movies with extremely low popularity or very few votes
+  if (popularity < MIN_MOVIE_POPULARITY || voteCount < MIN_MOVIE_VOTE_COUNT) {
+    return true
+  }
+
+  // Filter out movies without a poster (often indicates very obscure content)
+  if (!movie.poster_path) {
+    return true
+  }
+
+  return false
+}
+
+// Function to check if an actor is too niche
+function isTooNicheActor(actor: TMDBActor): boolean {
+  const popularity = actor.popularity || 0
+
+  // Filter out actors with extremely low popularity
+  if (popularity < MIN_ACTOR_POPULARITY) {
+    return true
+  }
+
+  // Only filter out actors without a profile image if they also have low popularity
+  // This ensures we don't lose too many valid actors
+  if (!actor.profile_path && popularity < 5) {
+    return true
+  }
+
+  // Make the known_for check optional since it's not always available in all API responses
+  if (actor.known_for && actor.known_for.length < MIN_ACTOR_KNOWN_FOR_COUNT && popularity < 3) {
+    return true
+  }
+
+  return false
+}
+
+// Get difficulty thresholds for movies
+function getMovieDifficultyThresholds(difficulty: Difficulty) {
+  const currentYear = new Date().getFullYear()
+
+  switch (difficulty) {
+    case "easy":
+      // Very popular, recent movies (last 20 years, high vote count, high popularity)
+      return {
+        minVoteCount: 5000,
+        minPopularity: 50,
+        minReleaseYear: currentYear - 20,
+      }
+    case "medium":
+      // Moderately popular movies (last 30 years, medium vote count)
+      return {
+        minVoteCount: 1000,
+        maxVoteCount: 5000,
+        minPopularity: 20,
+        maxPopularity: 50,
+        minReleaseYear: currentYear - 30,
+      }
+    case "hard":
+      // Less popular or older movies
+      return {
+        maxVoteCount: 1000,
+        maxPopularity: 20,
+      }
+    default:
+      return { minVoteCount: 1000, minPopularity: 20 }
+  }
+}
+
+// Get difficulty thresholds for actors
+function getActorDifficultyThresholds(difficulty: Difficulty) {
+  switch (difficulty) {
+    case "easy":
+      // Very popular actors
+      return { minPopularity: 30 }
+    case "medium":
+      // Moderately popular actors
+      return { minPopularity: 10, maxPopularity: 30 }
+    case "hard":
+      // Less popular actors
+      return { maxPopularity: 10 }
+    default:
+      return { minPopularity: 10 }
+  }
+}
+
+// Check if a movie is animated based on its genres
+function isAnimatedMovie(movie: TMDBMovie): boolean {
+  // Check if genre_ids array contains the animation genre ID
+  if (movie.genre_ids && Array.isArray(movie.genre_ids)) {
+    return movie.genre_ids.includes(ANIMATION_GENRE_ID)
+  }
+
+  // If the movie has genres array instead of genre_ids
+  if (movie.genres && Array.isArray(movie.genres)) {
+    return movie.genres.some((genre) => genre.id === ANIMATION_GENRE_ID)
+  }
+
+  // If we can't determine, be conservative and assume it might be animated
+  return false
+}
+
+// Batch size for prefetching
+const PREFETCH_BATCH_SIZE = 5
+
+// Prefetch and cache popular movies and actors
+export async function prefetchGameData(difficulty: Difficulty = "medium"): Promise<void> {
   try {
-    const parts = endpoint.split(prefix)[1].split("/")
-    return Number.parseInt(parts[0])
-  } catch (error) {
-    console.error(`Failed to extract ID from endpoint ${endpoint}:`, error)
-    return null
-  }
-}
+    // Prefetch a batch of popular movies
+    const moviePromise = cachedFetch(
+      `${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=popularity.desc&page=1&vote_count.gte=${MIN_MOVIE_VOTE_COUNT}&without_genres=${DOCUMENTARY_GENRE_ID}`,
+      { cache: "no-store" },
+    )
 
-export async function getRandomMovie(difficulty: Difficulty, filters: GameFilters): Promise<TMDBMovie> {
-  clearExpiredCache()
-
-  const page = Math.floor(Math.random() * 10) + 1 // Get a random page number (1-10)
-  let discoverURL = `/discover/movie?page=${page}`
-
-  // Exclude animated movies if the filter is set
-  if (!filters.includeAnimated) {
-    discoverURL += `&with_genres=-${ANIMATION_GENRE_ID}`
-  }
-
-  // Exclude foreign films if the filter is set
-  if (!filters.includeForeign) {
-    discoverURL += `&with_original_language=en`
-  }
-
-  const data = await fetchTMDB(discoverURL)
-
-  if (!data || !data.results || data.results.length === 0) {
-    console.warn("Using fallback movies due to API error or empty results.")
-    return FALLBACK_MOVIES[Math.floor(Math.random() * FALLBACK_MOVIES.length)]
-  }
-
-  const movies = data.results.filter(
-    (movie: TMDBMovie) =>
-      movie.popularity &&
-      movie.popularity > MIN_MOVIE_POPULARITY &&
-      movie.vote_count &&
-      movie.vote_count > MIN_MOVIE_VOTE_COUNT,
-  )
-
-  if (movies.length === 0) {
-    console.warn("No movies matched the criteria, using fallback movies.")
-    return FALLBACK_MOVIES[Math.floor(Math.random() * FALLBACK_MOVIES.length)]
-  }
-
-  const movie = movies[Math.floor(Math.random() * movies.length)]
-  return movie
-}
-
-export async function getRandomActor(difficulty: Difficulty): Promise<TMDBActor> {
-  clearExpiredCache()
-
-  const page = Math.floor(Math.random() * 10) + 1 // Get a random page number (1-10)
-  const data = await fetchTMDB(`/person/popular?page=${page}`)
-
-  if (!data || !data.results || data.results.length === 0) {
-    console.warn("Using fallback actors due to API error or empty results.")
-    return FALLBACK_ACTORS[Math.floor(Math.random() * FALLBACK_ACTORS.length)]
-  }
-
-  const actors = data.results.filter(
-    (actor: TMDBActor) =>
-      actor.popularity &&
-      actor.popularity > MIN_ACTOR_POPULARITY &&
-      actor.known_for &&
-      actor.known_for.length > MIN_ACTOR_KNOWN_FOR_COUNT,
-  )
-
-  if (actors.length === 0) {
-    console.warn("No actors matched the criteria, using fallback actors.")
-    return FALLBACK_ACTORS[Math.floor(Math.random() * FALLBACK_ACTORS.length)]
-  }
-
-  const actor = actors[Math.floor(Math.random() * actors.length)]
-  return actor
-}
-
-export async function searchMoviesByActor(actorId: number, filters: GameFilters): Promise<TMDBMovie[]> {
-  clearExpiredCache()
-
-  const url = `/person/${actorId}/movie_credits`
-  const data = await fetchTMDB(url)
-
-  if (!data || !data.cast || data.cast.length === 0) {
-    console.warn(`No movies found for actor ${actorId}, using fallback data`)
-    return getFallbackActorMovies(actorId)
-  }
-
-  let movies = data.cast.filter(
-    (movie: TMDBMovie) =>
-      movie.popularity &&
-      movie.popularity > MIN_MOVIE_POPULARITY &&
-      movie.vote_count &&
-      movie.vote_count > MIN_MOVIE_VOTE_COUNT,
-  )
-
-  // Exclude animated movies if the filter is set
-  if (!filters.includeAnimated) {
-    movies = movies.filter((movie: TMDBMovie) => !movie.genre_ids?.includes(ANIMATION_GENRE_ID))
-  }
-
-  // Exclude foreign films if the filter is set
-  if (!filters.includeForeign) {
-    movies = movies.filter((movie: TMDBMovie) => movie.original_language === "en")
-  }
-
-  // If no movies match the criteria after filtering, use fallback data
-  if (movies.length === 0) {
-    console.warn(`No movies matched criteria for actor ${actorId}, using fallback data`)
-    return getFallbackActorMovies(actorId)
-  }
-
-  return movies
-}
-
-export async function searchActorsByMovie(movieId: number): Promise<TMDBActor[]> {
-  clearExpiredCache()
-
-  const url = `/movie/${movieId}/credits`
-  const data = await fetchTMDB(url)
-
-  if (!data || !data.cast || data.cast.length === 0) {
-    console.warn(`No actors found for movie ${movieId}, using fallback data`)
-    return getFallbackMovieCredits(movieId)
-  }
-
-  const actors = data.cast.filter((actor: TMDBActor) => actor.popularity && actor.popularity > MIN_ACTOR_POPULARITY)
-
-  // If no actors match the criteria after filtering, use fallback data
-  if (actors.length === 0) {
-    console.warn(`No actors matched criteria for movie ${movieId}, using fallback data`)
-    return getFallbackMovieCredits(movieId)
-  }
-
-  return actors
-}
-
-export async function prefetchGameData(difficulty?: Difficulty): Promise<void> {
-  try {
-    // Prefetch a random movie and actor to populate the cache
-    await getRandomMovie(difficulty || "medium", {
-      includeAnimated: false,
-      includeSequels: true,
-      includeForeign: false,
+    // Prefetch a batch of popular actors
+    const actorPromise = cachedFetch(`${BASE_URL}/person/popular?api_key=${API_KEY}&language=en-US&page=1`, {
+      cache: "no-store",
     })
-    await getRandomActor(difficulty || "medium")
 
-    console.log("Game data preloaded successfully")
+    // Execute both requests in parallel
+    const [movieData, actorData] = await Promise.all([moviePromise, actorPromise])
+
+    console.log(`Prefetched ${movieData.results.length} movies and ${actorData.results.length} actors`)
+
+    // Optionally prefetch details for the top few movies and actors
+    const topMovies = movieData.results.slice(0, PREFETCH_BATCH_SIZE)
+    const topActors = actorData.results.slice(0, PREFETCH_BATCH_SIZE)
+
+    // Prefetch credits for top movies (to get actors)
+    const movieCreditsPromises = topMovies.map((movie: TMDBMovie) =>
+      cachedFetch(`${BASE_URL}/movie/${movie.id}/credits?api_key=${API_KEY}&language=en-US`, {
+        cache: "no-store",
+      }).catch((err) => console.error(`Failed to prefetch credits for movie ${movie.id}:`, err)),
+    )
+
+    // Prefetch movie credits for top actors
+    const actorMoviesPromises = topActors.map((actor: TMDBActor) =>
+      cachedFetch(`${BASE_URL}/person/${actor.id}/movie_credits?api_key=${API_KEY}&language=en-US`, {
+        cache: "no-store",
+      }).catch((err) => console.error(`Failed to prefetch movies for actor ${actor.id}:`, err)),
+    )
+
+    // Execute all prefetch requests in parallel
+    await Promise.allSettled([...movieCreditsPromises, ...actorMoviesPromises])
+
+    console.log("Prefetching complete")
   } catch (error) {
-    console.error("Error prefetching game data:", error)
+    console.error("Error during prefetching:", error)
+    // Continue even if prefetching fails
   }
 }
 
-export async function fetchAndCacheCredits({ id, type }: { id: number; type: string }): Promise<void> {
+// Add this near the top of the file with other constants
+// Keep track of recently used movies and actors to avoid repetition
+const recentlyUsedMovieIds: number[] = []
+const recentlyUsedActorIds: number[] = []
+const MAX_RECENT_ITEMS = 10 // Remember the last 10 items
+
+// Keep track of recently used actor types to avoid repetition
+const recentlyUsedActorTypes: string[] = []
+const MAX_RECENT_ACTOR_TYPES = 5
+
+// Function to check if an actor type is recently used
+function isRecentlyUsedActorType(actor: TMDBActor): boolean {
+  // Extract potential actor type (first word of name)
+  const name = actor.name || ""
+  const actorType = name.split(" ")[0].toLowerCase()
+
+  return recentlyUsedActorTypes.some((type) => type === actorType)
+}
+
+// Function to add an actor type to the recently used list
+function addToRecentActorTypes(actor: TMDBActor) {
+  // Extract potential actor type (first word of name)
+  const name = actor.name || ""
+  const actorType = name.split(" ")[0].toLowerCase()
+
+  // Only add if it's not already in the list
+  if (!recentlyUsedActorTypes.includes(actorType)) {
+    recentlyUsedActorTypes.push(actorType)
+
+    // Keep the list at a maximum size
+    if (recentlyUsedActorTypes.length > MAX_RECENT_ACTOR_TYPES) {
+      recentlyUsedActorTypes.shift()
+    }
+  }
+}
+
+// Update the getRandomMovie function to avoid recently used movies
+export async function getRandomMovie(
+  difficulty: Difficulty = "medium",
+  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: true },
+): Promise<TMDBMovie> {
   try {
-    if (type === "movie") {
-      const url = `/movie/${id}/credits`
-      await fetchTMDB(url)
-    } else if (type === "actor") {
-      const url = `/person/${id}/movie_credits`
-      await fetchTMDB(url)
+    const thresholds = getMovieDifficultyThresholds(difficulty)
+
+    // Increase the page range significantly to get more variety
+    const maxPages = difficulty === "easy" ? 10 : difficulty === "medium" ? 15 : 20
+
+    // Use a more random page selection with better distribution
+    const page = Math.floor(Math.random() * maxPages) + 1
+
+    // Vary the sort methods more to increase variety
+    let sortOptions = ["popularity.desc", "vote_count.desc", "vote_average.desc", "primary_release_date.desc"]
+    let sortBy = sortOptions[Math.floor(Math.random() * sortOptions.length)]
+
+    // For hard difficulty, add more variety with ascending sorts
+    if (difficulty === "hard") {
+      sortOptions = [...sortOptions, "popularity.asc", "vote_average.asc", "primary_release_date.asc"]
+      sortBy = sortOptions[Math.floor(Math.random() * sortOptions.length)]
+    }
+
+    // Build the API URL
+    let apiUrl = `${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=${sortBy}&page=${page}&vote_count.gte=${MIN_MOVIE_VOTE_COUNT}`
+
+    // If we're excluding animated movies, add a filter
+    if (!filters.includeAnimated) {
+      apiUrl += `&without_genres=${ANIMATION_GENRE_ID}`
+    }
+
+    // Always exclude documentaries
+    apiUrl += `&without_genres=${DOCUMENTARY_GENRE_ID}`
+
+    // If we're excluding foreign films, add a filter for English language only
+    if (!filters.includeForeign) {
+      apiUrl += `&with_original_language=en`
+    }
+
+    // Add a random year range to increase variety (for medium and hard difficulties)
+    if (difficulty !== "easy") {
+      const currentYear = new Date().getFullYear()
+      const startYear = Math.max(1970, currentYear - Math.floor(Math.random() * 50))
+      const endYear = Math.min(currentYear, startYear + Math.floor(Math.random() * 20) + 5)
+      apiUrl += `&primary_release_date.gte=${startYear}-01-01&primary_release_date.lte=${endYear}-12-31`
+    }
+
+    console.log("API URL:", apiUrl)
+
+    const data = await cachedFetch(apiUrl, { cache: "no-store" })
+    let movies = data.results
+
+    console.log(`Fetched ${movies.length} movies before filtering`)
+
+    // Filter out recently used movies
+    movies = movies.filter((movie) => !recentlyUsedMovieIds.includes(movie.id))
+
+    // Filter movies based on difficulty and other criteria
+    movies = movies.filter((movie: TMDBMovie) => {
+      // Filter out extremely niche movies
+      if (isTooNicheMovie(movie)) {
+        return false
+      }
+
+      // Apply difficulty filters
+      const releaseYear = movie.release_date ? Number.parseInt(movie.release_date.split("-")[0]) : 0
+
+      let meetsThresholds = true
+
+      if (difficulty === "easy") {
+        meetsThresholds =
+          movie.vote_count >= thresholds.minVoteCount &&
+          movie.popularity >= thresholds.minPopularity &&
+          releaseYear >= thresholds.minReleaseYear
+      } else if (difficulty === "medium") {
+        meetsThresholds =
+          movie.vote_count >= thresholds.minVoteCount &&
+          movie.vote_count <= thresholds.maxVoteCount &&
+          movie.popularity >= thresholds.minPopularity &&
+          movie.popularity <= thresholds.maxPopularity &&
+          releaseYear >= thresholds.minReleaseYear
+      } else if (difficulty === "hard") {
+        meetsThresholds = movie.vote_count <= thresholds.maxVoteCount && movie.popularity <= thresholds.maxPopularity
+      }
+
+      // Apply animated filter if needed - double-check even though we filtered in the API
+      if (!filters.includeAnimated && isAnimatedMovie(movie)) {
+        console.log(`Filtering out animated movie: ${movie.title}`)
+        return false
+      }
+
+      // Always filter out documentaries
+      if (isDocumentary(movie)) {
+        console.log(`Filtering out documentary: ${movie.title}`)
+        return false
+      }
+
+      // Apply sequel filter if needed
+      if (!filters.includeSequels && isLikelySequel(movie)) {
+        return false
+      }
+
+      // Apply foreign film filter if needed - double-check even though we filtered in the API
+      if (!filters.includeForeign && isForeignFilm(movie)) {
+        console.log(`Filtering out foreign movie: ${movie.title}`)
+        return false
+      }
+
+      // For better variety, avoid recently used franchises
+      if (isRecentlyUsedFranchise(movie)) {
+        return false
+      }
+
+      // For medium and hard difficulty, avoid common franchises to increase variety
+      if ((difficulty === "medium" || difficulty === "hard") && isCommonFranchise(movie)) {
+        // For medium, only filter out some common franchises
+        if (difficulty === "medium") {
+          // Keep some franchises (50% chance)
+          return Math.random() > 0.5 || meetsThresholds
+        }
+        // For hard, filter out all common franchises
+        return false
+      }
+
+      return meetsThresholds
+    })
+
+    console.log(`After filtering: ${movies.length} movies remain`)
+
+    // If no movies match the criteria, try again with just the essential filters
+    if (movies.length === 0) {
+      console.log("No movies matched all criteria, using basic filters only")
+      movies = data.results.filter((movie) => {
+        // Still filter out recently used movies
+        if (recentlyUsedMovieIds.includes(movie.id)) {
+          return false
+        }
+
+        // Filter out extremely niche movies
+        if (isTooNicheMovie(movie)) {
+          return false
+        }
+
+        // Still apply the essential filters
+        if (!filters.includeAnimated && isAnimatedMovie(movie)) {
+          return false
+        }
+
+        // Always filter out documentaries
+        if (isDocumentary(movie)) {
+          return false
+        }
+
+        if (!filters.includeSequels && isLikelySequel(movie)) {
+          return false
+        }
+
+        if (!filters.includeForeign && isForeignFilm(movie)) {
+          return false
+        }
+
+        return true
+      })
+    }
+
+    // If still no movies, make one more API call with different parameters
+    if (movies.length === 0) {
+      console.log("No movies matched even basic filters, making another API call")
+
+      // Try a different API endpoint with more strict filtering
+      let fallbackUrl = `${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=vote_count.desc&page=${Math.floor(Math.random() * 5) + 1}&vote_count.gte=${MIN_MOVIE_VOTE_COUNT}`
+
+      if (!filters.includeAnimated) {
+        fallbackUrl += `&without_genres=${ANIMATION_GENRE_ID}`
+      }
+
+      // Always exclude documentaries
+      fallbackUrl += `&without_genres=${DOCUMENTARY_GENRE_ID}`
+
+      if (!filters.includeForeign) {
+        fallbackUrl += `&with_original_language=en`
+      }
+
+      const fallbackData = await cachedFetch(fallbackUrl, { cache: "no-store" })
+
+      movies = fallbackData.results.filter((movie) => {
+        // Still filter out recently used movies
+        if (recentlyUsedMovieIds.includes(movie.id)) {
+          return false
+        }
+
+        // Filter out extremely niche movies
+        if (isTooNicheMovie(movie)) {
+          return false
+        }
+
+        if (!filters.includeAnimated && isAnimatedMovie(movie)) {
+          return false
+        }
+
+        // Always filter out documentaries
+        if (isDocumentary(movie)) {
+          return false
+        }
+
+        if (!filters.includeSequels && isLikelySequel(movie)) {
+          return false
+        }
+
+        if (!filters.includeForeign && isForeignFilm(movie)) {
+          return false
+        }
+
+        return true
+      })
+    }
+
+    // If we still have no movies, use fallback data
+    if (movies.length === 0) {
+      console.log("Using fallback movie data")
+      // Filter out recently used fallback movies
+      movies = FALLBACK_MOVIES.filter((movie) => !recentlyUsedMovieIds.includes(movie.id))
+
+      // If all fallbacks have been used recently, just use all of them
+      if (movies.length === 0) {
+        movies = FALLBACK_MOVIES
+      }
+    }
+
+    // Pick a random movie from the filtered results
+    const randomIndex = Math.floor(Math.random() * movies.length)
+    const selectedMovie = movies[randomIndex]
+
+    // Add this movie's franchise to recently used list
+    addToRecentFranchises(selectedMovie)
+
+    // Add this movie to recently used movies
+    recentlyUsedMovieIds.push(selectedMovie.id)
+    if (recentlyUsedMovieIds.length > MAX_RECENT_ITEMS) {
+      recentlyUsedMovieIds.shift() // Remove oldest item
+    }
+
+    console.log(
+      `Selected movie: ${selectedMovie.title}, Animated: ${isAnimatedMovie(selectedMovie)}, Foreign: ${isForeignFilm(selectedMovie)}`,
+    )
+
+    return selectedMovie
+  } catch (error) {
+    console.error("Error fetching random movie:", error)
+    // Return a fallback movie if all else fails
+    return FALLBACK_MOVIES[Math.floor(Math.random() * FALLBACK_MOVIES.length)]
+  }
+}
+
+// Update the getRandomActor function to avoid recently used actors
+export async function getRandomActor(difficulty: Difficulty = "medium"): Promise<TMDBActor> {
+  try {
+    const thresholds = getActorDifficultyThresholds(difficulty)
+
+    // Increase the page range significantly to get more variety
+    const maxPages = difficulty === "easy" ? 10 : difficulty === "medium" ? 15 : 20
+
+    // Use a more random page selection
+    const page = Math.floor(Math.random() * maxPages) + 1
+
+    const data = await cachedFetch(`${BASE_URL}/person/popular?api_key=${API_KEY}&language=en-US&page=${page}`, {
+      cache: "no-store",
+    })
+
+    let actors = data.results
+
+    // Filter out recently used actors
+    actors = actors.filter((actor) => !recentlyUsedActorIds.includes(actor.id))
+
+    // Filter out extremely niche actors first
+    actors = actors.filter((actor: TMDBActor) => !isTooNicheActor(actor))
+
+    // Filter actors based on difficulty
+    if (difficulty === "easy") {
+      actors = actors.filter(
+        (actor: TMDBActor) =>
+          actor.popularity >= thresholds.minPopularity &&
+          actor.known_for &&
+          actor.known_for.length > 0 &&
+          !isRecentlyUsedActorType(actor),
+      )
+    } else if (difficulty === "medium") {
+      actors = actors.filter(
+        (actor: TMDBActor) =>
+          actor.popularity >= thresholds.minPopularity &&
+          actor.popularity <= thresholds.maxPopularity &&
+          !isRecentlyUsedActorType(actor),
+      )
+    } else if (difficulty === "hard") {
+      actors = actors.filter(
+        (actor: TMDBActor) =>
+          actor.popularity <= thresholds.maxPopularity &&
+          actor.popularity >= MIN_ACTOR_POPULARITY && // Ensure not too obscure
+          !isRecentlyUsedActorType(actor),
+      )
+    }
+
+    // If no actors match the criteria, return any actor
+    if (actors.length === 0) {
+      console.log("No actors matched the criteria, using unfiltered results")
+      actors = data.results.filter(
+        (actor: TMDBActor) => !recentlyUsedActorIds.includes(actor.id) && !isTooNicheActor(actor),
+      )
+
+      // If still no actors, try with minimal filtering
+      if (actors.length === 0) {
+        actors = data.results.filter(
+          (actor: TMDBActor) => !recentlyUsedActorIds.includes(actor.id) && actor.profile_path !== null,
+        )
+      }
+
+      // If still no actors, use fallback data
+      if (actors.length === 0) {
+        console.log("Using fallback actor data")
+        // Filter out recently used fallback actors
+        actors = FALLBACK_ACTORS.filter((actor) => !recentlyUsedActorIds.includes(actor.id))
+
+        // If all fallbacks have been used recently, just use all of them
+        if (actors.length === 0) {
+          actors = FALLBACK_ACTORS
+        }
+      }
+    }
+
+    // Pick a truly random actor from the filtered results
+    const randomIndex = Math.floor(Math.random() * actors.length)
+    const selectedActor = actors[randomIndex]
+
+    // Add this actor type to recently used list
+    addToRecentActorTypes(selectedActor)
+
+    // Add this actor to recently used actors
+    recentlyUsedActorIds.push(selectedActor.id)
+    if (recentlyUsedActorIds.length > MAX_RECENT_ITEMS) {
+      recentlyUsedActorIds.shift() // Remove oldest item
+    }
+
+    return selectedActor
+  } catch (error) {
+    console.error("Error fetching random actor:", error)
+    // Return a fallback actor if all else fails
+    return FALLBACK_ACTORS[Math.floor(Math.random() * FALLBACK_ACTORS.length)]
+  }
+}
+
+// Search for actors in a specific movie
+export async function searchActorsByMovie(movieId: number): Promise<TMDBActor[]> {
+  try {
+    const data = await cachedFetch(`${BASE_URL}/movie/${movieId}/credits?api_key=${API_KEY}&language=en-US`, {})
+
+    // Filter out extremely niche actors
+    const filteredCast = (data.cast || []).filter((actor: TMDBActor) => !isTooNicheActor(actor))
+
+    return filteredCast
+  } catch (error) {
+    console.error(`Error fetching actors for movie ${movieId}:`, error)
+    // Return fallback actors if the API call fails
+    return FALLBACK_ACTORS.map((actor) => ({
+      ...actor,
+      character: "Character",
+    }))
+  }
+}
+
+// Search for movies that an actor has appeared in
+export async function searchMoviesByActor(
+  actorId: number,
+  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: true },
+): Promise<TMDBMovie[]> {
+  try {
+    const data = await cachedFetch(`${BASE_URL}/person/${actorId}/movie_credits?api_key=${API_KEY}&language=en-US`, {})
+
+    let movies = data.cast || []
+
+    // Filter out extremely niche movies first
+    movies = movies.filter((movie: TMDBMovie) => !isTooNicheMovie(movie))
+
+    // Apply filters if needed
+    movies = movies.filter((movie) => {
+      // Filter out animated movies if needed
+      if (!filters.includeAnimated && isAnimatedMovie(movie)) {
+        return false
+      }
+
+      // Always filter out documentaries
+      if (isDocumentary(movie)) {
+        return false
+      }
+
+      // Filter out sequels if needed
+      if (!filters.includeSequels && isLikelySequel(movie)) {
+        return false
+      }
+
+      // Filter out foreign films if needed
+      if (!filters.includeForeign && isForeignFilm(movie)) {
+        return false
+      }
+
+      return true
+    })
+
+    // If no movies are found after filtering, return fallback movies
+    if (movies.length === 0) {
+      console.log(`No movies found for actor ${actorId} after filtering, using fallbacks`)
+      return FALLBACK_MOVIES
+    }
+
+    return movies
+  } catch (error) {
+    console.error(`Error fetching movies for actor ${actorId}:`, error)
+    // Return fallback movies if the API call fails
+    return FALLBACK_MOVIES
+  }
+}
+
+// Clear the cache (useful for testing or when memory usage is high)
+export async function clearApiCache(): Promise<void> {
+  // Declare apiCache
+  const apiCache: { [key: string]: any } = (globalThis as any).apiCache || {}
+
+  Object.keys(apiCache).forEach((key) => {
+    delete apiCache[key]
+  })
+  console.log("API cache cleared")
+}
+
+// Add this new function to the tmdb-api.ts file
+
+// Fetch and cache credits data for a movie or actor
+export async function fetchAndCacheCredits(item: { id: number; type: "movie" | "actor" }): Promise<void> {
+  try {
+    // Check if we already have this data cached
+    const cacheKey =
+      item.type === "movie"
+        ? `${BASE_URL}/movie/${item.id}/credits?api_key=${API_KEY}&language=en-US`
+        : `${BASE_URL}/person/${item.id}/movie_credits?api_key=${API_KEY}&language=en-US`
+
+    const cachedData = getCachedItem<any>(cacheKey)
+    if (cachedData) {
+      console.log(`Credits data for ${item.type} ${item.id} already cached`)
+      return
+    }
+
+    console.log(`Fetching credits data for ${item.type} ${item.id}`)
+
+    // Fetch the credits data
+    if (item.type === "movie") {
+      await cachedFetch(`${BASE_URL}/movie/${item.id}/credits?api_key=${API_KEY}&language=en-US`, {})
+      console.log(`Cached credits data for movie ${item.id}`)
+    } else {
+      await cachedFetch(`${BASE_URL}/person/${item.id}/movie_credits?api_key=${API_KEY}&language=en-US`, {})
+      console.log(`Cached credits data for actor ${item.id}`)
     }
   } catch (error) {
-    console.error(`Error fetching and caching credits for ${type} ${id}:`, error)
+    console.error(`Error fetching credits data for ${item.type} ${item.id}:`, error)
+    // Continue even if fetching fails - we don't want to block the game
   }
-}
-
-// Function to refresh all connections
-export async function refreshAllConnections() {
-  // Implementation would go here
-  // This is a placeholder to avoid errors
-  return []
 }

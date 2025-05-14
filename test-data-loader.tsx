@@ -682,8 +682,10 @@ const loadTestData = () => {
 
 export default function TestDataLoader() {
   return (
-    <Button onClick={loadTestData} className="bg-purple-600 hover:bg-purple-700">
-      Load Test Data
-    </Button>
+    <div className="fixed bottom-4 right-4 z-50">
+      <Button onClick={loadTestData} className="bg-purple-600 hover:bg-purple-700">
+        Load Test Data
+      </Button>
+    </div>
   )
 }

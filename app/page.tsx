@@ -21,18 +21,7 @@ export async function generateMetadata() {
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-4 md:p-24 bg-gradient-to-b from-muted to-background">
-      <div className="w-full max-w-4xl">
-        {!process.env.TMDB_API_KEY && (
-          <div className="bg-amber-100 border-l-4 border-amber-500 text-amber-700 p-4 mb-6 rounded shadow-sm">
-            <h3 className="font-bold">API Key Missing</h3>
-            <p>The TMDB API key is not set. The game will run with limited functionality using fallback data.</p>
-            <p className="mt-2">
-              To enable full functionality, please add your TMDB API key to the environment variables.
-            </p>
-          </div>
-        )}
-        <GameContainer />
-      </div>
+      <GameContainer />
     </main>
   )
 }
