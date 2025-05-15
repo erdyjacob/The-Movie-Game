@@ -3,7 +3,7 @@ import { calculateActorRarity, calculateMovieRarity } from "./rarity"
 import { fetchAndCacheCredits } from "./tmdb-api"
 
 // Maximum number of items to store in history
-const MAX_HISTORY_ITEMS = 100
+const MAX_HISTORY_ITEMS = 500
 
 // Load player history from localStorage
 export function loadPlayerHistory(): PlayerHistory {

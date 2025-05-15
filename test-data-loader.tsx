@@ -1,6 +1,5 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import type { PlayerHistory, PlayerHistoryItem, Connection } from "@/lib/types"
 
@@ -680,12 +679,8 @@ const loadTestData = () => {
   }
 }
 
+// Export the loadTestData function but don't render a button
 export default function TestDataLoader() {
-  return (
-    <div className="fixed bottom-4 right-4 z-50">
-      <Button onClick={loadTestData} className="bg-purple-600 hover:bg-purple-700">
-        Load Test Data
-      </Button>
-    </div>
-  )
+  // Return null instead of the button
+  return null
 }
