@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Loader2, ChevronDown, ChevronUp, Target, Calendar, Film, User, BarChart } from "lucide-react"
+import { Loader2, ChevronDown, ChevronUp, Target, Calendar, Film, User, BarChart, Network } from "lucide-react"
 import type { Difficulty, GameFilters, GameItem } from "@/lib/types"
 import PlayerStats from "./player-stats"
 import Image from "next/image"
@@ -176,6 +176,12 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
     onStart(difficulty, filters, "timed")
   }
 
+  const openConnectionWeb = () => {
+    // Find and click the hidden connection web button
+    const webButton = document.querySelector('[data-connection-web-button="true"]') as HTMLButtonElement
+    if (webButton) webButton.click()
+  }
+
   return (
     <Card className="w-full">
       <CardHeader className="pb-2 sm:pb-4">
@@ -318,36 +324,52 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
               </div>
             )}
 
-            {/* Start Game Button - Full Width */}
-            <AnimatedButton
-              onClick={startRegularGame}
-              size={isMobile ? "default" : "lg"}
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-2 sm:py-3"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={isMobile ? 16 : 18} className="mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                "Start Game"
-              )}
-            </AnimatedButton>
+            {/* Updated button layout to match game over screen exactly */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+              {/* View Stats Button */}
+              <AnimatedButton
+                variant="outline"
+                size="lg"
+                onClick={openStats}
+                className="flex items-center justify-center gap-2 h-12"
+              >
+                <BarChart size={16} />
+                <span>View Stats</span>
+              </AnimatedButton>
 
-            {/* View Your Stats - Full Width - Now below Start Game */}
-            <AnimatedButton
-              variant="outline"
-              className="w-full flex items-center justify-center gap-2"
-              onClick={openStats}
-              size={isMobile ? "default" : "lg"}
-            >
-              <BarChart size={isMobile ? 16 : 18} />
-              <span>View Your Stats</span>
-            </AnimatedButton>
+              {/* Connection Web Button */}
+              <AnimatedButton
+                variant="outline"
+                size="lg"
+                onClick={openConnectionWeb}
+                className="flex items-center justify-center gap-2 h-12"
+              >
+                <Network size={16} />
+                <span>Connection Web</span>
+              </AnimatedButton>
 
-            {/* Add Connection Web button */}
-            <ConnectionWebButton className="w-full mt-2" />
+              {/* Start Game Button */}
+              <AnimatedButton
+                size="lg"
+                disabled={loading}
+                onClick={startRegularGame}
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white flex items-center justify-center gap-2 h-12"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <span>Play Game</span>
+                )}
+              </AnimatedButton>
+
+              {/* Hidden connection web button that will be triggered programmatically */}
+              <div className="hidden">
+                <ConnectionWebButton />
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>

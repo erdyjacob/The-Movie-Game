@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import type { GameItem, GameMode } from "@/lib/types"
 import GamePath from "./game-path"
-import { Clock, Film, Unlock, User, BarChart } from "lucide-react"
+import { Clock, Film, Unlock, User, BarChart, Network } from "lucide-react"
 import Image from "next/image"
 import { RarityOverlay } from "./rarity-overlay"
 import { cn } from "@/lib/utils"
@@ -258,6 +258,12 @@ export default function GameOverScreen({
     setStatsOpen(false)
   }
 
+  const openConnectionWeb = () => {
+    // Find and click the hidden connection web button
+    const webButton = document.querySelector('[data-connection-web-button="true"]') as HTMLButtonElement
+    if (webButton) webButton.click()
+  }
+
   return (
     <Card className="w-full">
       <CardHeader className="pb-4">
@@ -384,20 +390,28 @@ export default function GameOverScreen({
           </div>
         )}
       </CardContent>
-      <CardFooter className="justify-center gap-3 pt-4 pb-6">
-        {/* Updated to stack buttons on mobile */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-md">
+      <CardFooter className="justify-center pt-4 pb-6">
+        {/* Completely revised approach to ensure all buttons are identical */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
           <AnimatedButton
             variant="outline"
             size="lg"
             onClick={openStats}
-            className="flex items-center justify-center gap-2 w-full"
+            className="flex items-center justify-center gap-2 h-12"
           >
             <BarChart size={16} />
             <span>View Stats</span>
           </AnimatedButton>
 
-          <ConnectionWebButton className="flex items-center justify-center w-full" />
+          <AnimatedButton
+            variant="outline"
+            size="lg"
+            onClick={openConnectionWeb}
+            className="flex items-center justify-center gap-2 h-12"
+          >
+            <Network size={16} />
+            <span>Connection Web</span>
+          </AnimatedButton>
 
           <AnimatedButton
             size="lg"
@@ -411,10 +425,15 @@ export default function GameOverScreen({
               })
               onRestart()
             }}
-            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white w-full"
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white flex items-center justify-center gap-2 h-12"
           >
             Play Again
           </AnimatedButton>
+        </div>
+
+        {/* Hidden connection web button that will be triggered programmatically */}
+        <div className="hidden">
+          <ConnectionWebButton />
         </div>
       </CardFooter>
       {/* Stats modal - Use the simplified version */}
