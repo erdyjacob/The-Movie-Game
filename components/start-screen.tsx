@@ -14,7 +14,6 @@ import Link from "next/link"
 import { useMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import ConnectionWebButton from "./connection-web-button"
-import { Logo } from "@/components/ui/logo"
 
 // Custom animated button component
 const AnimatedButton = ({
@@ -71,6 +70,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
   const [dailyChallenge, setDailyChallenge] = useState<GameItem | null>(null)
   const [dailyChallengeLoading, setDailyChallengeLoading] = useState(true)
   const [dailyChallengeAttempted, setDailyChallengeAttempted] = useState(false)
+  const [logoError, setLogoError] = useState(false)
 
   useEffect(() => {
     const loadDailyChallenge = async () => {
@@ -188,8 +188,22 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
       <CardHeader className="pb-2 sm:pb-4">
         <div className="flex flex-col items-center justify-center mb-2 sm:mb-4">
           <div className="w-64 sm:w-80 h-auto mb-2">
-            {/* Using our new Logo component */}
-            <Logo size={isMobile ? "md" : "lg"} />
+            {/* Simple approach with fallback */}
+            {logoError ? (
+              <img
+                src="/images/movie-game-logo.png"
+                alt="The Movie Game Logo"
+                className="w-full h-auto"
+                onError={() => console.error("PNG logo also failed to load")}
+              />
+            ) : (
+              <img
+                src="/images/TheMovieGame.svg"
+                alt="The Movie Game Logo"
+                className="w-full h-auto"
+                onError={() => setLogoError(true)}
+              />
+            )}
           </div>
         </div>
 
