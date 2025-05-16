@@ -385,8 +385,8 @@ export default function GameOverScreen({
         )}
       </CardContent>
       <CardFooter className="justify-center gap-3 pt-4 pb-6">
-        {/* Make both buttons the same width with grid */}
-        <div className="grid grid-cols-3 gap-3 w-full max-w-md">
+        {/* Updated to stack buttons on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-md">
           <AnimatedButton
             variant="outline"
             size="lg"
