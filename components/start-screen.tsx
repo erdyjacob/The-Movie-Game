@@ -187,14 +187,8 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
       <CardHeader className="pb-2 sm:pb-4">
         <div className="flex flex-col items-center justify-center mb-2 sm:mb-4">
           <div className="w-64 sm:w-80 h-auto mb-2">
-            <Image
-              src="/images/TheMovieGame.svg"
-              alt="The Movie Game Logo"
-              width={320}
-              height={160}
-              priority
-              className="w-full h-auto"
-            />
+            {/* Using a regular img tag for SVG instead of Next.js Image component */}
+            <img src="/images/TheMovieGame.svg" alt="The Movie Game Logo" className="w-full h-auto" />
           </div>
         </div>
 
