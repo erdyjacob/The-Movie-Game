@@ -176,10 +176,10 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
     onStart(difficulty, filters, "timed")
   }
 
+  // Replace the openConnectionWeb function with this direct navigation approach
   const openConnectionWeb = () => {
-    // Find and click the hidden connection web button
-    const webButton = document.querySelector('[data-connection-web-button="true"]') as HTMLButtonElement
-    if (webButton) webButton.click()
+    // Navigate directly to the connection web page
+    window.location.href = "/connection-web"
   }
 
   return (
