@@ -89,16 +89,47 @@ export async function addLeaderboardEntry(
   }
 }
 
-// New function to update the leaderboard with a player's total points
+// Enhanced function to update the leaderboard with a player's total points
 export async function updateLeaderboardWithTotalPoints(
   playerName: string,
   accountScore: AccountScore,
 ): Promise<boolean> {
   try {
-    // Check if the player already exists in the leaderboard
-    const existingEntries = await kv.zrange<LeaderboardEntry[]>(LEADERBOARD_KEY, 0, -1, { rev: true })
+    if (!playerName || !accountScore) {
+      console.error("Missing required data for leaderboard update:", { playerName, accountScore })
+      return false
+    }
 
-    const existingEntry = existingEntries?.find((entry) => entry.playerName === playerName)
+    // Normalize the player name to ensure consistency
+    const normalizedPlayerName = playerName.trim()
+
+    if (!normalizedPlayerName) {
+      console.error("Empty player name after normalization")
+      return false
+    }
+
+    // Get all leaderboard entries to find existing entry
+    const existingEntries = await kv.zrange<string[]>(LEADERBOARD_KEY, 0, -1, { rev: true })
+
+    // Parse entries and find matching player
+    let existingEntry: LeaderboardEntry | undefined
+    let existingEntryRaw: string | undefined
+
+    if (existingEntries && existingEntries.length > 0) {
+      for (const entryRaw of existingEntries) {
+        try {
+          const entry = JSON.parse(entryRaw) as LeaderboardEntry
+          if (entry.playerName === normalizedPlayerName) {
+            existingEntry = entry
+            existingEntryRaw = entryRaw
+            break
+          }
+        } catch (e) {
+          console.error("Error parsing leaderboard entry:", e)
+          // Continue to next entry
+        }
+      }
+    }
 
     // If the player exists and their score hasn't changed, do nothing
     if (existingEntry && existingEntry.score === accountScore.points) {
@@ -108,26 +139,26 @@ export async function updateLeaderboardWithTotalPoints(
     // Create or update the entry
     const entry: LeaderboardEntry = {
       id: existingEntry?.id || nanoid(),
-      playerName,
+      playerName: normalizedPlayerName,
       score: accountScore.points,
       rank: accountScore.rank,
-      legendaryCount: accountScore.legendaryCount,
-      epicCount: accountScore.epicCount,
-      rareCount: accountScore.rareCount,
-      uncommonCount: accountScore.uncommonCount,
-      commonCount: accountScore.commonCount,
+      legendaryCount: accountScore.legendaryCount || 0,
+      epicCount: accountScore.epicCount || 0,
+      rareCount: accountScore.rareCount || 0,
+      uncommonCount: accountScore.uncommonCount || 0,
+      commonCount: accountScore.commonCount || 0,
       timestamp: new Date().toISOString(),
       gameMode: "collection", // This represents the total collection score
       difficulty: "all",
     }
 
-    // Add or update in the sorted set with score as the sorting value
-    await kv.zadd(LEADERBOARD_KEY, { score: entry.score, member: JSON.stringify(entry) })
-
-    // If this is an update, remove the old entry
-    if (existingEntry && existingEntry.score !== accountScore.points) {
-      await kv.zrem(LEADERBOARD_KEY, JSON.stringify(existingEntry))
+    // If this is an update, remove the old entry first to avoid duplicates
+    if (existingEntryRaw) {
+      await kv.zrem(LEADERBOARD_KEY, existingEntryRaw)
     }
+
+    // Add the new/updated entry
+    await kv.zadd(LEADERBOARD_KEY, { score: entry.score, member: JSON.stringify(entry) })
 
     // Trim the leaderboard to keep only the top entries
     const count = await kv.zcard(LEADERBOARD_KEY)
