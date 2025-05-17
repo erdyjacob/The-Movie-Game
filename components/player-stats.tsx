@@ -8,6 +8,7 @@ import { Film, User, Trophy, BarChart, Star, Target, Calendar, X, ChevronUp, Che
 import { clearPlayerHistory, getMostUsedItems, getItemsByRarity } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
+import Link from "next/link"
 import type { PlayerHistoryItem, Rarity, AccountRank, AccountScore, GameItem } from "@/lib/types"
 import { getRarityDisplayName } from "@/lib/rarity"
 import {
@@ -25,6 +26,8 @@ import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
 import ConnectionWebButton from "./connection-web-button"
 import { clearConnections } from "@/lib/connection-tracking"
+import { useUser } from "@/contexts/user-context"
+import { updateLeaderboardWithTotalPoints, getPlayerLeaderboardRank } from "@/lib/leaderboard"
 
 // Add these constants at the top of the file, after the imports
 // These represent estimated totals of collectible items in the game
@@ -77,9 +80,13 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
   const [dailyChallenges, setDailyChallenges] = useState<Record<string, GameItem>>({})
   const { toast } = useToast()
   const [collectionProgressOpen, setCollectionProgressOpen] = useState(false)
+  const { username } = useUser()
 
   // Add state for longest chain
   const [longestChain, setLongestChain] = useState(0)
+
+  // Add state for player's leaderboard rank
+  const [leaderboardRank, setLeaderboardRank] = useState<number | null>(null)
 
   // Load longest chain from localStorage
   useEffect(() => {
@@ -120,7 +127,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
 
         // Calculate account score
         try {
-          calculateAccountScore()
+          await calculateAccountScore()
         } catch (error) {
           console.error("Error calculating account score:", error)
         }
@@ -185,7 +192,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
       else if (totalPoints >= 100) rank = "F+"
       else if (totalPoints >= 50) rank = "F"
 
-      setAccountScore({
+      const newAccountScore = {
         rank,
         points: totalPoints,
         legendaryCount,
@@ -200,7 +207,20 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
         totalPercentage: Number.parseFloat(totalPercentage),
         moviesCount: movies.length,
         actorsCount: actors.length,
-      })
+      }
+
+      setAccountScore(newAccountScore)
+
+      // If the user has a username, update their leaderboard entry and get their rank
+      if (username) {
+        try {
+          await updateLeaderboardWithTotalPoints(username, newAccountScore)
+          const rank = await getPlayerLeaderboardRank(username)
+          setLeaderboardRank(rank)
+        } catch (error) {
+          console.error("Error updating leaderboard:", error)
+        }
+      }
     } catch (error) {
       console.error("Error calculating account score:", error)
     }
@@ -318,6 +338,18 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
             <div>
               <h3 className="text-lg font-semibold">Collection Score</h3>
               <p className="text-sm text-muted-foreground">Based on your collection rarity</p>
+
+              {username && leaderboardRank !== null && (
+                <div className="flex justify-between items-center mt-3">
+                  <p className="text-base">
+                    <span className="text-amber-500 font-semibold">#{leaderboardRank}</span> in the world
+                  </p>
+                  <div className="flex-grow"></div>
+                  <Link href="/leaderboard" className="text-sm text-blue-600 hover:underline ml-8">
+                    View Leaderboard
+                  </Link>
+                </div>
+              )}
             </div>
             <div
               className={`text-4xl font-bold w-14 h-14 rounded-full border-4 flex items-center justify-center ${getRankColor(accountScore.rank)}`}

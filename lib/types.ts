@@ -136,3 +136,20 @@ export interface Connection {
   timestamp: string // ISO string
   gameId?: string // Optional game session identifier
 }
+
+// New leaderboard types
+export interface LeaderboardEntry {
+  id: string
+  playerName: string
+  score: number
+  rank: AccountRank
+  legendaryCount: number
+  epicCount: number
+  rareCount: number
+  uncommonCount: number
+  commonCount: number
+  timestamp: string
+  avatarUrl?: string
+  gameMode: GameMode
+  difficulty: Difficulty
+}

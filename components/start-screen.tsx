@@ -14,6 +14,7 @@ import Link from "next/link"
 import { useMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import ConnectionWebButton from "./connection-web-button"
+import { LeaderboardPreview } from "./leaderboard-preview"
 
 // Custom animated button component
 const AnimatedButton = ({
@@ -319,6 +320,11 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
               </p>
             </div>
           )}
+        </div>
+
+        {/* Leaderboard Preview Section */}
+        <div className="border-t pt-4">
+          <LeaderboardPreview />
         </div>
 
         {/* Regular Game Mode Section */}

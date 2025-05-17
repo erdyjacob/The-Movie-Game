@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import type { GameItem, GameMode } from "@/lib/types"
 import GamePath from "./game-path"
-import { Clock, Film, Unlock, User, BarChart, Network } from "lucide-react"
+import { Clock, Film, Unlock, User, BarChart, Network, Trophy } from "lucide-react"
 import Image from "next/image"
 import { RarityOverlay } from "./rarity-overlay"
 import { cn } from "@/lib/utils"
@@ -18,6 +18,8 @@ import PlayerStats from "./player-stats"
 // Add the track import at the top of the file
 import { track } from "@vercel/analytics/react"
 import ConnectionWebButton from "./connection-web-button"
+import { useUser } from "@/contexts/user-context"
+import { useRouter } from "next/navigation"
 
 // Update the props interface to remove achievement progress
 interface GameOverScreenProps {
@@ -238,6 +240,8 @@ export default function GameOverScreen({
   const isNewHighScore = score > highScore
   const totalNewUnlocks = newUnlocks.actors.length + newUnlocks.movies.length
   const [statsOpen, setStatsOpen] = useState(false)
+  const { username, showUsernameSetup } = useUser()
+  const router = useRouter()
 
   useEffect(() => {
     // Update longest chain if this game's chain is longer than the stored one
@@ -262,6 +266,19 @@ export default function GameOverScreen({
   const openConnectionWeb = () => {
     // Navigate directly to the connection web page
     window.location.href = "/connection-web"
+  }
+
+  // Function to view the leaderboard
+  const viewLeaderboard = () => {
+    router.push("/leaderboard")
+  }
+
+  // Track when the Create Screenname button is clicked
+  const handleCreateScreenname = () => {
+    track("create_screenname_click", {
+      location: "game_over_screen",
+    })
+    showUsernameSetup()
   }
 
   return (
@@ -390,8 +407,8 @@ export default function GameOverScreen({
           </div>
         )}
       </CardContent>
-      <CardFooter className="justify-center pt-4 pb-6">
-        {/* Completely revised approach to ensure all buttons are identical */}
+      <CardFooter className="flex flex-col justify-center gap-4 pt-4 pb-6">
+        {/* Main buttons in a grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
           <AnimatedButton
             variant="outline"
@@ -430,6 +447,31 @@ export default function GameOverScreen({
             Play Again
           </AnimatedButton>
         </div>
+
+        {/* Conditional button for leaderboard/username */}
+        {!username && (
+          // Only show Create Screenname button if user doesn't have a username
+          <AnimatedButton
+            variant="outline"
+            size="lg"
+            onClick={handleCreateScreenname}
+            className="w-full mt-2 flex items-center justify-center gap-2 h-12 border-dashed border-2"
+          >
+            <Trophy size={16} />
+            <span>Create Screenname</span>
+          </AnimatedButton>
+        )}
+
+        {/* View Leaderboard button - always visible */}
+        <AnimatedButton
+          variant="ghost"
+          size="sm"
+          onClick={viewLeaderboard}
+          className="mt-2 text-muted-foreground hover:text-foreground"
+        >
+          <Trophy className="h-4 w-4 mr-1" />
+          <span>View Leaderboard</span>
+        </AnimatedButton>
 
         {/* Hidden connection web button that will be triggered programmatically */}
         <div className="hidden">

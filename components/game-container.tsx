@@ -622,6 +622,20 @@ export default function GameContainer() {
             movesCount: gameState.history.length,
             strikes: gameState.strikes,
           })
+
+          // NEW CODE: End the game immediately when daily challenge is completed
+          setGameState((prev) => ({
+            ...prev,
+            currentItem: newItem,
+            history: [...prev.history, newItem],
+            usedIds: newUsedIds,
+            score: prev.score + 1,
+            dailyChallengeCompleted: true,
+            status: "gameOver", // End the game
+          }))
+
+          // Return early to prevent the normal state update below
+          return
         }
       }
 
@@ -672,6 +686,7 @@ export default function GameContainer() {
       gameState.score,
       gameState.strikes,
       gameState.gameMode,
+      gameState.currentItem,
     ],
   )
 

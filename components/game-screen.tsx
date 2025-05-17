@@ -187,7 +187,7 @@ const GameScreen = memo(function GameScreen({
   const suggestionsEnabled = difficulty === "easy" || difficulty === "medium"
 
   // Minimum characters required before showing suggestions
-  const minCharsForSuggestions = difficulty === "medium" ? 3 : 2
+  const minCharsForSuggestions = difficulty === "medium" ? 3 : 3
 
   // Reset player used items when the game resets
   useEffect(() => {
