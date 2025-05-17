@@ -18,16 +18,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "User ID and username are required" }, { status: 400 })
     }
 
-    // Delete user from users hash
-    await kv.hdel(USERS_KEY, userId)
+    const lowercaseUsername = username.toLowerCase()
 
-    // Delete username from usernames set
-    await kv.srem(USERNAMES_KEY, username.toLowerCase())
+    // Use a transaction to ensure all operations succeed or fail together
+    const pipeline = kv.pipeline()
+
+    // Delete from the users hash
+    pipeline.hdel(USERS_KEY, userId)
+
+    // Delete from the usernames set
+    pipeline.srem(USERNAMES_KEY, lowercaseUsername)
+
+    // Delete the individual keys
+    pipeline.del(`username:${lowercaseUsername}`)
+    pipeline.del(`user:${userId}`)
 
     // If banUsername is true, add to banned usernames set
     if (banUsername) {
-      await kv.sadd(BANNED_USERNAMES_KEY, username.toLowerCase())
+      pipeline.sadd(BANNED_USERNAMES_KEY, lowercaseUsername)
     }
+
+    // Execute all commands atomically
+    await pipeline.exec()
 
     return NextResponse.json({
       message: `User ${username} deleted successfully${banUsername ? " and username banned" : ""}`,
