@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Trophy, Users, Database, Trash2, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Trophy, Users, Database, Trash2, AlertTriangle, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
@@ -20,6 +20,7 @@ import {
 export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isClearingLeaderboard, setIsClearingLeaderboard] = useState(false)
+  const [isRefreshingLeaderboard, setIsRefreshingLeaderboard] = useState(false)
   const [message, setMessage] = useState("")
   const [password, setPassword] = useState("")
   const [entryCount, setEntryCount] = useState(20)
@@ -101,6 +102,44 @@ export default function AdminPage() {
     }
   }
 
+  const refreshLeaderboard = async () => {
+    if (!password) {
+      setMessage("Please enter the admin password")
+      setStatus("error")
+      return
+    }
+
+    setIsRefreshingLeaderboard(true)
+    setMessage("")
+    setStatus("idle")
+
+    try {
+      // First, invalidate the leaderboard cache
+      const response = await fetch("/api/admin/refresh-leaderboard", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${password}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage(`${data.message}`)
+        setStatus("success")
+      } else {
+        setMessage(`Error: ${data.message}`)
+        setStatus("error")
+      }
+    } catch (error) {
+      setMessage("An unexpected error occurred")
+      setStatus("error")
+    } finally {
+      setIsRefreshingLeaderboard(false)
+    }
+  }
+
   return (
     <div className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-4xl mx-auto">
@@ -169,6 +208,27 @@ export default function AdminPage() {
                     />
                   </div>
 
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <Button
+                      onClick={populateLeaderboard}
+                      disabled={isLoading || !password}
+                      className="w-full sm:w-auto"
+                    >
+                      <Trophy className="w-4 h-4 mr-2" />
+                      {isLoading ? "Populating..." : "Populate with Fake Data"}
+                    </Button>
+
+                    <Button
+                      onClick={refreshLeaderboard}
+                      disabled={isRefreshingLeaderboard || !password}
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshingLeaderboard ? "animate-spin" : ""}`} />
+                      {isRefreshingLeaderboard ? "Refreshing..." : "Refresh Leaderboard"}
+                    </Button>
+                  </div>
+
                   <div className="pt-4 border-t border-gray-200">
                     <h3 className="text-sm font-medium text-gray-900 mb-2">Danger Zone</h3>
                     <p className="text-sm text-gray-500 mb-4">These actions cannot be undone. Please be certain.</p>
@@ -185,11 +245,6 @@ export default function AdminPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col items-start space-y-4">
-                <Button onClick={populateLeaderboard} disabled={isLoading || !password} className="w-full sm:w-auto">
-                  <Trophy className="w-4 h-4 mr-2" />
-                  {isLoading ? "Populating..." : "Populate Leaderboard with Fake Data"}
-                </Button>
-
                 {message && (
                   <div
                     className={`text-sm ${status === "success" ? "text-green-600" : status === "error" ? "text-red-600" : ""}`}
@@ -203,13 +258,31 @@ export default function AdminPage() {
 
           <TabsContent value="users">
             <Card>
-              <CardHeader>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>Manage users and handle inappropriate usernames</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>User Management</CardTitle>
+                  <CardDescription>Manage users and handle inappropriate usernames</CardDescription>
+                </div>
+                {password && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // This will trigger a refresh in the UserManagement component
+                      const userManagementElement = document.getElementById("user-management")
+                      if (userManagementElement) {
+                        userManagementElement.dispatchEvent(new CustomEvent("refresh-users"))
+                      }
+                    }}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh Users
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {password ? (
-                  <UserManagement adminPassword={password} />
+                  <UserManagement adminPassword={password} id="user-management" />
                 ) : (
                   <div className="text-center py-6 text-muted-foreground">
                     Please enter your admin password to access user management
