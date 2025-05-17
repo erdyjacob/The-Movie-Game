@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { LeaderboardRepair } from "@/components/admin/leaderboard-repair"
 
 export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -254,6 +255,13 @@ export default function AdminPage() {
                 )}
               </CardFooter>
             </Card>
+
+            {/* Add the LeaderboardRepair component here */}
+            {password && (
+              <div className="mt-6">
+                <LeaderboardRepair adminToken={password} />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="users">
