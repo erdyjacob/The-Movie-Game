@@ -5,29 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Film, User, Trophy, BarChart, Star, Target, Calendar, X, ChevronUp, ChevronDown } from "lucide-react"
-import { clearPlayerHistory, getMostUsedItems, getItemsByRarity, loadPlayerHistory } from "@/lib/player-history"
+import { getMostUsedItems, getItemsByRarity, loadPlayerHistory } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
 import Link from "next/link"
 import type { PlayerHistoryItem, Rarity, AccountScore, GameItem } from "@/lib/types"
 import { getRarityDisplayName } from "@/lib/rarity"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
 import ConnectionWebButton from "./connection-web-button"
 import { useUser } from "@/contexts/user-context"
 import { updateLeaderboardWithTotalPoints, getPlayerLeaderboardRank } from "@/lib/leaderboard"
-import { clearConnections } from "@/lib/connection-utils"
 
 // Add the import for the rank calculator
 import { calculateAccountScore, getRankColor } from "@/lib/rank-calculator"
@@ -243,18 +231,6 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
   const filteredCollectionItems =
     activeRarity === "all" ? collectionItems : collectionItems.filter((item) => item.rarity === activeRarity)
 
-  const handleClearHistory = () => {
-    clearPlayerHistory()
-    setMostUsedItems([])
-    setCollectionItems([])
-    clearConnections()
-
-    toast({
-      title: "History Cleared",
-      description: "Your movie game history has been cleared.",
-    })
-  }
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString(undefined, {
@@ -286,31 +262,10 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
             <BarChart className="h-5 w-5" />
             Your Movie Game Stats
           </span>
-          <div className="flex items-center gap-2">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Clear History
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete your movie game history. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClearHistory}>Clear History</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
-          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>

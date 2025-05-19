@@ -5,18 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import {
-  Loader2,
-  ChevronDown,
-  ChevronUp,
-  Target,
-  Calendar,
-  Film,
-  User,
-  BarChart,
-  Network,
-  Settings,
-} from "lucide-react"
+import { Loader2, ChevronDown, ChevronUp, Target, Calendar, Film, User, BarChart, Network } from "lucide-react"
 import type { Difficulty, GameFilters, GameItem } from "@/lib/types"
 import PlayerStats from "./player-stats"
 import Image from "next/image"
@@ -26,8 +15,6 @@ import { useMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import ConnectionWebButton from "./connection-web-button"
 import { LeaderboardPreview } from "./leaderboard-preview"
-import { useUser } from "@/contexts/user-context"
-import { UserSettingsPopup } from "./user-settings-popup"
 
 // Custom animated button component
 const AnimatedButton = ({
@@ -72,7 +59,6 @@ interface StartScreenProps {
 
 export default function StartScreen({ onStart, highScore, loading = false }: StartScreenProps) {
   const isMobile = useMobile()
-  const { username, userId } = useUser()
   const [difficulty, setDifficulty] = useState<Difficulty>("easy")
   const [filters, setFilters] = useState<GameFilters>({
     includeAnimated: false,
@@ -82,7 +68,6 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
   const [howToPlayOpen, setHowToPlayOpen] = useState(false)
   const [gameModifiersOpen, setGameModifiersOpen] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [dailyChallenge, setDailyChallenge] = useState<GameItem | null>(null)
   const [dailyChallengeLoading, setDailyChallengeLoading] = useState(true)
   const [dailyChallengeAttempted, setDailyChallengeAttempted] = useState(false)
@@ -154,14 +139,6 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
     setStatsOpen(false)
   }
 
-  const openSettings = () => {
-    setSettingsOpen(true)
-  }
-
-  const closeSettings = () => {
-    setSettingsOpen(false)
-  }
-
   const handleFilterChange = (key: keyof GameFilters) => {
     setFilters((prev) => ({
       ...prev,
@@ -217,19 +194,6 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
         <p className="text-muted-foreground">Name an actor from the movie or a movie the actor was in!</p>
       </div>
       <Card className="w-full">
-        {/* User Account Module - Only show if user has a username */}
-        {username && (
-          <div className="border-b px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{username}</span>
-            </div>
-            <Button variant="ghost" size="icon" onClick={openSettings} aria-label="Settings">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-
         <CardHeader className="pt-2 sm:pt-4 pb-2 sm:pb-4">
           {/* How to Play dropdown */}
           <div className="w-full">
@@ -460,9 +424,6 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
             </div>
           </div>
         )}
-
-        {/* Settings Popup */}
-        {settingsOpen && <UserSettingsPopup isOpen={settingsOpen} onClose={closeSettings} />}
       </Card>
     </>
   )
