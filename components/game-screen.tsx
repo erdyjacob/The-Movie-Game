@@ -102,7 +102,7 @@ export const GameScreen = memo(function GameScreen({
   const suggestionsEnabled = difficulty === "easy" || difficulty === "medium"
 
   // Minimum characters required before showing suggestions
-  const minCharsForSuggestions = 2
+  const minCharsForSuggestions = 3
 
   // Handle click outside suggestions dropdown
   useEffect(() => {
@@ -196,7 +196,7 @@ export const GameScreen = memo(function GameScreen({
 
     setSuggestions(filteredSuggestions)
     setShowSuggestions(filteredSuggestions.length > 0)
-  }, [debouncedSearch, suggestionsEnabled, availableOptions])
+  }, [debouncedSearch, suggestionsEnabled, availableOptions, minCharsForSuggestions])
 
   // Handle form submission
   const handleSubmit = useCallback(
