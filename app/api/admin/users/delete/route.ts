@@ -4,6 +4,8 @@ import { type NextRequest, NextResponse } from "next/server"
 const USERS_KEY = "movie-game:users"
 const BANNED_USERNAMES_KEY = "movie-game:banned-usernames"
 const USERNAMES_KEY = "movie-game:usernames"
+const LEADERBOARD_KEY = "movie-game:leaderboard"
+const LEADERBOARD_CACHE_KEY = "movie-game:leaderboard-cache"
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,35 +16,69 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Invalid admin password" }, { status: 401 })
     }
 
-    if (!userId || !username) {
-      return NextResponse.json({ message: "User ID and username are required" }, { status: 400 })
+    if (!userId) {
+      return NextResponse.json({ message: "User ID is required" }, { status: 400 })
     }
 
-    const lowercaseUsername = username.toLowerCase()
+    console.log(`[ADMIN] Deleting user: ${userId}, username: ${username || "unknown"}`)
 
     // Use a transaction to ensure all operations succeed or fail together
     const pipeline = kv.pipeline()
 
-    // Delete from the users hash
-    pipeline.hdel(USERS_KEY, userId)
+    // 1. Delete from the users hash (if it exists)
+    if (username) {
+      pipeline.hdel(USERS_KEY, userId)
 
-    // Delete from the usernames set
-    pipeline.srem(USERNAMES_KEY, lowercaseUsername)
+      const lowercaseUsername = username.toLowerCase()
+      // Delete from the usernames set
+      pipeline.srem(USERNAMES_KEY, lowercaseUsername)
+      // Delete the username mapping
+      pipeline.del(`username:${lowercaseUsername}`)
 
-    // Delete the individual keys
-    pipeline.del(`username:${lowercaseUsername}`)
-    pipeline.del(`user:${userId}`)
-
-    // If banUsername is true, add to banned usernames set
-    if (banUsername) {
-      pipeline.sadd(BANNED_USERNAMES_KEY, lowercaseUsername)
+      // If banUsername is true, add to banned usernames set
+      if (banUsername) {
+        pipeline.sadd(BANNED_USERNAMES_KEY, lowercaseUsername)
+      }
     }
 
-    // Execute all commands atomically
+    // 2. Delete all user-related keys
+    // These are the keys we saw in the diagnostics
+    pipeline.del(`user:${userId}`)
+    pipeline.del(`user:${userId}:score`)
+    pipeline.del(`user:${userId}:accountScore`)
+    pipeline.del(`user:${userId}:games`)
+    pipeline.del(`player:${userId}:history`)
+    pipeline.del(`user:${userId}:daily-challenges`)
+
+    // 3. Remove from leaderboard
+    // Get all leaderboard entries
+    const leaderboardEntries = await kv.zrange(LEADERBOARD_KEY, 0, -1, { rev: true })
+
+    if (leaderboardEntries && leaderboardEntries.length > 0) {
+      for (const entryRaw of leaderboardEntries) {
+        try {
+          const entry = typeof entryRaw === "string" ? JSON.parse(entryRaw) : entryRaw
+
+          // If this entry belongs to the user we're deleting
+          if ((entry.userId && entry.userId === userId) || (username && entry.playerName === username)) {
+            // Remove this entry from the leaderboard
+            pipeline.zrem(LEADERBOARD_KEY, entryRaw)
+            console.log(`[ADMIN] Removing leaderboard entry for user: ${userId}`)
+          }
+        } catch (e) {
+          console.error("Error processing leaderboard entry:", e)
+        }
+      }
+    }
+
+    // Invalidate leaderboard cache
+    pipeline.del(LEADERBOARD_CACHE_KEY)
+
+    // Execute all Redis operations
     await pipeline.exec()
 
     return NextResponse.json({
-      message: `User ${username} deleted successfully${banUsername ? " and username banned" : ""}`,
+      message: `User ${username || userId} deleted successfully${banUsername ? " and username banned" : ""}`,
     })
   } catch (error) {
     console.error("Error deleting user:", error)

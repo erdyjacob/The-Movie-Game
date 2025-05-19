@@ -118,6 +118,8 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
     if (!userToDelete || !adminPassword) return
 
     setIsDeleting(true)
+    setMessage("")
+    setStatus("idle")
 
     try {
       const response = await fetch("/api/admin/users/delete", {
@@ -171,7 +173,7 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="flex-1">
             <Input
-              placeholder="Search users by username..."
+              placeholder="Search users by username or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full"
@@ -213,7 +215,9 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
               ) : (
                 users.map((user) => (
                   <TableRow key={user.userId}>
-                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell className="font-medium">
+                      {user.username || <span className="text-muted-foreground italic">Unknown</span>}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{user.userId}</TableCell>
                     <TableCell className={user.score ? "font-semibold text-amber-500" : "text-muted-foreground"}>
                       {formatScore(user.score)}
@@ -266,26 +270,30 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
               Delete User
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the user "{userToDelete?.username}"? This action cannot be undone.
+              Are you sure you want to delete the user{" "}
+              {userToDelete?.username ? `"${userToDelete.username}"` : `with ID "${userToDelete?.userId}"`}? This action
+              cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-start space-x-2 pt-2">
-            <Checkbox
-              id="ban-username"
-              checked={banUsername}
-              onCheckedChange={(checked) => setBanUsername(checked === true)}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label
-                htmlFor="ban-username"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Ban username
-              </Label>
-              <p className="text-sm text-muted-foreground">Prevent this username from being registered again</p>
+          {userToDelete?.username && (
+            <div className="flex items-start space-x-2 pt-2">
+              <Checkbox
+                id="ban-username"
+                checked={banUsername}
+                onCheckedChange={(checked) => setBanUsername(checked === true)}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="ban-username"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Ban username
+                </Label>
+                <p className="text-sm text-muted-foreground">Prevent this username from being registered again</p>
+              </div>
             </div>
-          </div>
+          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>
