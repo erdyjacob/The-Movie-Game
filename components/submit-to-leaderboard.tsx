@@ -20,7 +20,7 @@ export function SubmitToLeaderboard({ score, gameMode, difficulty }: SubmitToLea
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const router = useRouter()
-  const { username } = useUser()
+  const { username, userId } = useUser()
 
   useEffect(() => {
     if (username) {
@@ -44,6 +44,7 @@ export function SubmitToLeaderboard({ score, gameMode, difficulty }: SubmitToLea
           score,
           gameMode,
           difficulty,
+          userId, // Include userId from context
         }),
       })
 

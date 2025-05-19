@@ -7,6 +7,16 @@ const LEADERBOARD_CACHE_KEY = "movie-game:leaderboard-cache"
 const MAX_LEADERBOARD_ENTRIES = 100
 const CACHE_TTL = 30 * 60 // 30 minutes in seconds
 
+// At the top of the file, add a logging utility function:
+function logLeaderboardAction(action: string, userId?: string, username?: string, details?: any) {
+  console.log(
+    `[LEADERBOARD ${action}]`,
+    userId ? `userId: ${userId}` : "",
+    username ? `username: ${username}` : "",
+    details ? JSON.stringify(details) : "",
+  )
+}
+
 // Helper to determine if it's peak hours (9am to 11pm)
 function isPeakHours(): boolean {
   const hour = new Date().getHours()
@@ -16,6 +26,18 @@ function isPeakHours(): boolean {
 // Get the appropriate cache TTL based on time of day
 function getCacheTTL(): number {
   return isPeakHours() ? 30 * 60 : 120 * 60 // 30 mins during peak, 2 hours during off-peak
+}
+
+// Helper function to safely parse JSON or return the original value if it's already an object
+function safeParseJSON(data: any) {
+  if (typeof data === "object") return data
+
+  try {
+    return JSON.parse(data)
+  } catch (e) {
+    console.error("Error parsing JSON:", e)
+    return null
+  }
 }
 
 export async function getLeaderboardData(): Promise<LeaderboardEntry[]> {
@@ -45,18 +67,64 @@ export async function getLeaderboardData(): Promise<LeaderboardEntry[]> {
   }
 }
 
-// Add a new entry to the leaderboard
+// Modify the addLeaderboardEntry function to use safeParseJSON
 export async function addLeaderboardEntry(
   playerName: string,
   score: AccountScore,
   gameMode: GameMode,
   difficulty: Difficulty,
   avatarUrl?: string,
+  userId?: string,
 ): Promise<boolean> {
   try {
+    logLeaderboardAction("ADD_ENTRY_START", userId, playerName, { score: score.points, gameMode, difficulty })
+
+    // Normalize the player name to ensure consistency
+    const normalizedPlayerName = playerName.trim()
+
+    if (!normalizedPlayerName) {
+      logLeaderboardAction("ADD_ENTRY_ERROR", userId, playerName, { error: "Empty player name after normalization" })
+      return false
+    }
+
+    // Get all leaderboard entries to find existing entry from the same player
+    const existingEntries = await kv.zrange<string[]>(LEADERBOARD_KEY, 0, -1, { rev: true })
+
+    // Parse entries and find matching player
+    let existingEntry: LeaderboardEntry | undefined
+    let existingEntryRaw: string | undefined
+
+    if (existingEntries && existingEntries.length > 0) {
+      for (const entryRaw of existingEntries) {
+        try {
+          // Use safeParseJSON instead of JSON.parse directly
+          const entry = safeParseJSON(entryRaw) as LeaderboardEntry
+
+          // Skip if parsing failed
+          if (!entry) continue
+
+          // First try to match by userId if available, then fall back to playerName
+          if ((userId && entry.userId === userId) || entry.playerName === normalizedPlayerName) {
+            existingEntry = entry
+            existingEntryRaw = entryRaw
+            logLeaderboardAction("ADD_ENTRY_FOUND_EXISTING", userId, playerName, {
+              existingId: entry.id,
+              existingScore: entry.score,
+            })
+            break
+          }
+        } catch (e) {
+          console.error("Error processing leaderboard entry:", e)
+          // Continue to next entry
+        }
+      }
+    }
+
+    // Create the new entry, preserving the existing ID if found
     const entry: LeaderboardEntry = {
-      id: nanoid(),
-      playerName,
+      id: existingEntry?.id || nanoid(),
+      userId, // Include userId in the entry
+      playerName: normalizedPlayerName,
       score: score.points,
       rank: score.rank,
       legendaryCount: score.legendaryCount,
@@ -68,6 +136,12 @@ export async function addLeaderboardEntry(
       avatarUrl: avatarUrl,
       gameMode: gameMode,
       difficulty: difficulty,
+    }
+
+    // If this is an update, remove the old entry first to avoid duplicates
+    if (existingEntryRaw) {
+      await kv.zrem(LEADERBOARD_KEY, existingEntryRaw)
+      logLeaderboardAction("ADD_ENTRY_REMOVED_OLD", userId, playerName, { oldScore: existingEntry?.score })
     }
 
     // Add to the sorted set with score as the sorting value
@@ -82,20 +156,26 @@ export async function addLeaderboardEntry(
     // Invalidate the cache to ensure the next read gets fresh data
     await kv.del(LEADERBOARD_CACHE_KEY)
 
+    logLeaderboardAction("ADD_ENTRY_SUCCESS", userId, playerName, { score: score.points })
     return true
   } catch (error) {
+    logLeaderboardAction("ADD_ENTRY_ERROR", userId, playerName, { error: String(error) })
     console.error("Error adding leaderboard entry:", error)
     return false
   }
 }
 
-// Enhanced function to update the leaderboard with a player's total points
+// Update the updateLeaderboardWithTotalPoints function to use safeParseJSON as well
 export async function updateLeaderboardWithTotalPoints(
   playerName: string,
   accountScore: AccountScore,
+  userId?: string,
 ): Promise<boolean> {
   try {
+    logLeaderboardAction("UPDATE_POINTS_START", userId, playerName, { score: accountScore.points })
+
     if (!playerName || !accountScore) {
+      logLeaderboardAction("UPDATE_POINTS_ERROR", userId, playerName, { error: "Missing required data" })
       console.error("Missing required data for leaderboard update:", { playerName, accountScore })
       return false
     }
@@ -104,6 +184,9 @@ export async function updateLeaderboardWithTotalPoints(
     const normalizedPlayerName = playerName.trim()
 
     if (!normalizedPlayerName) {
+      logLeaderboardAction("UPDATE_POINTS_ERROR", userId, playerName, {
+        error: "Empty player name after normalization",
+      })
       console.error("Empty player name after normalization")
       return false
     }
@@ -118,8 +201,14 @@ export async function updateLeaderboardWithTotalPoints(
     if (existingEntries && existingEntries.length > 0) {
       for (const entryRaw of existingEntries) {
         try {
-          const entry = JSON.parse(entryRaw) as LeaderboardEntry
-          if (entry.playerName === normalizedPlayerName) {
+          // Use safeParseJSON instead of JSON.parse directly
+          const entry = safeParseJSON(entryRaw) as LeaderboardEntry
+
+          // Skip if parsing failed
+          if (!entry) continue
+
+          // First try to match by userId if available, then fall back to playerName
+          if ((userId && entry.userId === userId) || entry.playerName === normalizedPlayerName) {
             existingEntry = entry
             existingEntryRaw = entryRaw
             break
@@ -133,12 +222,14 @@ export async function updateLeaderboardWithTotalPoints(
 
     // If the player exists and their score hasn't changed, do nothing
     if (existingEntry && existingEntry.score === accountScore.points) {
+      logLeaderboardAction("UPDATE_POINTS_SKIP", userId, playerName, { reason: "Score unchanged" })
       return true
     }
 
     // Create or update the entry
     const entry: LeaderboardEntry = {
       id: existingEntry?.id || nanoid(),
+      userId: userId || existingEntry?.userId, // Use provided userId or keep existing
       playerName: normalizedPlayerName,
       score: accountScore.points,
       rank: accountScore.rank,
@@ -155,6 +246,7 @@ export async function updateLeaderboardWithTotalPoints(
     // If this is an update, remove the old entry first to avoid duplicates
     if (existingEntryRaw) {
       await kv.zrem(LEADERBOARD_KEY, existingEntryRaw)
+      logLeaderboardAction("UPDATE_POINTS_REMOVED_OLD", userId, playerName, { oldScore: existingEntry?.score })
     }
 
     // Add the new/updated entry
@@ -169,8 +261,10 @@ export async function updateLeaderboardWithTotalPoints(
     // Invalidate the cache to ensure the next read gets fresh data
     await kv.del(LEADERBOARD_CACHE_KEY)
 
+    logLeaderboardAction("UPDATE_POINTS_SUCCESS", userId, playerName, { newScore: entry.score })
     return true
   } catch (error) {
+    logLeaderboardAction("UPDATE_POINTS_ERROR", userId, playerName, { error: String(error) })
     console.error("Error updating leaderboard with total points:", error)
     return false
   }

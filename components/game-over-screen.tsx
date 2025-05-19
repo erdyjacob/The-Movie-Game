@@ -1,27 +1,21 @@
 "use client"
-
-import type React from "react"
-
 import { useState, useEffect } from "react"
-
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import type { GameItem, GameMode } from "@/lib/types"
 import GamePath from "./game-path"
-import { Clock, Film, Unlock, User, BarChart, Network, Trophy } from "lucide-react"
-import Image from "next/image"
-import { RarityOverlay } from "./rarity-overlay"
-import { cn } from "@/lib/utils"
+import { BarChart, Network, Trophy, UserPlus } from "lucide-react"
 import ErrorBoundary from "./error-boundary"
 import PlayerStats from "./player-stats"
-
-// Add the track import at the top of the file
 import { track } from "@vercel/analytics/react"
 import ConnectionWebButton from "./connection-web-button"
 import { useUser } from "@/contexts/user-context"
 import { useRouter } from "next/navigation"
+import { AnimatedButton } from "./game-over/animated-button"
+import { GameSummary } from "./game-over/game-summary"
+import { NewUnlocks } from "./game-over/new-unlocks"
+import { useScoreSync } from "@/hooks/use-score-sync"
 
-// Update the props interface to remove achievement progress
+// Update the props interface to include difficulty
 interface GameOverScreenProps {
   history: GameItem[]
   score: number
@@ -33,199 +27,7 @@ interface GameOverScreenProps {
     movies: GameItem[]
   }
   dailyChallengeCompleted?: boolean
-}
-
-// Custom animated button component
-const AnimatedButton = ({
-  children,
-  onClick,
-  variant = "default",
-  size = "default",
-  className,
-}: {
-  children: React.ReactNode
-  onClick: () => void
-  variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive"
-  size?: "default" | "sm" | "lg" | "icon"
-  className?: string
-}) => {
-  return (
-    <Button
-      onClick={onClick}
-      variant={variant}
-      size={size}
-      className={cn(
-        "transition-all duration-200",
-        "hover:shadow-sm hover:brightness-105",
-        "active:brightness-95",
-        "focus:ring-2 focus:ring-offset-1 focus:ring-primary/40",
-        className,
-      )}
-    >
-      {children}
-    </Button>
-  )
-}
-
-// New component for flip card animation
-const LegendaryFlipCard = ({ item }: { item: GameItem }) => {
-  const [flipped, setFlipped] = useState(false)
-
-  return (
-    <div className="legendary-card-container" onMouseEnter={() => setFlipped(true)}>
-      <div className={`legendary-card ${flipped ? "flipped" : ""}`}>
-        <div className="legendary-card-inner">
-          {/* Front side - Gold card with stars */}
-          <div className="legendary-card-front">
-            <div className="legendary-card-content">
-              <div className="stars-container">
-                <div className="star small left"></div>
-                <div className="star large center"></div>
-                <div className="star small right"></div>
-              </div>
-              <div className="legendary-label">LEGENDARY</div>
-            </div>
-          </div>
-
-          {/* Back side - Actual item */}
-          <div className="legendary-card-back">
-            <div className="legendary-card-content">
-              {item.image ? (
-                <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-              ) : (
-                <div className="h-full w-full bg-muted flex items-center justify-center">
-                  {item.type === "movie" ? (
-                    <Film size={24} className="text-muted-foreground" />
-                  ) : (
-                    <User size={24} className="text-muted-foreground" />
-                  )}
-                </div>
-              )}
-              <div className="legendary-badge">
-                <div className="legendary-star"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* Only show the name after the card is flipped */}
-      <p
-        className={`text-xs text-center mt-2 truncate max-w-[80px] font-medium transition-opacity duration-500 ${flipped ? "opacity-100" : "opacity-0"}`}
-        title={item.name}
-      >
-        {item.name}
-      </p>
-
-      {/* Add CSS for the legendary flip card animation */}
-      <style jsx>{`
-        .legendary-card-container {
-          perspective: 1000px;
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-        .legendary-card {
-          width: 64px;
-          height: 88px;
-          cursor: pointer;
-          transform-style: preserve-3d;
-          transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .legendary-card.flipped {
-          transform: rotateY(180deg);
-        }
-        .legendary-card-inner {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          text-align: center;
-          transform-style: preserve-3d;
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-          border-radius: 10px;
-        }
-        .legendary-card-front, .legendary-card-back {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          -webkit-backface-visibility: hidden;
-          backface-visibility: hidden;
-          border-radius: 10px;
-          overflow: hidden;
-        }
-        .legendary-card-front {
-          background: linear-gradient(135deg, #f7c52b, #e6a600);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .legendary-label {
-          position: absolute;
-          bottom: 8px;
-          left: 0;
-          right: 0;
-          text-align: center;
-          font-size: 8px;
-          font-weight: bold;
-          color: white;
-          letter-spacing: 0.5px;
-        }
-        .legendary-card-back {
-          transform: rotateY(180deg);
-          background-color: white;
-        }
-        .legendary-card-content {
-          width: 100%;
-          height: 100%;
-          position: relative;
-        }
-        .stars-container {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-        }
-        .star {
-          position: absolute;
-          background-color: white;
-          clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-        }
-        .star.small {
-          width: 16px;
-          height: 16px;
-        }
-        .star.large {
-          width: 24px;
-          height: 24px;
-        }
-        .star.left {
-          transform: translateX(-20px);
-        }
-        .star.right {
-          transform: translateX(20px);
-        }
-        .legendary-badge {
-          position: absolute;
-          bottom: 4px;
-          right: 4px;
-          width: 20px;
-          height: 20px;
-          background-color: #f7c52b;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 10;
-        }
-        .legendary-star {
-          width: 12px;
-          height: 12px;
-          background-color: white;
-          clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-        }
-      `}</style>
-    </div>
-  )
+  difficulty?: string // Make optional for backward compatibility
 }
 
 export default function GameOverScreen({
@@ -236,12 +38,36 @@ export default function GameOverScreen({
   gameMode,
   newUnlocks,
   dailyChallengeCompleted,
+  difficulty = "medium", // Default to medium if not provided
 }: GameOverScreenProps) {
   const isNewHighScore = score > highScore
-  const totalNewUnlocks = newUnlocks.actors.length + newUnlocks.movies.length
   const [statsOpen, setStatsOpen] = useState(false)
-  const { username, showUsernameSetup } = useUser()
+  const { username, showUsernameSetup, userId } = useUser()
   const router = useRouter()
+  const isEstablishedPlayer = history.length > 1
+
+  const { syncScore, isSyncing, syncError, syncSuccess } = useScoreSync()
+
+  // Add this effect to sync score when the game over screen appears
+  useEffect(() => {
+    // Automatically sync score if user is logged in
+    if (username && userId) {
+      console.log(`[GameOver] Syncing score for ${username}: ${score}`)
+      syncScore(score, gameMode, difficulty)
+        .then((success) => {
+          if (success) {
+            console.log("[GameOver] Score sync successful")
+          } else {
+            console.warn("[GameOver] Score sync failed")
+          }
+        })
+        .catch((error) => {
+          console.error("[GameOver] Score sync error:", error)
+        })
+    } else {
+      console.log("[GameOver] User not logged in, skipping score sync")
+    }
+  }, [username, userId, score, gameMode, difficulty, syncScore])
 
   useEffect(() => {
     // Update longest chain if this game's chain is longer than the stored one
@@ -287,19 +113,8 @@ export default function GameOverScreen({
         <CardTitle className="text-center text-2xl">Game Over</CardTitle>
       </CardHeader>
       <CardContent className="space-y-8 px-6">
-        <div className="text-center py-2">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Clock className="h-5 w-5 text-blue-500" />
-            <h3 className="text-xl">Connections Made: {score}</h3>
-          </div>
-          {isNewHighScore ? (
-            <p className="text-green-600 font-semibold">New High Score</p>
-          ) : (
-            <p>High Score: {highScore}</p>
-          )}
-
-          <p className="mt-2 text-sm text-muted-foreground">You made {score} connections in 2 minutes!</p>
-        </div>
+        {/* Use the GameSummary component */}
+        <GameSummary score={score} highScore={highScore} isNewHighScore={isNewHighScore} />
 
         <div className="space-y-3">
           <h3 className="text-xl font-semibold text-center mb-4">Your Movie Path</h3>
@@ -311,99 +126,15 @@ export default function GameOverScreen({
           </p>
         </div>
 
-        {/* New Pulls Section */}
-        {totalNewUnlocks > 0 && (
-          <div className="space-y-4 border-t pt-6">
-            <div className="flex items-center justify-center gap-2">
-              <Unlock className="h-5 w-5 text-green-500" />
-              <h3 className="text-xl font-semibold text-center">
-                You unlocked {totalNewUnlocks} new {totalNewUnlocks === 1 ? "pull" : "pulls"}
-              </h3>
-            </div>
+        {/* Use the NewUnlocks component */}
+        <NewUnlocks newUnlocks={newUnlocks} />
 
-            {/* New Actors */}
-            {newUnlocks.actors.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="flex items-center gap-1 text-lg font-medium">
-                  <User className="h-4 w-4" />
-                  <span>
-                    {newUnlocks.actors.length} New {newUnlocks.actors.length === 1 ? "Actor Pull" : "Actor Pulls"}
-                  </span>
-                </h4>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                  {newUnlocks.actors.map((actor) => (
-                    <div key={actor.id} className="flex flex-col items-center">
-                      {actor.rarity === "legendary" ? (
-                        <LegendaryFlipCard item={actor} />
-                      ) : (
-                        <>
-                          <div className="relative h-20 w-16 rounded-md overflow-hidden shadow-sm">
-                            {actor.image ? (
-                              <Image
-                                src={actor.image || "/placeholder.svg"}
-                                alt={actor.name}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full bg-muted flex items-center justify-center">
-                                <User size={20} className="text-muted-foreground" />
-                              </div>
-                            )}
-                            {actor.rarity && <RarityOverlay rarity={actor.rarity} showLabel={true} size="sm" />}
-                          </div>
-                          <p className="text-xs text-center mt-1 truncate max-w-[80px]" title={actor.name}>
-                            {actor.name}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* New Movies */}
-            {newUnlocks.movies.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="flex items-center gap-1 text-lg font-medium">
-                  <Film className="h-4 w-4" />
-                  <span>
-                    {newUnlocks.movies.length} New {newUnlocks.movies.length === 1 ? "Movie Pull" : "Movie Pulls"}
-                  </span>
-                </h4>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                  {newUnlocks.movies.map((movie) => (
-                    <div key={movie.id} className="flex flex-col items-center">
-                      {movie.rarity === "legendary" ? (
-                        <LegendaryFlipCard item={movie} />
-                      ) : (
-                        <>
-                          <div className="relative h-20 w-16 rounded-md overflow-hidden shadow-sm">
-                            {movie.image ? (
-                              <Image
-                                src={movie.image || "/placeholder.svg"}
-                                alt={movie.name}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full bg-muted flex items-center justify-center">
-                                <Film size={20} className="text-muted-foreground" />
-                              </div>
-                            )}
-                            {movie.rarity && <RarityOverlay rarity={movie.rarity} showLabel={true} size="sm" />}
-                          </div>
-                          <p className="text-xs text-center mt-1 truncate max-w-[80px]" title={movie.name}>
-                            {movie.name}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* Score sync status indicator - only for users with accounts */}
+        {username && (
+          <div className="text-center text-sm">
+            {isSyncing && <p className="text-blue-500">Syncing your score...</p>}
+            {syncSuccess && <p className="text-green-500">Score synced to leaderboard!</p>}
+            {syncError && <p className="text-red-500">Failed to sync score: {syncError}</p>}
           </div>
         )}
       </CardContent>
@@ -448,19 +179,36 @@ export default function GameOverScreen({
           </AnimatedButton>
         </div>
 
-        {/* Conditional button for leaderboard/username */}
-        {!username && (
-          // Only show Create Screenname button if user doesn't have a username
-          <AnimatedButton
-            variant="outline"
-            size="lg"
-            onClick={handleCreateScreenname}
-            className="w-full mt-2 flex items-center justify-center gap-2 h-12 border-dashed border-2"
-          >
-            <Trophy size={16} />
-            <span>Create Screenname</span>
-          </AnimatedButton>
-        )}
+        {/* Conditional button for account creation - different messages based on player status */}
+        {!username &&
+          (isEstablishedPlayer ? (
+            // For established players without accounts
+            <div className="w-full mt-2 text-center">
+              <p className="text-amber-400 font-medium mb-2">
+                Create an account to save your progress and compete on the leaderboard!
+              </p>
+              <AnimatedButton
+                variant="outline"
+                size="lg"
+                onClick={handleCreateScreenname}
+                className="w-full flex items-center justify-center gap-2 h-12 border-amber-400/30 text-amber-400 hover:bg-amber-400/10"
+              >
+                <UserPlus size={16} />
+                <span>Create Account</span>
+              </AnimatedButton>
+            </div>
+          ) : (
+            // For new players without accounts
+            <AnimatedButton
+              variant="outline"
+              size="lg"
+              onClick={handleCreateScreenname}
+              className="w-full mt-2 flex items-center justify-center gap-2 h-12 border-dashed border-2"
+            >
+              <Trophy size={16} />
+              <span>Create Screenname</span>
+            </AnimatedButton>
+          ))}
 
         {/* View Leaderboard button - always visible */}
         <AnimatedButton

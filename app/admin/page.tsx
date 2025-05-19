@@ -17,6 +17,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { LeaderboardRepair } from "@/components/admin/leaderboard-repair"
+import { UserDiagnostics } from "@/components/admin/user-diagnostics"
+import { UserDataFix } from "@/components/admin/user-data-fix"
+import { ScoreDiagnostics } from "@/components/admin/score-diagnostics"
+import { UserScoreFix } from "@/components/admin/user-score-fix"
+import { FixMissingScores } from "@/components/admin/fix-missing-scores"
+import { ScoreSyncDiagnostics } from "@/components/admin/score-sync-diagnostics"
 
 export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -183,6 +189,10 @@ export default function AdminPage() {
               <Users className="w-4 h-4 mr-2" />
               User Management
             </TabsTrigger>
+            <TabsTrigger value="scores">
+              <Trophy className="w-4 h-4 mr-2" />
+              Score Management
+            </TabsTrigger>
             <TabsTrigger value="monitoring">
               <Database className="w-4 h-4 mr-2" />
               Monitoring
@@ -256,12 +266,9 @@ export default function AdminPage() {
               </CardFooter>
             </Card>
 
-            {/* Add the LeaderboardRepair component here */}
-            {password && (
-              <div className="mt-6">
-                <LeaderboardRepair adminToken={password} />
-              </div>
-            )}
+            <div className="grid gap-6 mt-6">
+              <LeaderboardRepair adminToken={password} />
+            </div>
           </TabsContent>
 
           <TabsContent value="users">
@@ -290,7 +297,14 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent>
                 {password ? (
-                  <UserManagement adminPassword={password} id="user-management" />
+                  <>
+                    <UserManagement adminPassword={password} id="user-management" />
+                    <div className="grid gap-6 mt-6">
+                      <UserDiagnostics adminToken={password} />
+                      <UserDataFix adminToken={password} />
+                      <FixMissingScores adminToken={password} />
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center py-6 text-muted-foreground">
                     Please enter your admin password to access user management
@@ -298,6 +312,15 @@ export default function AdminPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Score Management Tab */}
+          <TabsContent value="scores">
+            <div className="grid gap-6">
+              <ScoreDiagnostics />
+              <UserScoreFix />
+              <ScoreSyncDiagnostics />
+            </div>
           </TabsContent>
 
           <TabsContent value="monitoring">

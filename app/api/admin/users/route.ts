@@ -37,13 +37,42 @@ export async function GET(request: NextRequest) {
       users = users.filter((user) => user.username.toLowerCase().includes(searchQuery))
     }
 
+    // Fetch scores for all users
+    const userScores = await Promise.all(
+      users.map(async (user) => {
+        // Try to get score from user:{userId}:score
+        let score = await kv.get(`user:${user.userId}:score`)
+
+        // If not found, try to get from user object
+        if (score === null) {
+          const userData = await kv.get(`user:${user.userId}`)
+          if (userData && typeof userData === "object" && "score" in userData) {
+            score = userData.score
+          }
+        }
+
+        // If still not found, try to get from leaderboard
+        if (score === null) {
+          const leaderboardEntry = await kv.zscore("movie-game:leaderboard", user.userId)
+          if (leaderboardEntry !== null) {
+            score = leaderboardEntry
+          }
+        }
+
+        return {
+          ...user,
+          score: score !== null ? Number(score) : null,
+        }
+      }),
+    )
+
     // Sort alphabetically by username
-    users.sort((a, b) => a.username.localeCompare(b.username))
+    userScores.sort((a, b) => a.username.localeCompare(b.username))
 
     // Calculate total and paginate
-    const total = users.length
+    const total = userScores.length
     const startIndex = (page - 1) * limit
-    const paginatedUsers = users.slice(startIndex, startIndex + limit)
+    const paginatedUsers = userScores.slice(startIndex, startIndex + limit)
 
     return NextResponse.json({
       users: paginatedUsers,

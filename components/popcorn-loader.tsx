@@ -32,13 +32,19 @@ export function PopcornLoader({ size = "md", className }: PopcornLoaderProps) {
 
   return (
     <div className={cn("flex flex-col items-center justify-center", className)}>
-      {/* Popcorn emoji with bounce animation */}
-      <div className="animate-bounce mb-2">
+      {/* Popcorn emoji with bounce and shake animation */}
+      <div className="mb-2">
         <span
-          className={cn("text-2xl", {
-            "text-xl": size === "sm",
+          className={cn("inline-block animate-[bounce_1s_infinite,shake_0.5s_infinite]", {
+            "text-lg": size === "sm",
+            "text-2xl": size === "md",
             "text-3xl": size === "lg",
           })}
+          style={{
+            animation: "bounce 1s infinite, shake 0.3s infinite",
+            transformOrigin: "center bottom",
+          }}
+          aria-hidden="true"
         >
           🍿
         </span>

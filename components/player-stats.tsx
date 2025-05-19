@@ -5,11 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Film, User, Trophy, BarChart, Star, Target, Calendar, X, ChevronUp, ChevronDown } from "lucide-react"
-import { clearPlayerHistory, getMostUsedItems, getItemsByRarity } from "@/lib/player-history"
+import { clearPlayerHistory, getMostUsedItems, getItemsByRarity, loadPlayerHistory } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
 import Link from "next/link"
-import type { PlayerHistoryItem, Rarity, AccountRank, AccountScore, GameItem } from "@/lib/types"
+import type { PlayerHistoryItem, Rarity, AccountScore, GameItem } from "@/lib/types"
 import { getRarityDisplayName } from "@/lib/rarity"
 import {
   AlertDialog,
@@ -25,9 +25,12 @@ import {
 import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
 import ConnectionWebButton from "./connection-web-button"
-import { clearConnections } from "@/lib/connection-tracking"
 import { useUser } from "@/contexts/user-context"
 import { updateLeaderboardWithTotalPoints, getPlayerLeaderboardRank } from "@/lib/leaderboard"
+import { clearConnections } from "@/lib/connection-utils"
+
+// Add the import for the rank calculator
+import { calculateAccountScore, getRankColor } from "@/lib/rank-calculator"
 
 // Add these constants at the top of the file, after the imports
 // These represent estimated totals of collectible items in the game
@@ -96,6 +99,45 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     }
   }, [])
 
+  // Add this function to the PlayerStats component
+  const syncHistoryToServer = async () => {
+    if (!username) return
+
+    try {
+      const history = loadPlayerHistory()
+      const userId = localStorage.getItem("movieGameUserId")
+
+      if (!userId) {
+        console.error("No user ID found in localStorage")
+        return
+      }
+
+      const response = await fetch("/api/player/sync-history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          username,
+          playerHistory: history,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to sync history: ${response.status}`)
+      }
+
+      const data = await response.json()
+      if (data.success) {
+        // Refresh account score and leaderboard rank
+        await calculatePlayerAccountScore()
+      }
+    } catch (error) {
+      console.error("Error syncing history to server:", error)
+    }
+  }
+
   // Load data when component mounts or when tabs change
   useEffect(() => {
     const loadData = async () => {
@@ -125,9 +167,14 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
           }
         }
 
+        // Add this line to sync history to server
+        if (username) {
+          await syncHistoryToServer()
+        }
+
         // Calculate account score
         try {
-          await calculateAccountScore()
+          await calculatePlayerAccountScore()
         } catch (error) {
           console.error("Error calculating account score:", error)
         }
@@ -137,13 +184,14 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     }
 
     loadData()
-  }, [activeTab, activeType, mode])
+  }, [activeTab, activeType, mode, username])
 
-  // Update the calculateAccountScore function to include collection percentages
-  const calculateAccountScore = async () => {
+  // This function calculates scores but doesn't persist them to the server
+  const calculatePlayerAccountScore = async () => {
     try {
       const movies = getItemsByRarity("movie")
       const actors = getItemsByRarity("actor")
+
       const allItems = [...movies, ...actors]
 
       const legendaryCount = allItems.filter((item) => item.rarity === "legendary").length
@@ -151,62 +199,27 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
       const rareCount = allItems.filter((item) => item.rarity === "rare").length
       const uncommonCount = allItems.filter((item) => item.rarity === "uncommon").length
       const commonCount = allItems.filter((item) => item.rarity === "common").length
-      const totalItems = allItems.length
-
-      // Calculate collection percentages
-      const moviesPercentage = ((movies.length / TOTAL_COLLECTIBLE_MOVIES) * 100).toFixed(2)
-      const actorsPercentage = ((actors.length / TOTAL_COLLECTIBLE_ACTORS) * 100).toFixed(2)
-      const totalPercentage = (
-        ((movies.length + actors.length) / (TOTAL_COLLECTIBLE_MOVIES + TOTAL_COLLECTIBLE_ACTORS)) *
-        100
-      ).toFixed(2)
-
-      // Calculate points
-      const points = legendaryCount * 100 + epicCount * 50 + rareCount * 25 + uncommonCount * 10 + commonCount * 1
 
       // Calculate daily challenges completed
       const challenges = await getCompletedDailyChallengeItems()
       const dailyChallengesCompleted = Object.keys(challenges).length
 
-      // Add bonus points for daily challenges
-      const totalPoints = points + dailyChallengesCompleted * 50
-
-      // Determine rank
-      let rank: AccountRank = "F"
-      if (totalPoints >= 10000) rank = "SS"
-      else if (totalPoints >= 7500) rank = "S+"
-      else if (totalPoints >= 5000) rank = "S"
-      else if (totalPoints >= 4000) rank = "S-"
-      else if (totalPoints >= 3000) rank = "A+"
-      else if (totalPoints >= 2000) rank = "A"
-      else if (totalPoints >= 1500) rank = "A-"
-      else if (totalPoints >= 1200) rank = "B+"
-      else if (totalPoints >= 900) rank = "B"
-      else if (totalPoints >= 750) rank = "B-"
-      else if (totalPoints >= 600) rank = "C+"
-      else if (totalPoints >= 450) rank = "C"
-      else if (totalPoints >= 350) rank = "C-"
-      else if (totalPoints >= 250) rank = "D+"
-      else if (totalPoints >= 200) rank = "D"
-      else if (totalPoints >= 150) rank = "D-"
-      else if (totalPoints >= 100) rank = "F+"
-      else if (totalPoints >= 50) rank = "F"
-
-      const newAccountScore = {
-        rank,
-        points: totalPoints,
+      // Use the utility function to calculate the account score
+      const newAccountScore = calculateAccountScore(
         legendaryCount,
         epicCount,
         rareCount,
         uncommonCount,
         commonCount,
-        totalItems,
         dailyChallengesCompleted,
-        moviesPercentage: Number.parseFloat(moviesPercentage),
-        actorsPercentage: Number.parseFloat(actorsPercentage),
-        totalPercentage: Number.parseFloat(totalPercentage),
-        moviesCount: movies.length,
-        actorsCount: actors.length,
+        movies.length,
+        actors.length,
+      )
+
+      // Ensure rank is defined before setting the account score
+      if (!newAccountScore.rank) {
+        console.error("Account score rank is undefined, using default 'F'")
+        newAccountScore.rank = "F"
       }
 
       setAccountScore(newAccountScore)
@@ -261,40 +274,9 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     all: collectionItems.length,
   }
 
-  // Get rank color
-  const getRankColor = (rank: AccountRank): string => {
-    // Base colors for each rank tier
-    switch (rank) {
-      case "SS":
-        return "text-rose-400 border-rose-400" // Special color for SS rank
-      case "S+":
-      case "S":
-      case "S-":
-        return "text-amber-500 border-amber-500" // Gold for S ranks
-      case "A+":
-      case "A":
-      case "A-":
-        return "text-purple-500 border-purple-500" // Purple for A ranks
-      case "B+":
-      case "B":
-      case "B-":
-        return "text-blue-500 border-blue-500" // Blue for B ranks
-      case "C+":
-      case "C":
-      case "C-":
-        return "text-green-500 border-green-500" // Green for C ranks
-      case "D+":
-      case "D":
-      case "D-":
-        return "text-orange-500 border-orange-500" // Orange for D ranks
-      case "F+":
-      case "F":
-      case "F-":
-        return "text-gray-500 border-gray-500" // Gray for F ranks
-      default:
-        return "text-gray-500 border-gray-500"
-    }
-  }
+  // Ensure rank is defined before using it
+  const rankDisplay = accountScore?.rank || "F"
+  const rankColorClass = getRankColor(rankDisplay)
 
   return (
     <Card className="w-full border-0 rounded-none sm:rounded-lg sm:border">
@@ -352,25 +334,24 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
               )}
             </div>
             <div
-              className={`text-4xl font-bold w-14 h-14 rounded-full border-4 flex items-center justify-center ${getRankColor(accountScore.rank)}`}
+              className={`text-4xl font-bold w-14 h-14 rounded-full border-4 flex items-center justify-center ${rankColorClass}`}
               style={{
-                background: accountScore.rank === "SS" ? "linear-gradient(135deg, #fef3c7, #f87171)" : "",
-                boxShadow:
-                  accountScore.rank === "SS" || accountScore.rank === "S+" ? "0 0 10px rgba(251, 191, 36, 0.6)" : "",
+                background: rankDisplay === "SS" ? "linear-gradient(135deg, #fef3c7, #f87171)" : "",
+                boxShadow: rankDisplay === "SS" || rankDisplay === "S+" ? "0 0 10px rgba(251, 191, 36, 0.6)" : "",
               }}
             >
-              {accountScore.rank.includes("+") ? (
+              {rankDisplay.includes("+") ? (
                 <span className="flex items-center justify-center">
-                  <span>{accountScore.rank.charAt(0)}</span>
+                  <span>{rankDisplay.charAt(0)}</span>
                   <sup className="text-lg -ml-1">+</sup>
                 </span>
-              ) : accountScore.rank.includes("-") ? (
+              ) : rankDisplay.includes("-") ? (
                 <span className="flex items-center justify-center">
-                  <span>{accountScore.rank.charAt(0)}</span>
+                  <span>{rankDisplay.charAt(0)}</span>
                   <sup className="text-lg -ml-1">-</sup>
                 </span>
               ) : (
-                accountScore.rank
+                rankDisplay
               )}
             </div>
           </div>
@@ -406,7 +387,9 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Collection %</p>
-                <p className="text-xl font-semibold text-green-500">{accountScore.totalPercentage.toFixed(2)}%</p>
+                <p className="text-xl font-semibold text-green-500">
+                  {accountScore.totalPercentage?.toFixed(2) || "0.00"}%
+                </p>
               </div>
             </div>
           </div>
@@ -424,7 +407,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
               <div className="space-y-3 mt-2">
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span>Total Collection ({accountScore.totalPercentage}%)</span>
+                    <span>Total Collection ({accountScore.totalPercentage?.toFixed(2) || "0.00"}%)</span>
                     <span>
                       {accountScore.totalItems} / {TOTAL_COLLECTIBLE_MOVIES + TOTAL_COLLECTIBLE_ACTORS}
                     </span>
@@ -432,35 +415,35 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
-                      style={{ width: `${accountScore.totalPercentage}%` }}
+                      style={{ width: `${accountScore.totalPercentage || 0}%` }}
                     ></div>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span>Movies ({accountScore.moviesPercentage}%)</span>
+                    <span>Movies ({accountScore.moviesPercentage?.toFixed(2) || "0.00"}%)</span>
                     <span>
-                      {accountScore.moviesCount} / {TOTAL_COLLECTIBLE_MOVIES}
+                      {accountScore.moviesCount || 0} / {TOTAL_COLLECTIBLE_MOVIES}
                     </span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-amber-500 to-red-500"
-                      style={{ width: `${accountScore.moviesPercentage}%` }}
+                      style={{ width: `${accountScore.moviesPercentage || 0}%` }}
                     ></div>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span>Actors ({accountScore.actorsPercentage}%)</span>
+                    <span>Actors ({accountScore.actorsPercentage?.toFixed(2) || "0.00"}%)</span>
                     <span>
-                      {accountScore.actorsCount} / {TOTAL_COLLECTIBLE_ACTORS}
+                      {accountScore.actorsCount || 0} / {TOTAL_COLLECTIBLE_ACTORS}
                     </span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-green-500 to-emerald-600"
-                      style={{ width: `${accountScore.actorsPercentage}%` }}
+                      style={{ width: `${accountScore.actorsPercentage || 0}%` }}
                     ></div>
                   </div>
                 </div>

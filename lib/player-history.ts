@@ -53,7 +53,7 @@ export function isNewItem(item: GameItem): boolean {
   return false
 }
 
-// Add an item to player history
+// This function adds items to player history but doesn't update scores or leaderboard
 export function addToPlayerHistory(item: GameItem): void {
   if (typeof window === "undefined" || !item) {
     return
@@ -192,4 +192,63 @@ export function clearPlayerHistory(): void {
   }
 
   localStorage.removeItem("movieGamePlayerHistory")
+}
+
+// Add this function to update player history with a complete game
+export type GameMode = "standard" | "timed"
+export type Difficulty = "easy" | "medium" | "hard"
+
+export function updatePlayerHistoryWithGame(
+  history: GameItem[],
+  score: number,
+  gameMode: GameMode,
+  difficulty: Difficulty,
+): void {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    // First, make sure all items are in the player's history
+    history.forEach((item) => {
+      addToPlayerHistory(item)
+    })
+
+    // Store the game completion in history
+    const gameHistory = localStorage.getItem("movieGameCompletedGames") || "[]"
+    const games = JSON.parse(gameHistory)
+
+    // Add the new game
+    games.unshift({
+      date: new Date().toISOString(),
+      score,
+      itemCount: history.length,
+      gameMode,
+      difficulty,
+    })
+
+    // Keep only the most recent 50 games
+    const trimmedGames = games.slice(0, 50)
+    localStorage.setItem("movieGameCompletedGames", JSON.stringify(trimmedGames))
+
+    console.log(`Game completion recorded: score=${score}, items=${history.length}`)
+  } catch (error) {
+    console.error("Error updating player history with game:", error)
+  }
+}
+
+// Add this function to get the player's completed games
+export function getCompletedGames(limit = 10) {
+  if (typeof window === "undefined") {
+    return []
+  }
+
+  try {
+    const gameHistory = localStorage.getItem("movieGameCompletedGames") || "[]"
+    const games = JSON.parse(gameHistory)
+    return games.slice(0, limit)
+  } catch (error) {
+    console.error("Error getting completed games:", error)
+    return []
+  }
 }

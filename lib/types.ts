@@ -1,3 +1,4 @@
+// Don't import d3 types directly, just declare them
 export type ItemType = "movie" | "actor"
 export type Difficulty = "easy" | "medium" | "hard"
 export type GameMode = "classic" | "timed" | "dailyChallenge"
@@ -135,11 +136,13 @@ export interface Connection {
   actorName: string
   timestamp: string // ISO string
   gameId?: string // Optional game session identifier
+  source?: "explicit" | "inferred" | "manual"
 }
 
 // New leaderboard types
 export interface LeaderboardEntry {
   id: string
+  userId?: string // Add this line to store the user ID
   playerName: string
   score: number
   rank: AccountRank
@@ -152,4 +155,30 @@ export interface LeaderboardEntry {
   avatarUrl?: string
   gameMode: GameMode
   difficulty: Difficulty
+}
+
+// Define the Node interface for the visualization
+export interface Node {
+  id: string
+  name: string
+  type: "movie" | "actor"
+  image: string | null
+  rarity?: string
+  count: number
+  // d3 specific properties
+  x?: number
+  y?: number
+  fx?: number | null
+  fy?: number | null
+  index?: number
+  vx?: number
+  vy?: number
+}
+
+// Define the GraphLink interface for the visualization
+export interface GraphLink {
+  source: string | Node
+  target: string | Node
+  value: number
+  source_type?: "explicit" | "inferred" | "manual"
 }

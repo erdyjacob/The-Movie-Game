@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import StartScreen from "./start-screen"
-import GameScreen from "./game-screen"
+import { GameScreen } from "./game-screen" // Update to use named import
 import GameOverScreen from "./game-over-screen"
 import type { GameState, GameItem, Difficulty, GameFilters } from "@/lib/types"
 import { getRandomMovie, searchMoviesByActor, searchActorsByMovie, prefetchGameData } from "@/lib/tmdb-api"
@@ -33,6 +33,8 @@ const TIME_LIMIT = 120 // 2 minutes
 
 // Import the saveConnection function at the top of the file
 import { saveConnection } from "@/lib/connection-tracking"
+
+import Image from "next/image"
 
 export default function GameContainer() {
   const [gameState, setGameState] = useState<GameState>({
@@ -708,10 +710,13 @@ export default function GameContainer() {
 
   return (
     <div className="w-full max-w-3xl">
-      {/* Remove the header when on the start screen */}
+      {/* Header with logo when not on start screen */}
       {gameState.status !== "start" && (
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold mb-3">The Movie Game</h1>
+          {/* SVG Logo instead of text title */}
+          <div className="w-80 h-20 relative mx-auto mb-3">
+            <Image src="/images/TheMovieGame.svg" alt="The Movie Game" fill className="object-contain" priority />
+          </div>
           <p className="text-muted-foreground">
             {gameState.gameMode === "dailyChallenge"
               ? "Daily Challenge: Unlimited time, three strikes, find the daily target!"

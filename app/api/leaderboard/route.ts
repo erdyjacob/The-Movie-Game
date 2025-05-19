@@ -4,11 +4,13 @@ import type { AccountScore, GameMode, Difficulty } from "@/lib/types"
 
 export async function POST(request: NextRequest) {
   try {
-    const { playerName, score, gameMode, difficulty, avatarUrl } = await request.json()
+    const { playerName, score, gameMode, difficulty, avatarUrl, userId } = await request.json()
 
     if (!playerName || !score || !gameMode || !difficulty) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
+
+    console.log(`[API] Leaderboard POST request received for ${playerName} (${userId || "no userId"})`)
 
     const success = await addLeaderboardEntry(
       playerName,
@@ -16,6 +18,7 @@ export async function POST(request: NextRequest) {
       gameMode as GameMode,
       difficulty as Difficulty,
       avatarUrl,
+      userId, // Pass userId to the function
     )
 
     if (success) {

@@ -21,6 +21,7 @@ import { Search, Trash2, AlertTriangle } from "lucide-react"
 interface User {
   userId: string
   username: string
+  score: number | null
 }
 
 interface PaginationInfo {
@@ -152,6 +153,12 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
     }
   }
 
+  // Format score with commas
+  const formatScore = (score: number | null) => {
+    if (score === null) return "N/A"
+    return score.toLocaleString()
+  }
+
   useEffect(() => {
     if (adminPassword) {
       fetchUsers()
@@ -192,13 +199,14 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
               <TableRow>
                 <TableHead>Username</TableHead>
                 <TableHead>User ID</TableHead>
+                <TableHead>Score</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
                     {isLoading ? "Loading users..." : "No users found"}
                   </TableCell>
                 </TableRow>
@@ -207,6 +215,9 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
                   <TableRow key={user.userId}>
                     <TableCell className="font-medium">{user.username}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{user.userId}</TableCell>
+                    <TableCell className={user.score ? "font-semibold text-amber-500" : "text-muted-foreground"}>
+                      {formatScore(user.score)}
+                    </TableCell>
                     <TableCell>
                       <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(user)}>
                         <Trash2 className="h-4 w-4" />
