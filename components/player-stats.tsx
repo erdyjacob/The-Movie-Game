@@ -4,7 +4,21 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Film, User, Trophy, BarChart, Star, Target, Calendar, X, ChevronUp, ChevronDown } from "lucide-react"
+import {
+  Film,
+  User,
+  Trophy,
+  BarChart,
+  Star,
+  Target,
+  Calendar,
+  X,
+  ChevronUp,
+  ChevronDown,
+  AlertTriangle,
+  Trash2,
+  UserPlus,
+} from "lucide-react"
 import { getMostUsedItems, getItemsByRarity, loadPlayerHistory } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
@@ -16,6 +30,15 @@ import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
 import ConnectionWebButton from "./connection-web-button"
 import { useUser } from "@/contexts/user-context"
 import { updateLeaderboardWithTotalPoints, getPlayerLeaderboardRank } from "@/lib/leaderboard"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { useRouter } from "next/navigation"
 
 // Add the import for the rank calculator
 import { calculateAccountScore, getRankColor } from "@/lib/rank-calculator"
@@ -71,13 +94,18 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
   const [dailyChallenges, setDailyChallenges] = useState<Record<string, GameItem>>({})
   const { toast } = useToast()
   const [collectionProgressOpen, setCollectionProgressOpen] = useState(false)
-  const { username } = useUser()
+  const { username, userId, clearUser, showUsernameSetup } = useUser()
 
   // Add state for longest chain
   const [longestChain, setLongestChain] = useState(0)
 
   // Add state for player's leaderboard rank
   const [leaderboardRank, setLeaderboardRank] = useState<number | null>(null)
+
+  // Add these state variables inside the PlayerStats component
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const router = useRouter()
 
   // Load longest chain from localStorage
   useEffect(() => {
@@ -86,6 +114,69 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
       setLongestChain(Number.parseInt(storedLongestChain))
     }
   }, [])
+
+  // Add this function inside the PlayerStats component
+  const handleDeleteAccount = async () => {
+    if (!username || !userId) return
+
+    try {
+      setIsDeleting(true)
+
+      // Call the API to delete the account
+      const response = await fetch("/api/user/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          username,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || "Failed to delete account")
+      }
+
+      // Clear local storage data
+      localStorage.removeItem("movieGameUsername")
+      localStorage.removeItem("movieGameUserId")
+      localStorage.removeItem("movieGamePlayerHistory")
+      localStorage.removeItem("movieGameCompletedGames")
+      localStorage.removeItem("movieGameLongestChain")
+      localStorage.removeItem("movieGameDailyChallenges")
+
+      // Clear user context
+      clearUser()
+
+      // Show success toast
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been successfully deleted.",
+      })
+
+      // Close the stats page and redirect
+      onClose()
+      router.push("/")
+    } catch (error) {
+      console.error("Error deleting account:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete account",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+      setIsDeleteDialogOpen(false)
+    }
+  }
+
+  // Handle create account button click
+  const handleCreateAccount = () => {
+    showUsernameSetup()
+    onClose() // Close the stats panel when opening the username setup
+  }
 
   // Add this function to the PlayerStats component
   const syncHistoryToServer = async () => {
@@ -172,7 +263,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     }
 
     loadData()
-  }, [activeTab, activeType, mode, username])
+  }, [activeTab, activeType, mode, username, userId])
 
   // This function calculates scores but doesn't persist them to the server
   const calculatePlayerAccountScore = async () => {
@@ -663,7 +754,61 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
             )}
           </TabsContent>
         </Tabs>
+        {/* Account Button - conditionally show Create or Delete based on username existence */}
+        <div className="mt-8 pt-4 border-t">
+          {username ? (
+            // User has an account - show Delete Account button
+            <Button
+              variant="destructive"
+              size="sm"
+              className="w-full flex items-center gap-2"
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Account
+            </Button>
+          ) : (
+            // User doesn't have an account - show Create Account button
+            <Button
+              variant="default"
+              size="sm"
+              className="w-full flex items-center gap-2"
+              onClick={handleCreateAccount}
+            >
+              <UserPlus className="h-4 w-4" />
+              Create Account
+            </Button>
+          )}
+        </div>
       </CardContent>
+      {/* Delete Account Confirmation Dialog - only shown for users with accounts */}
+      {username && (
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                Delete Account
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete the account <span className="font-semibold">{username}</span>?
+              </DialogDescription>
+              <div className="mt-2 text-red-500 text-sm">
+                This action cannot be undone. Deleting your account will permanently remove all your game history,
+                scores, and collection.
+              </div>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Delete Account"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   )
 }
