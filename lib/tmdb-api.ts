@@ -524,7 +524,7 @@ function addToRecentActorTypes(actor: TMDBActor) {
 // Update the getRandomMovie function to avoid recently used movies
 export async function getRandomMovie(
   difficulty: Difficulty = "medium",
-  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: true },
+  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: false },
 ): Promise<TMDBMovie> {
   try {
     const thresholds = getMovieDifficultyThresholds(difficulty)
@@ -877,7 +877,7 @@ export async function searchActorsByMovie(movieId: number): Promise<TMDBActor[]>
 // Search for movies that an actor has appeared in
 export async function searchMoviesByActor(
   actorId: number,
-  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: true },
+  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: false },
 ): Promise<TMDBMovie[]> {
   try {
     let data

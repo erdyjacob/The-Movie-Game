@@ -1,5 +1,6 @@
 import type { Achievement, AccountScore } from "./types"
 import { loadConnections } from "./connection-tracking"
+import { loadPlayerHistory } from "./player-history"
 
 export const ACHIEVEMENTS: Omit<Achievement, "progress" | "unlocked" | "unlockedAt">[] = [
   {
@@ -41,6 +42,46 @@ export const ACHIEVEMENTS: Omit<Achievement, "progress" | "unlocked" | "unlocked
     requirement: 10,
     rarity: "rare",
     category: "discovery",
+  },
+  {
+    id: "fully_cranked",
+    name: "Fully Cranked",
+    description: "Use Jason Statham 10 times",
+    requirement: 10,
+    rarity: "uncommon",
+    category: "discovery",
+  },
+  {
+    id: "power_user",
+    name: "Power User",
+    description: "Finish 10 games",
+    requirement: 10,
+    rarity: "uncommon",
+    category: "milestone",
+  },
+  {
+    id: "power_user_ii",
+    name: "Power User II",
+    description: "Play the game on 10 different days",
+    requirement: 10,
+    rarity: "rare",
+    category: "milestone",
+  },
+  {
+    id: "treasure_hunter_ii",
+    name: "Treasure Hunter II",
+    description: "Discover 100 legendary pulls",
+    requirement: 100,
+    rarity: "legendary",
+    category: "collection",
+  },
+  {
+    id: "collector",
+    name: "Collector",
+    description: "Reach a collection percentage of 5%",
+    requirement: 5,
+    rarity: "rare",
+    category: "collection",
   },
 ]
 
@@ -119,6 +160,71 @@ export function checkAchievements(
     }
   }
 
+  // Check Fully Cranked (Jason Statham usage)
+  const achievementFullyCranked = updated.find((a) => a.id === "fully_cranked")
+  if (achievementFullyCranked) {
+    const jasonStathamUsage = getJasonStathamUsageCount()
+    achievementFullyCranked.progress = Math.min(jasonStathamUsage, achievementFullyCranked.requirement)
+    if (jasonStathamUsage >= achievementFullyCranked.requirement && !achievementFullyCranked.unlocked) {
+      achievementFullyCranked.unlocked = true
+      achievementFullyCranked.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementFullyCranked)
+    }
+  }
+
+  // Check Power User (games completed)
+  const achievementPowerUser = updated.find((a) => a.id === "power_user")
+  if (achievementPowerUser) {
+    const gamesCompleted = getCompletedGamesCount()
+    achievementPowerUser.progress = Math.min(gamesCompleted, achievementPowerUser.requirement)
+    if (gamesCompleted >= achievementPowerUser.requirement && !achievementPowerUser.unlocked) {
+      achievementPowerUser.unlocked = true
+      achievementPowerUser.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementPowerUser)
+    }
+  }
+
+  // Check Power User II (unique days played)
+  const achievementPowerUserII = updated.find((a) => a.id === "power_user_ii")
+  if (achievementPowerUserII) {
+    const uniqueDaysPlayed = getUniqueDaysPlayedCount()
+    achievementPowerUserII.progress = Math.min(uniqueDaysPlayed, achievementPowerUserII.requirement)
+    if (uniqueDaysPlayed >= achievementPowerUserII.requirement && !achievementPowerUserII.unlocked) {
+      achievementPowerUserII.unlocked = true
+      achievementPowerUserII.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementPowerUserII)
+    }
+  }
+
+  // Check Treasure Hunter II
+  const achievementTreasureHunterII = updated.find((a) => a.id === "treasure_hunter_ii")
+  if (achievementTreasureHunterII) {
+    achievementTreasureHunterII.progress = Math.min(
+      accountScore.legendaryCount,
+      achievementTreasureHunterII.requirement,
+    )
+    if (
+      accountScore.legendaryCount >= achievementTreasureHunterII.requirement &&
+      !achievementTreasureHunterII.unlocked
+    ) {
+      achievementTreasureHunterII.unlocked = true
+      achievementTreasureHunterII.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementTreasureHunterII)
+    }
+  }
+
+  // Check Collector (collection percentage)
+  const achievementCollector = updated.find((a) => a.id === "collector")
+  if (achievementCollector) {
+    const collectionPercentage = accountScore.totalPercentage || 0
+    achievementCollector.progress = Math.min(collectionPercentage, achievementCollector.requirement)
+    if (collectionPercentage >= achievementCollector.requirement && !achievementCollector.unlocked) {
+      achievementCollector.unlocked = true
+      achievementCollector.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementCollector)
+    }
+  }
+
   return { achievements: updated, newlyUnlocked }
 }
 
@@ -192,6 +298,62 @@ export function getRarityColor(rarity: string): string {
   }
 }
 
+// Helper function to get Jason Statham usage count
+function getJasonStathamUsageCount(): number {
+  try {
+    const history = loadPlayerHistory()
+    if (!history || !history.actors) return 0
+
+    // Look for Jason Statham (TMDB ID: 976)
+    const jasonStatham = history.actors.find(
+      (actor) => actor.name.toLowerCase().includes("jason statham") || actor.id === 976,
+    )
+
+    return jasonStatham ? jasonStatham.count : 0
+  } catch (error) {
+    console.error("Error getting Jason Statham usage count:", error)
+    return 0
+  }
+}
+
+// Helper function to get completed games count
+function getCompletedGamesCount(): number {
+  try {
+    const completedGames = localStorage.getItem("movieGameCompletedGames")
+    if (!completedGames) return 0
+
+    const games = JSON.parse(completedGames)
+    return Array.isArray(games) ? games.length : 0
+  } catch (error) {
+    console.error("Error getting completed games count:", error)
+    return 0
+  }
+}
+
+// Helper function to get unique days played count
+function getUniqueDaysPlayedCount(): number {
+  try {
+    const completedGames = localStorage.getItem("movieGameCompletedGames")
+    if (!completedGames) return 0
+
+    const games = JSON.parse(completedGames)
+    if (!Array.isArray(games)) return 0
+
+    const uniqueDates = new Set()
+    games.forEach((game) => {
+      if (game.timestamp) {
+        const date = new Date(game.timestamp).toDateString()
+        uniqueDates.add(date)
+      }
+    })
+
+    return uniqueDates.size
+  } catch (error) {
+    console.error("Error getting unique days played count:", error)
+    return 0
+  }
+}
+
 // Preview mode functions for testing
 export function getPreviewAchievements(): Achievement[] {
   const achievements = initializeAchievements()
@@ -211,6 +373,18 @@ export function getPreviewAchievements(): Achievement[] {
 
   // Networker - in progress
   achievements[4].progress = 7
+
+  // Add these to the preview achievements
+  achievements[5].progress = 7 // Fully Cranked - in progress
+  achievements[6].unlocked = true // Power User - unlocked
+  achievements[6].progress = achievements[6].requirement
+  achievements[6].unlockedAt = new Date(Date.now() - 172800000).toISOString() // 2 days ago
+
+  achievements[7].progress = 6 // Power User II - in progress
+  achievements[8].progress = 75 // Treasure Hunter II - in progress
+  achievements[9].unlocked = true // Collector - unlocked
+  achievements[9].progress = achievements[9].requirement
+  achievements[9].unlockedAt = new Date(Date.now() - 604800000).toISOString() // 1 week ago
 
   return achievements
 }

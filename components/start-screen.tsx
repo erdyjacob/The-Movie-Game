@@ -61,8 +61,8 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
   const isMobile = useMobile()
   const [difficulty, setDifficulty] = useState<Difficulty>("easy")
   const [filters, setFilters] = useState<GameFilters>({
-    includeAnimated: false,
-    includeSequels: false,
+    includeAnimated: true,
+    includeSequels: true,
     includeForeign: false,
   })
   const [howToPlayOpen, setHowToPlayOpen] = useState(false)
@@ -162,8 +162,8 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
     onStart(
       "easy",
       {
-        includeAnimated: false,
-        includeSequels: false,
+        includeAnimated: true,
+        includeSequels: true,
         includeForeign: false,
       },
       "dailyChallenge",

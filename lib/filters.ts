@@ -136,7 +136,7 @@ export function isRecentlyUsedFranchise(movie: TMDBMovie, recentlyUsedFranchises
 // Main filter function for movies
 export function filterMovie(
   movie: TMDBMovie,
-  filters: GameFilters,
+  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: false },
   recentlyUsedMovieIds: number[],
   recentlyUsedFranchises: string[],
 ): boolean {
@@ -186,7 +186,7 @@ export function filterMovie(
 // Apply filters to a list of movies
 export function applyMovieFilters(
   movies: TMDBMovie[],
-  filters: GameFilters,
+  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: false },
   recentlyUsedMovieIds: number[],
   recentlyUsedFranchises: string[],
 ): TMDBMovie[] {

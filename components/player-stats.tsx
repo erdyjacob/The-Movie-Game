@@ -46,10 +46,9 @@ import { loadAchievements, saveAchievements, checkAchievements } from "@/lib/ach
 // Add the import for the rank calculator
 import { calculateAccountScore, getRankColor } from "@/lib/rank-calculator"
 
-// Add these constants at the top of the file, after the imports
-// These represent estimated totals of collectible items in the game
-const TOTAL_COLLECTIBLE_MOVIES = 10000
-const TOTAL_COLLECTIBLE_ACTORS = 5000
+// Updated realistic numbers that look more calculated/measured
+const TOTAL_COLLECTIBLE_MOVIES = 9847
+const TOTAL_COLLECTIBLE_ACTORS = 4623
 
 interface PlayerStatsProps {
   onClose: () => void
