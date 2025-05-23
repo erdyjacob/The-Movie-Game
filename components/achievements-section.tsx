@@ -1,11 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { ChevronUp, ChevronDown, Eye, EyeOff, Trophy } from "lucide-react"
+import { ChevronUp, ChevronDown, Trophy } from "lucide-react"
 import Image from "next/image"
 import type { Achievement } from "@/lib/types"
-import { getRarityColor, getPreviewAchievements } from "@/lib/achievements"
+import { getRarityColor } from "@/lib/achievements"
 
 interface AchievementsSectionProps {
   achievements: Achievement[]
@@ -13,11 +12,9 @@ interface AchievementsSectionProps {
 
 export function AchievementsSection({ achievements }: AchievementsSectionProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [isPreviewMode, setIsPreviewMode] = useState(false)
 
-  const displayAchievements = isPreviewMode ? getPreviewAchievements() : achievements
-  const unlockedCount = displayAchievements.filter((a) => a.unlocked).length
-  const totalCount = displayAchievements.length
+  const unlockedCount = achievements.filter((a) => a.unlocked).length
+  const totalCount = achievements.length
 
   return (
     <div>
@@ -29,33 +26,13 @@ export function AchievementsSection({ achievements }: AchievementsSectionProps) 
           <span>
             Achievements ({unlockedCount}/{totalCount})
           </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation()
-                setIsPreviewMode(!isPreviewMode)
-              }}
-              className="h-6 w-6"
-              title={isPreviewMode ? "Exit Preview Mode" : "Preview Mode"}
-            >
-              {isPreviewMode ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-            </Button>
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </div>
+          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
       </div>
 
-      {isPreviewMode && (
-        <div className="mb-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
-          Preview Mode - Showing sample achievement states
-        </div>
-      )}
-
       {isOpen && (
         <div className="space-y-3 mt-2">
-          {displayAchievements.map((achievement) => {
+          {achievements.map((achievement) => {
             const rarityColor = getRarityColor(achievement.rarity)
 
             return (
