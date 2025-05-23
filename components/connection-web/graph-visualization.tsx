@@ -103,23 +103,23 @@ export function GraphVisualization({
     // Calculate collision radius including text space
     const textHeight = 16 // Height of text label + padding
     const totalNodeHeight = 20 + textHeight
-    collisionRadius = totalNodeHeight + 10 // Add extra padding
+    collisionRadius = 45
 
     switch (layoutQuality) {
       case "low":
-        linkDistance = 120 // Increased from 80
-        chargeStrength = -400 // Increased repulsion
-        collisionRadius = totalNodeHeight + 8
+        linkDistance = 80
+        chargeStrength = -800 // Increased from -200
+        collisionRadius = 40
         break
       case "medium":
-        linkDistance = 160 // Increased from 120
-        chargeStrength = -600 // Increased repulsion
-        collisionRadius = totalNodeHeight + 12
+        linkDistance = 120
+        chargeStrength = -1200 // Increased from -400
+        collisionRadius = 50
         break
       case "high":
-        linkDistance = 200 // Increased from 150
-        chargeStrength = -800 // Increased repulsion
-        collisionRadius = totalNodeHeight + 16
+        linkDistance = 150
+        chargeStrength = -1800 // Increased from -600
+        collisionRadius = 60
         break
     }
 
@@ -143,8 +143,8 @@ export function GraphVisualization({
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius(collisionRadius))
       // Add x and y forces to prevent nodes from getting too far from center
-      .force("x", d3.forceX(width / 2).strength(0.15)) // Increased from 0.07
-      .force("y", d3.forceY(height / 2).strength(0.15)) // Increased from 0.07
+      .force("x", d3.forceX(width / 2).strength(0.07)) // Increased from 0.07
+      .force("y", d3.forceY(height / 2).strength(0.07)) // Increased from 0.07
       // Add a new force to minimize edge crossings
       .force("link-repulsion", (alpha: number) => {
         // This custom force tries to minimize edge crossings
@@ -215,35 +215,6 @@ export function GraphVisualization({
                 l2.targetNode.x -= moveX
                 l2.targetNode.y -= moveY
               }
-            }
-          }
-        }
-      })
-      .force("separation", (alpha: number) => {
-        // Additional force to maintain minimum distance between all nodes
-        const minDistance = collisionRadius * 1.5
-
-        for (let i = 0; i < filteredNodes.length; i++) {
-          const nodeA = filteredNodes[i] as any
-          if (!nodeA.x || !nodeA.y) continue
-
-          for (let j = i + 1; j < filteredNodes.length; j++) {
-            const nodeB = filteredNodes[j] as any
-            if (!nodeB.x || !nodeB.y) continue
-
-            const dx = nodeA.x - nodeB.x
-            const dy = nodeA.y - nodeB.y
-            const distance = Math.sqrt(dx * dx + dy * dy)
-
-            if (distance < minDistance && distance > 0) {
-              const force = (minDistance - distance) * alpha * 0.1
-              const moveX = (dx / distance) * force
-              const moveY = (dy / distance) * force
-
-              nodeA.x += moveX
-              nodeA.y += moveY
-              nodeB.x -= moveX
-              nodeB.y -= moveY
             }
           }
         }
