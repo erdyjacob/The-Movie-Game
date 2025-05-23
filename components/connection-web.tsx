@@ -32,6 +32,7 @@ export default function ConnectionWeb() {
   const [backgroundFetchActive, setBackgroundFetchActive] = useState(false)
   const [backgroundFetchProgress, setBackgroundFetchProgress] = useState({ current: 0, total: 0 })
   const [layoutQuality, setLayoutQuality] = useState<"low" | "medium" | "high">("medium")
+  const [initialLoad, setInitialLoad] = useState(true)
 
   // Build graph data from player history
   const buildGraphData = React.useCallback(() => {
@@ -101,6 +102,8 @@ export default function ConnectionWeb() {
   useEffect(() => {
     // First, build the graph with existing data
     buildGraphData()
+    // Mark that we're past the initial load after the first render
+    setTimeout(() => setInitialLoad(false), 100)
 
     // Then, start the background fetch process
     const fetchMissingCreditsData = async () => {
@@ -355,6 +358,7 @@ export default function ConnectionWeb() {
               debugMode={debugMode}
               zoomLevel={zoomLevel}
               setZoomLevel={setZoomLevel}
+              initialLoad={initialLoad}
             />
             {selectedNode && <NodeDetailsCard node={selectedNode} links={links} />}
           </>

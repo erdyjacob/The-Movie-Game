@@ -16,6 +16,7 @@ interface GraphVisualizationProps {
   debugMode: boolean
   zoomLevel: number
   setZoomLevel: (level: number) => void
+  initialLoad: boolean
 }
 
 export function GraphVisualization({
@@ -30,6 +31,7 @@ export function GraphVisualization({
   debugMode,
   zoomLevel,
   setZoomLevel,
+  initialLoad,
 }: GraphVisualizationProps) {
   const svgRef = useRef<SVGSVGElement>(null)
 
@@ -108,17 +110,17 @@ export function GraphVisualization({
     switch (layoutQuality) {
       case "low":
         linkDistance = 80
-        chargeStrength = -800 // Increased from -200
+        chargeStrength = initialLoad ? -800 : -100 // Reduced from -200
         collisionRadius = 40
         break
       case "medium":
         linkDistance = 120
-        chargeStrength = -1200 // Increased from -400
+        chargeStrength = initialLoad ? -1200 : -200 // Reduced from -400
         collisionRadius = 50
         break
       case "high":
         linkDistance = 150
-        chargeStrength = -1800 // Increased from -600
+        chargeStrength = initialLoad ? -1800 : -300 // Reduced from -600
         collisionRadius = 60
         break
     }
@@ -447,7 +449,18 @@ export function GraphVisualization({
     return () => {
       simulation.stop()
     }
-  }, [nodes, links, loading, filterRarity, searchResults, searchTerm, onNodeSelect, layoutQuality, debugMode])
+  }, [
+    nodes,
+    links,
+    loading,
+    filterRarity,
+    searchResults,
+    searchTerm,
+    onNodeSelect,
+    layoutQuality,
+    debugMode,
+    initialLoad,
+  ])
 
   return <svg ref={svgRef} width="100%" height="100%" className="bg-muted/20"></svg>
 }
