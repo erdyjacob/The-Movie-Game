@@ -110,17 +110,17 @@ export function GraphVisualization({
     switch (layoutQuality) {
       case "low":
         linkDistance = 80
-        chargeStrength = initialLoad ? -800 : -100 // Reduced from -200
+        chargeStrength = initialLoad ? -2000 : -100 // Significantly increased Phase 1 repulsion
         collisionRadius = 40
         break
       case "medium":
         linkDistance = 120
-        chargeStrength = initialLoad ? -1200 : -200 // Reduced from -400
+        chargeStrength = initialLoad ? -3000 : -200 // Significantly increased Phase 1 repulsion
         collisionRadius = 50
         break
       case "high":
         linkDistance = 150
-        chargeStrength = initialLoad ? -1800 : -300 // Reduced from -600
+        chargeStrength = initialLoad ? -4000 : -300 // Significantly increased Phase 1 repulsion
         collisionRadius = 60
         break
     }
