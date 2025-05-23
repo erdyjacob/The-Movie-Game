@@ -263,11 +263,52 @@ function getMostConnectedNodeCount(): number {
   }
 }
 
+// Update the loadAchievements function to include migration logic
 export function loadAchievements(): Achievement[] {
   try {
     const stored = localStorage.getItem("movieGameAchievements")
     if (stored) {
-      return JSON.parse(stored)
+      const storedAchievements = JSON.parse(stored) as Achievement[]
+
+      // Check if we need to migrate (if stored achievements count doesn't match defined achievements)
+      if (storedAchievements.length !== ACHIEVEMENTS.length) {
+        console.log(`Migrating achievements: ${storedAchievements.length} → ${ACHIEVEMENTS.length}`)
+
+        // Create a map of existing achievements by ID for quick lookup
+        const existingAchievementsMap = new Map<string, Achievement>()
+        storedAchievements.forEach((achievement) => {
+          existingAchievementsMap.set(achievement.id, achievement)
+        })
+
+        // Create a new array with all current achievements, preserving progress for existing ones
+        const migratedAchievements = ACHIEVEMENTS.map((achievement) => {
+          const existing = existingAchievementsMap.get(achievement.id)
+
+          if (existing) {
+            // Preserve existing achievement data
+            return {
+              ...achievement, // Get latest description/name/requirement updates
+              progress: existing.progress,
+              unlocked: existing.unlocked,
+              unlockedAt: existing.unlockedAt,
+            }
+          } else {
+            // Initialize new achievement
+            return {
+              ...achievement,
+              progress: 0,
+              unlocked: false,
+              unlockedAt: undefined,
+            }
+          }
+        })
+
+        // Save the migrated achievements
+        localStorage.setItem("movieGameAchievements", JSON.stringify(migratedAchievements))
+        return migratedAchievements
+      }
+
+      return storedAchievements
     }
   } catch (error) {
     console.error("Error loading achievements:", error)
