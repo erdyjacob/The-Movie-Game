@@ -97,30 +97,29 @@ export function GraphVisualization({
     let linkDistance = 100
     let chargeStrength = -300
     let collisionRadius = 45
-    let iterations = 10
-    let alphaDecay = 0.0228 // Default value
+    const iterations = 10
+    const alphaDecay = 0.0228 // Default value
+
+    // Calculate collision radius including text space
+    const textHeight = 16 // Height of text label + padding
+    const totalNodeHeight = 20 + textHeight
+    collisionRadius = totalNodeHeight + 10 // Add extra padding
 
     switch (layoutQuality) {
       case "low":
-        linkDistance = 80
-        chargeStrength = -200
-        collisionRadius = 40
-        iterations = 5
-        alphaDecay = 0.05 // Faster cooling
+        linkDistance = 120 // Increased from 80
+        chargeStrength = -400 // Increased repulsion
+        collisionRadius = totalNodeHeight + 8
         break
       case "medium":
-        linkDistance = 120
-        chargeStrength = -400
-        collisionRadius = 50
-        iterations = 20
-        alphaDecay = 0.02 // Default-ish
+        linkDistance = 160 // Increased from 120
+        chargeStrength = -600 // Increased repulsion
+        collisionRadius = totalNodeHeight + 12
         break
       case "high":
-        linkDistance = 150
-        chargeStrength = -600
-        collisionRadius = 60
-        iterations = 50
-        alphaDecay = 0.01 // Slower cooling for better layout
+        linkDistance = 200 // Increased from 150
+        chargeStrength = -800 // Increased repulsion
+        collisionRadius = totalNodeHeight + 16
         break
     }
 
@@ -144,8 +143,8 @@ export function GraphVisualization({
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius(collisionRadius))
       // Add x and y forces to prevent nodes from getting too far from center
-      .force("x", d3.forceX(width / 2).strength(0.07))
-      .force("y", d3.forceY(height / 2).strength(0.07))
+      .force("x", d3.forceX(width / 2).strength(0.15)) // Increased from 0.07
+      .force("y", d3.forceY(height / 2).strength(0.15)) // Increased from 0.07
       // Add a new force to minimize edge crossings
       .force("link-repulsion", (alpha: number) => {
         // This custom force tries to minimize edge crossings
@@ -216,6 +215,35 @@ export function GraphVisualization({
                 l2.targetNode.x -= moveX
                 l2.targetNode.y -= moveY
               }
+            }
+          }
+        }
+      })
+      .force("separation", (alpha: number) => {
+        // Additional force to maintain minimum distance between all nodes
+        const minDistance = collisionRadius * 1.5
+
+        for (let i = 0; i < filteredNodes.length; i++) {
+          const nodeA = filteredNodes[i] as any
+          if (!nodeA.x || !nodeA.y) continue
+
+          for (let j = i + 1; j < filteredNodes.length; j++) {
+            const nodeB = filteredNodes[j] as any
+            if (!nodeB.x || !nodeB.y) continue
+
+            const dx = nodeA.x - nodeB.x
+            const dy = nodeA.y - nodeB.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
+
+            if (distance < minDistance && distance > 0) {
+              const force = (minDistance - distance) * alpha * 0.1
+              const moveX = (dx / distance) * force
+              const moveY = (dy / distance) * force
+
+              nodeA.x += moveX
+              nodeA.y += moveY
+              nodeB.x -= moveX
+              nodeB.y -= moveY
             }
           }
         }
