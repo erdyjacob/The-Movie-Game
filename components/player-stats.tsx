@@ -23,7 +23,7 @@ import { getMostUsedItems, getItemsByRarity, loadPlayerHistory } from "@/lib/pla
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
 import Link from "next/link"
-import type { PlayerHistoryItem, Rarity, AccountScore, GameItem } from "@/lib/types"
+import type { PlayerHistoryItem, Rarity, AccountScore, GameItem, Achievement } from "@/lib/types"
 import { getRarityDisplayName } from "@/lib/rarity"
 import { RarityOverlay } from "./rarity-overlay"
 import { getCompletedDailyChallengeItems } from "@/lib/daily-challenge"
@@ -39,6 +39,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useRouter } from "next/navigation"
+import { AchievementsSection } from "./achievements-section"
+import { AchievementNotification } from "./achievement-notification"
+import { loadAchievements, saveAchievements, checkAchievements } from "@/lib/achievements"
 
 // Add the import for the rank calculator
 import { calculateAccountScore, getRankColor } from "@/lib/rank-calculator"
@@ -106,6 +109,9 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const router = useRouter()
+
+  const [achievements, setAchievements] = useState<Achievement[]>([])
+  const [newAchievement, setNewAchievement] = useState<Achievement | null>(null)
 
   // Load longest chain from localStorage
   useEffect(() => {
@@ -313,6 +319,41 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
           console.error("Error updating leaderboard:", error)
         }
       }
+
+      // Load and check achievements
+      const currentAchievements = loadAchievements()
+      const { achievements: updatedAchievements, newlyUnlocked } = checkAchievements(
+        currentAchievements,
+        newAccountScore,
+        leaderboardRank || 0,
+      )
+
+      setAchievements(updatedAchievements)
+      saveAchievements(updatedAchievements)
+
+      // Show notification for newly unlocked achievements
+      if (newlyUnlocked.length > 0) {
+        setNewAchievement(newlyUnlocked[0]) // Show first newly unlocked achievement
+      }
+
+      // Sync achievements to server if user has account
+      if (username && userId) {
+        try {
+          await fetch("/api/achievements/sync", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId,
+              username,
+              achievements: updatedAchievements,
+            }),
+          })
+        } catch (error) {
+          console.error("Error syncing achievements:", error)
+        }
+      }
     } catch (error) {
       console.error("Error calculating account score:", error)
     }
@@ -450,7 +491,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
             </button>
 
             {collectionProgressOpen && (
-              <div className="space-y-3 mt-2">
+              <div className="space-y-3 mt-2 mb-4">
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span>Total Collection ({accountScore.totalPercentage?.toFixed(2) || "0.00"}%)</span>
@@ -496,7 +537,13 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
               </div>
             )}
 
-            <div className="mt-4">
+            {/* Achievements Section with line break above */}
+            <div className="mt-4 pt-4 border-t">
+              <AchievementsSection achievements={achievements} />
+            </div>
+
+            {/* Connection Web button with line break above */}
+            <div className="mt-4 pt-4 border-t">
               <ConnectionWebButton className="w-full" />
             </div>
           </div>
@@ -808,6 +855,10 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+      {/* Achievement notification */}
+      {newAchievement && (
+        <AchievementNotification achievement={newAchievement} onClose={() => setNewAchievement(null)} />
       )}
     </Card>
   )

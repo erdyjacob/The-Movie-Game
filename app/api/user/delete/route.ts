@@ -104,73 +104,107 @@ async function deleteUserData(userId: string, username: string): Promise<void> {
     throw new Error(`Failed to delete user keys: ${error}`)
   }
 
-  // Step 3: Handle leaderboard separately
+  // Step 3: Handle leaderboard separately with improved cleanup
   try {
-    await removeFromLeaderboard(userId, username)
-    logDeleteAction("LEADERBOARD_UPDATED", userId, username)
+    await cleanupLeaderboard(userId, username)
+    logDeleteAction("LEADERBOARD_CLEANED", userId, username)
   } catch (error) {
-    logDeleteAction("ERROR", userId, username, { error: `Error updating leaderboard: ${error}` })
-    throw new Error(`Failed to update leaderboard: ${error}`)
+    logDeleteAction("ERROR", userId, username, { error: `Error cleaning leaderboard: ${error}` })
+    throw new Error(`Failed to clean leaderboard: ${error}`)
   }
 }
 
-async function removeFromLeaderboard(userId: string, username: string): Promise<void> {
-  // Get all leaderboard entries
-  try {
-    const leaderboardEntries = await kv.zrange("movie-game:leaderboard", 0, -1, { rev: true })
-    logDeleteAction("LEADERBOARD_FETCH", userId, username, { entriesCount: leaderboardEntries?.length || 0 })
+async function cleanupLeaderboard(userId: string, username: string): Promise<void> {
+  logDeleteAction("LEADERBOARD_CLEANUP_START", userId, username)
 
-    if (!leaderboardEntries || leaderboardEntries.length === 0) {
+  // 1. Normalize the username for consistent comparison
+  const normalizedUsername = username.toLowerCase().trim()
+
+  try {
+    // 2. Get all leaderboard entries
+    const entries = await kv.zrange("movie-game:leaderboard", 0, -1, { rev: true })
+    logDeleteAction("LEADERBOARD_ENTRIES_FETCHED", userId, username, {
+      entriesCount: entries?.length || 0,
+    })
+
+    if (!entries || entries.length === 0) {
       logDeleteAction("LEADERBOARD_EMPTY", userId, username)
       return
     }
 
-    const pipeline = kv.pipeline()
-    let updated = false
-    let matchedEntries = 0
-
-    for (const entryRaw of leaderboardEntries) {
+    // 3. Find and remove matching entries
+    let removedCount = 0
+    for (const entryRaw of entries) {
       try {
-        // Safely parse JSON with error handling
-        let entry
-        try {
-          entry = JSON.parse(entryRaw)
-        } catch (parseError) {
-          logDeleteAction("PARSE_ERROR", userId, username, {
-            error: `Error parsing leaderboard entry: ${parseError}`,
-            entry: entryRaw.substring(0, 100), // Log only the beginning of the entry to avoid huge logs
-          })
-          continue // Skip this entry and continue with the next one
-        }
+        const entry = JSON.parse(entryRaw)
 
-        // If this entry belongs to the user we're deleting
-        if ((entry.userId && entry.userId === userId) || entry.playerName === username) {
-          // Remove entry
-          pipeline.zrem("movie-game:leaderboard", entryRaw)
-          updated = true
-          matchedEntries++
-          logDeleteAction("ENTRY_MATCHED", userId, username, {
+        // Match by userId or normalized username (case-insensitive)
+        const entryUsername = entry.playerName ? entry.playerName.toLowerCase().trim() : ""
+
+        if ((entry.userId && entry.userId === userId) || entryUsername === normalizedUsername) {
+          await kv.zrem("movie-game:leaderboard", entryRaw)
+          removedCount++
+
+          logDeleteAction("LEADERBOARD_ENTRY_REMOVED", userId, username, {
+            entryId: entry.id,
+            entryUserId: entry.userId,
+            entryPlayerName: entry.playerName,
+            score: entry.score,
+          })
+        }
+      } catch (e) {
+        logDeleteAction("ENTRY_PARSE_ERROR", userId, username, {
+          error: String(e),
+          rawEntry: typeof entryRaw === "string" ? entryRaw.substring(0, 100) + "..." : typeof entryRaw,
+        })
+        // Continue processing other entries
+      }
+    }
+
+    // 4. Force clear all leaderboard caches unconditionally
+    await kv.del("movie-game:leaderboard-cache")
+    logDeleteAction("LEADERBOARD_CACHE_CLEARED", userId, username)
+
+    // 5. Verification step - check if any entries remain
+    const remainingEntries = await kv.zrange("movie-game:leaderboard", 0, -1, { rev: true })
+    let secondPassRemovals = 0
+
+    for (const entryRaw of remainingEntries) {
+      try {
+        const entry = JSON.parse(entryRaw)
+        const entryUsername = entry.playerName ? entry.playerName.toLowerCase().trim() : ""
+
+        if ((entry.userId && entry.userId === userId) || entryUsername === normalizedUsername) {
+          logDeleteAction("ENTRY_STILL_EXISTS", userId, username, {
             entryId: entry.id,
             entryUserId: entry.userId,
             entryPlayerName: entry.playerName,
           })
+
+          // Force remove this entry in a second pass
+          await kv.zrem("movie-game:leaderboard", entryRaw)
+          secondPassRemovals++
         }
       } catch (e) {
-        logDeleteAction("ENTRY_ERROR", userId, username, { error: `Error processing leaderboard entry: ${e}` })
-        // Continue with next entry instead of failing the whole operation
+        // Skip invalid entries
       }
     }
 
-    if (updated) {
-      // Clear leaderboard cache
-      pipeline.del("movie-game:leaderboard-cache")
-      await pipeline.exec()
-      logDeleteAction("LEADERBOARD_UPDATED", userId, username, { entriesRemoved: matchedEntries })
-    } else {
-      logDeleteAction("NO_LEADERBOARD_ENTRIES", userId, username, { message: "No matching entries found" })
+    if (secondPassRemovals > 0) {
+      logDeleteAction("SECOND_PASS_REMOVAL", userId, username, {
+        removedCount: secondPassRemovals,
+      })
+      // Clear cache again after second pass
+      await kv.del("movie-game:leaderboard-cache")
     }
+
+    logDeleteAction("LEADERBOARD_CLEANUP_COMPLETE", userId, username, {
+      firstPassRemovals: removedCount,
+      secondPassRemovals,
+      totalRemoved: removedCount + secondPassRemovals,
+    })
   } catch (error) {
-    logDeleteAction("LEADERBOARD_ERROR", userId, username, { error: `Error removing from leaderboard: ${error}` })
-    throw new Error(`Failed to remove from leaderboard: ${error}`)
+    logDeleteAction("LEADERBOARD_CLEANUP_ERROR", userId, username, { error: String(error) })
+    throw new Error(`Leaderboard cleanup failed: ${error}`)
   }
 }

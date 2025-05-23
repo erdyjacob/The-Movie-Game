@@ -23,6 +23,7 @@ import { ScoreDiagnostics } from "@/components/admin/score-diagnostics"
 import { UserScoreFix } from "@/components/admin/user-score-fix"
 import { FixMissingScores } from "@/components/admin/fix-missing-scores"
 import { ScoreSyncDiagnostics } from "@/components/admin/score-sync-diagnostics"
+import { AchievementMigration } from "@/components/admin/achievement-migration"
 
 export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -197,6 +198,10 @@ export default function AdminPage() {
               <Database className="w-4 h-4 mr-2" />
               Monitoring
             </TabsTrigger>
+            <TabsTrigger value="achievements">
+              <Trophy className="w-4 h-4 mr-2" />
+              Achievements
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="leaderboard">
@@ -348,6 +353,23 @@ export default function AdminPage() {
                 ) : (
                   <div className="text-center py-6 text-muted-foreground">
                     Please enter your admin password to access monitoring tools
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="achievements">
+            <Card>
+              <CardHeader>
+                <CardTitle>Achievement Migration</CardTitle>
+                <CardDescription>Migrate existing users to the new achievement system</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {password ? (
+                  <AchievementMigration adminPassword={password} />
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    Please enter your admin password to access achievement migration
                   </div>
                 )}
               </CardContent>

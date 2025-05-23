@@ -182,3 +182,15 @@ export interface GraphLink {
   value: number
   source_type?: "explicit" | "inferred" | "manual"
 }
+
+export interface Achievement {
+  id: string
+  name: string
+  description: string
+  category: "milestone" | "collection" | "skill" | "discovery"
+  requirement: number
+  progress: number
+  unlocked: boolean
+  unlockedAt?: string
+  rarity: "common" | "uncommon" | "rare" | "epic" | "legendary"
+}
