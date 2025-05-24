@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { loadPlayerHistory } from "@/lib/player-history"
@@ -14,11 +15,13 @@ import { NodeDetailsCard } from "./connection-web/node-details-card"
 import type { Node, GraphLink } from "@/lib/types"
 
 export default function ConnectionWeb() {
+  const router = useRouter()
   const [nodes, setNodes] = useState<Node[]>([])
   const [links, setLinks] = useState<GraphLink[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
+  const [zoomLevel, setZoomLevel] = useState(1)
   const [filterRarity, setFilterRarity] = useState<string | null>(null)
   const [connectionCount, setConnectionCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
@@ -203,6 +206,21 @@ export default function ConnectionWeb() {
     }
   }
 
+  // Handle zoom in button
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev * 1.2, 4))
+  }
+
+  // Handle zoom out button
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev * 0.8, 0.1))
+  }
+
+  // Handle reset view
+  const handleResetView = () => {
+    setZoomLevel(1)
+  }
+
   // Handle add connection button click
   const handleAddConnection = () => {
     setAddConnectionOpen(true)
@@ -278,6 +296,10 @@ export default function ConnectionWeb() {
 
         {/* Controls */}
         <GraphControls
+          zoomLevel={zoomLevel}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onResetView={handleResetView}
           onRefresh={handleRefresh}
           onAddConnection={handleAddConnection}
           onCycleLayoutQuality={cycleLayoutQuality}
@@ -317,6 +339,8 @@ export default function ConnectionWeb() {
               searchTerm={searchTerm}
               onNodeSelect={setSelectedNode}
               layoutQuality={layoutQuality}
+              zoomLevel={zoomLevel}
+              setZoomLevel={setZoomLevel}
               refreshing={refreshing}
             />
             {selectedNode && <NodeDetailsCard node={selectedNode} links={links} />}
