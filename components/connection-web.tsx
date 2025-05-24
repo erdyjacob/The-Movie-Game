@@ -19,20 +19,19 @@ export default function ConnectionWeb() {
   const [nodes, setNodes] = useState<Node[]>([])
   const [links, setLinks] = useState<GraphLink[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [filterRarity, setFilterRarity] = useState<string | null>(null)
   const [connectionCount, setConnectionCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<Node[]>([])
-  const [syncSuccess, setSyncSuccess] = useState<boolean | null>(null)
+  const [refreshSuccess, setRefreshSuccess] = useState<boolean | null>(null)
   const [debugMode, setDebugMode] = useState(false)
   const [addConnectionOpen, setAddConnectionOpen] = useState(false)
   const [backgroundFetchActive, setBackgroundFetchActive] = useState(false)
   const [backgroundFetchProgress, setBackgroundFetchProgress] = useState({ current: 0, total: 0 })
   const [layoutQuality, setLayoutQuality] = useState<"low" | "medium" | "high">("medium")
-  const [initialLoad, setInitialLoad] = useState(true)
 
   // Build graph data from player history
   const buildGraphData = React.useCallback(() => {
@@ -102,8 +101,6 @@ export default function ConnectionWeb() {
   useEffect(() => {
     // First, build the graph with existing data
     buildGraphData()
-    // Mark that we're past the initial load after the first render
-    setTimeout(() => setInitialLoad(false), 100)
 
     // Then, start the background fetch process
     const fetchMissingCreditsData = async () => {
@@ -175,35 +172,38 @@ export default function ConnectionWeb() {
     setSearchResults(results)
   }, [searchTerm, nodes])
 
-  // Handle sync button click
-  const handleSync = async () => {
-    setSyncing(true)
-    setSyncSuccess(null)
+  // Handle refresh button click
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    setRefreshSuccess(null)
 
     try {
       // Call the refreshAllConnections function to rebuild all connections
       const newConnections = refreshAllConnections()
-      console.log(`Synced connections: ${newConnections.length} total`)
+      console.log(`Refreshed connections: ${newConnections.length} total`)
 
       // Rebuild the graph data with the refreshed connections
       buildGraphData()
 
-      setSyncSuccess(true)
+      setRefreshSuccess(true)
 
       // Reset success message after 3 seconds
       setTimeout(() => {
-        setSyncSuccess(null)
+        setRefreshSuccess(null)
       }, 3000)
     } catch (error) {
-      console.error("Error syncing connections:", error)
-      setSyncSuccess(false)
+      console.error("Error refreshing connections:", error)
+      setRefreshSuccess(false)
 
       // Reset error message after 3 seconds
       setTimeout(() => {
-        setSyncSuccess(null)
+        setRefreshSuccess(null)
       }, 3000)
     } finally {
-      setSyncing(false)
+      // Keep refreshing state for the transition duration
+      setTimeout(() => {
+        setRefreshing(false)
+      }, 2000) // 2 second transition
     }
   }
 
@@ -312,23 +312,22 @@ export default function ConnectionWeb() {
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           onResetView={handleResetView}
-          onSync={handleSync}
+          onRefresh={handleRefresh}
           onDebug={handleDebug}
           onAddConnection={handleAddConnection}
           onDebugTools={handleDebugTools}
           onCycleLayoutQuality={cycleLayoutQuality}
-          syncing={syncing}
-          syncSuccess={syncSuccess}
+          refreshing={refreshing}
+          refreshSuccess={refreshSuccess}
           debugMode={debugMode}
           layoutQuality={layoutQuality}
         />
       </div>
 
       <div className="relative flex-1 border rounded-lg overflow-hidden">
-        {loading || syncing ? (
+        {loading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-            {syncing && <p className="text-sm text-muted-foreground">Syncing connections...</p>}
             {backgroundFetchActive && (
               <div className="mt-4 text-center">
                 <p className="text-sm text-muted-foreground">
@@ -358,7 +357,7 @@ export default function ConnectionWeb() {
               debugMode={debugMode}
               zoomLevel={zoomLevel}
               setZoomLevel={setZoomLevel}
-              initialLoad={initialLoad}
+              refreshing={refreshing}
             />
             {selectedNode && <NodeDetailsCard node={selectedNode} links={links} />}
           </>

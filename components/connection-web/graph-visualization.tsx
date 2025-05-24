@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useState } from "react"
 import * as d3 from "d3"
 import type { Node, GraphLink } from "@/lib/types"
 
@@ -16,7 +16,7 @@ interface GraphVisualizationProps {
   debugMode: boolean
   zoomLevel: number
   setZoomLevel: (level: number) => void
-  initialLoad: boolean
+  refreshing: boolean
 }
 
 export function GraphVisualization({
@@ -31,9 +31,11 @@ export function GraphVisualization({
   debugMode,
   zoomLevel,
   setZoomLevel,
-  initialLoad,
+  refreshing,
 }: GraphVisualizationProps) {
   const svgRef = useRef<SVGSVGElement>(null)
+  const simulationRef = useRef<d3.Simulation<any, any> | null>(null)
+  const [currentRepulsion, setCurrentRepulsion] = useState(-300)
 
   // Helper function to get color for rarity
   function getRarityColor(rarity: string): string {
@@ -50,6 +52,55 @@ export function GraphVisualization({
         return "#6b7280" // gray-500
     }
   }
+
+  // Handle refresh repulsion animation
+  useEffect(() => {
+    if (refreshing && simulationRef.current) {
+      // Get the target high repulsion based on layout quality
+      let highRepulsion = -2000
+      switch (layoutQuality) {
+        case "low":
+          highRepulsion = -2000
+          break
+        case "medium":
+          highRepulsion = -3000
+          break
+        case "high":
+          highRepulsion = -4000
+          break
+      }
+
+      // Immediately set high repulsion
+      setCurrentRepulsion(highRepulsion)
+      simulationRef.current.force("charge", d3.forceManyBody().strength(highRepulsion))
+      simulationRef.current.alpha(0.8).restart()
+
+      // Gradually transition back to normal repulsion over 2 seconds
+      const normalRepulsion = layoutQuality === "low" ? -100 : layoutQuality === "medium" ? -200 : -300
+      const steps = 20
+      const stepDuration = 100 // 100ms per step = 2 seconds total
+      const repulsionStep = (highRepulsion - normalRepulsion) / steps
+
+      let currentStep = 0
+      const interval = setInterval(() => {
+        currentStep++
+        const newRepulsion = highRepulsion - repulsionStep * currentStep
+
+        setCurrentRepulsion(newRepulsion)
+        if (simulationRef.current) {
+          simulationRef.current.force("charge", d3.forceManyBody().strength(newRepulsion))
+          simulationRef.current.alpha(0.1).restart()
+        }
+
+        if (currentStep >= steps) {
+          clearInterval(interval)
+          setCurrentRepulsion(normalRepulsion)
+        }
+      }, stepDuration)
+
+      return () => clearInterval(interval)
+    }
+  }, [refreshing, layoutQuality])
 
   // Initialize and update the D3 visualization
   useEffect(() => {
@@ -102,27 +153,27 @@ export function GraphVisualization({
     const iterations = 10
     const alphaDecay = 0.0228 // Default value
 
-    // Calculate collision radius including text space
-    const textHeight = 16 // Height of text label + padding
-    const totalNodeHeight = 20 + textHeight
-    collisionRadius = 45
-
     switch (layoutQuality) {
       case "low":
         linkDistance = 80
-        chargeStrength = initialLoad ? -2000 : -100 // Significantly increased Phase 1 repulsion
+        chargeStrength = -100
         collisionRadius = 40
         break
       case "medium":
         linkDistance = 120
-        chargeStrength = initialLoad ? -3000 : -200 // Significantly increased Phase 1 repulsion
+        chargeStrength = -200
         collisionRadius = 50
         break
       case "high":
         linkDistance = 150
-        chargeStrength = initialLoad ? -4000 : -300 // Significantly increased Phase 1 repulsion
+        chargeStrength = -300
         collisionRadius = 60
         break
+    }
+
+    // Use current repulsion if we're in a refresh state
+    if (refreshing || currentRepulsion !== -300) {
+      chargeStrength = currentRepulsion
     }
 
     // Create a force simulation with adjusted parameters for better layout
@@ -145,8 +196,8 @@ export function GraphVisualization({
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius(collisionRadius))
       // Add x and y forces to prevent nodes from getting too far from center
-      .force("x", d3.forceX(width / 2).strength(0.07)) // Increased from 0.07
-      .force("y", d3.forceY(height / 2).strength(0.07)) // Increased from 0.07
+      .force("x", d3.forceX(width / 2).strength(0.07))
+      .force("y", d3.forceY(height / 2).strength(0.07))
       // Add a new force to minimize edge crossings
       .force("link-repulsion", (alpha: number) => {
         // This custom force tries to minimize edge crossings
@@ -222,6 +273,9 @@ export function GraphVisualization({
         }
       })
       .alphaDecay(alphaDecay)
+
+    // Store simulation reference for refresh functionality
+    simulationRef.current = simulation
 
     // Create straight lines with improved visibility
     const link = container
@@ -448,6 +502,7 @@ export function GraphVisualization({
 
     return () => {
       simulation.stop()
+      simulationRef.current = null
     }
   }, [
     nodes,
@@ -459,7 +514,7 @@ export function GraphVisualization({
     onNodeSelect,
     layoutQuality,
     debugMode,
-    initialLoad,
+    currentRepulsion,
   ])
 
   return <svg ref={svgRef} width="100%" height="100%" className="bg-muted/20"></svg>
