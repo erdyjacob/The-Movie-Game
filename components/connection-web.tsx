@@ -1,11 +1,10 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { loadPlayerHistory } from "@/lib/player-history"
-import { loadConnections, refreshAllConnections, debugConnectionData } from "@/lib/connection-tracking"
+import { loadConnections, refreshAllConnections } from "@/lib/connection-tracking"
 import { fetchAndCacheCredits } from "@/lib/tmdb-api"
 import { AddConnectionDialog } from "./add-connection-dialog"
 import { GraphVisualization } from "./connection-web/graph-visualization"
@@ -15,19 +14,16 @@ import { NodeDetailsCard } from "./connection-web/node-details-card"
 import type { Node, GraphLink } from "@/lib/types"
 
 export default function ConnectionWeb() {
-  const router = useRouter()
   const [nodes, setNodes] = useState<Node[]>([])
   const [links, setLinks] = useState<GraphLink[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
-  const [zoomLevel, setZoomLevel] = useState(1)
   const [filterRarity, setFilterRarity] = useState<string | null>(null)
   const [connectionCount, setConnectionCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<Node[]>([])
   const [refreshSuccess, setRefreshSuccess] = useState<boolean | null>(null)
-  const [debugMode, setDebugMode] = useState(false)
   const [addConnectionOpen, setAddConnectionOpen] = useState(false)
   const [backgroundFetchActive, setBackgroundFetchActive] = useState(false)
   const [backgroundFetchProgress, setBackgroundFetchProgress] = useState({ current: 0, total: 0 })
@@ -207,27 +203,6 @@ export default function ConnectionWeb() {
     }
   }
 
-  // Handle zoom in button
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev * 1.2, 4))
-  }
-
-  // Handle zoom out button
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev * 0.8, 0.1))
-  }
-
-  // Handle reset view
-  const handleResetView = () => {
-    setZoomLevel(1)
-  }
-
-  // Handle debug button click
-  const handleDebug = () => {
-    debugConnectionData()
-    setDebugMode(!debugMode)
-  }
-
   // Handle add connection button click
   const handleAddConnection = () => {
     setAddConnectionOpen(true)
@@ -237,11 +212,6 @@ export default function ConnectionWeb() {
   const handleConnectionAdded = () => {
     // Rebuild the graph data to include the new connection
     buildGraphData()
-  }
-
-  // Handle debug tools button click
-  const handleDebugTools = () => {
-    router.push("/connection-debug")
   }
 
   // Handle layout quality change
@@ -308,18 +278,11 @@ export default function ConnectionWeb() {
 
         {/* Controls */}
         <GraphControls
-          zoomLevel={zoomLevel}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onResetView={handleResetView}
           onRefresh={handleRefresh}
-          onDebug={handleDebug}
           onAddConnection={handleAddConnection}
-          onDebugTools={handleDebugTools}
           onCycleLayoutQuality={cycleLayoutQuality}
           refreshing={refreshing}
           refreshSuccess={refreshSuccess}
-          debugMode={debugMode}
           layoutQuality={layoutQuality}
         />
       </div>
@@ -354,9 +317,6 @@ export default function ConnectionWeb() {
               searchTerm={searchTerm}
               onNodeSelect={setSelectedNode}
               layoutQuality={layoutQuality}
-              debugMode={debugMode}
-              zoomLevel={zoomLevel}
-              setZoomLevel={setZoomLevel}
               refreshing={refreshing}
             />
             {selectedNode && <NodeDetailsCard node={selectedNode} links={links} />}

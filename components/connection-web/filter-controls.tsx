@@ -10,7 +10,6 @@ interface FilterControlsProps {
 export function FilterControls({ filterRarity, onFilterChange }: FilterControlsProps) {
   return (
     <div className="flex-1">
-      <div className="text-sm mb-1">Filter by Rarity:</div>
       <div className="flex flex-wrap gap-2">
         <Badge
           className="cursor-pointer"
