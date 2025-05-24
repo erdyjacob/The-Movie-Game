@@ -67,7 +67,7 @@ export async function getLeaderboardData(): Promise<LeaderboardEntry[]> {
   }
 }
 
-// Modify the addLeaderboardEntry function to use safeParseJSON
+// Modify the addLeaderboardEntry function to use safeParseJSON and handle games played
 export async function addLeaderboardEntry(
   playerName: string,
   score: AccountScore,
@@ -110,6 +110,7 @@ export async function addLeaderboardEntry(
             logLeaderboardAction("ADD_ENTRY_FOUND_EXISTING", userId, playerName, {
               existingId: entry.id,
               existingScore: entry.score,
+              existingGamesPlayed: entry.gamesPlayed || 0,
             })
             break
           }
@@ -120,7 +121,7 @@ export async function addLeaderboardEntry(
       }
     }
 
-    // Create the new entry, preserving the existing ID if found
+    // Create the new entry, preserving the existing ID if found and incrementing games played
     const entry: LeaderboardEntry = {
       id: existingEntry?.id || nanoid(),
       userId, // Include userId in the entry
@@ -132,6 +133,7 @@ export async function addLeaderboardEntry(
       rareCount: score.rareCount,
       uncommonCount: score.uncommonCount,
       commonCount: score.commonCount,
+      gamesPlayed: (existingEntry?.gamesPlayed || 0) + 1, // Increment games played
       timestamp: new Date().toISOString(),
       avatarUrl: avatarUrl,
       gameMode: gameMode,
@@ -141,7 +143,10 @@ export async function addLeaderboardEntry(
     // If this is an update, remove the old entry first to avoid duplicates
     if (existingEntryRaw) {
       await kv.zrem(LEADERBOARD_KEY, existingEntryRaw)
-      logLeaderboardAction("ADD_ENTRY_REMOVED_OLD", userId, playerName, { oldScore: existingEntry?.score })
+      logLeaderboardAction("ADD_ENTRY_REMOVED_OLD", userId, playerName, {
+        oldScore: existingEntry?.score,
+        oldGamesPlayed: existingEntry?.gamesPlayed || 0,
+      })
     }
 
     // Add to the sorted set with score as the sorting value
@@ -156,7 +161,10 @@ export async function addLeaderboardEntry(
     // Invalidate the cache to ensure the next read gets fresh data
     await kv.del(LEADERBOARD_CACHE_KEY)
 
-    logLeaderboardAction("ADD_ENTRY_SUCCESS", userId, playerName, { score: score.points })
+    logLeaderboardAction("ADD_ENTRY_SUCCESS", userId, playerName, {
+      score: score.points,
+      gamesPlayed: entry.gamesPlayed,
+    })
     return true
   } catch (error) {
     logLeaderboardAction("ADD_ENTRY_ERROR", userId, playerName, { error: String(error) })
@@ -165,7 +173,7 @@ export async function addLeaderboardEntry(
   }
 }
 
-// Update the updateLeaderboardWithTotalPoints function to use safeParseJSON as well
+// Update the updateLeaderboardWithTotalPoints function to use safeParseJSON and preserve games played
 export async function updateLeaderboardWithTotalPoints(
   playerName: string,
   accountScore: AccountScore,
@@ -226,7 +234,7 @@ export async function updateLeaderboardWithTotalPoints(
       return true
     }
 
-    // Create or update the entry
+    // Create or update the entry, preserving games played count
     const entry: LeaderboardEntry = {
       id: existingEntry?.id || nanoid(),
       userId: userId || existingEntry?.userId, // Use provided userId or keep existing
@@ -238,6 +246,7 @@ export async function updateLeaderboardWithTotalPoints(
       rareCount: accountScore.rareCount || 0,
       uncommonCount: accountScore.uncommonCount || 0,
       commonCount: accountScore.commonCount || 0,
+      gamesPlayed: existingEntry?.gamesPlayed || 0, // Preserve existing games played count
       timestamp: new Date().toISOString(),
       gameMode: "collection", // This represents the total collection score
       difficulty: "all",

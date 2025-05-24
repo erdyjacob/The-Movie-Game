@@ -151,6 +151,7 @@ export interface LeaderboardEntry {
   rareCount: number
   uncommonCount: number
   commonCount: number
+  gamesPlayed: number // Add games played count
   timestamp: string
   avatarUrl?: string
   gameMode: GameMode
