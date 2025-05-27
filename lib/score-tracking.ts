@@ -1,6 +1,7 @@
 import { kv } from "@vercel/kv"
 import type { AccountScore, PlayerHistory, GameMode } from "./types"
 import { updateLeaderboardWithTotalPoints } from "./leaderboard"
+import { recordGameParticipation, getUserGamesPlayedCount } from "./game-tracking"
 
 // At the top of the file, add a logging utility function:
 function logScoreAction(action: string, userId?: string, username?: string, details?: any) {
@@ -192,7 +193,7 @@ export async function updateUserScore(userId: string, username: string, accountS
   }
 }
 
-// Add this function to record a completed game
+// Enhanced game completion recording with game tracking
 export async function recordGameCompletion(
   userId: string,
   username: string,
@@ -200,6 +201,7 @@ export async function recordGameCompletion(
   itemCount: number,
   gameMode: GameMode,
   difficulty: string,
+  duration?: number,
 ): Promise<boolean> {
   try {
     logScoreAction("RECORD_GAME", userId, username, { score, itemCount, gameMode, difficulty })
@@ -209,22 +211,36 @@ export async function recordGameCompletion(
       return false
     }
 
-    // Store the game in the user's game history
-    const gameHistoryKey = `user:${userId}:games`
+    // Record in the new game tracking system
+    const gameId = await recordGameParticipation(
+      userId,
+      username,
+      score,
+      itemCount,
+      gameMode as GameMode,
+      difficulty as any, // Type assertion for difficulty
+      duration,
+    )
 
-    // Get existing game history
+    if (!gameId) {
+      logScoreAction("RECORD_GAME_ERROR", userId, username, { error: "Failed to record game participation" })
+      return false
+    }
+
+    // Also store in the legacy system for backward compatibility
+    const gameHistoryKey = `user:${userId}:games`
     const existingGames = (await kv.lrange(gameHistoryKey, 0, -1)) || []
 
-    // Create the new game record
     const gameRecord = {
+      gameId,
       timestamp: Date.now(),
       score,
       itemCount,
       gameMode,
       difficulty,
+      duration,
     }
 
-    // Add the new game to the beginning of the list
     await kv.lpush(gameHistoryKey, JSON.stringify(gameRecord))
 
     // Trim the list to keep only the most recent 100 games
@@ -232,7 +248,7 @@ export async function recordGameCompletion(
       await kv.ltrim(gameHistoryKey, 0, 99)
     }
 
-    logScoreAction("RECORD_GAME_SUCCESS", userId, username, { score })
+    logScoreAction("RECORD_GAME_SUCCESS", userId, username, { score, gameId })
     return true
   } catch (error) {
     logScoreAction("RECORD_GAME_ERROR", userId, username, { error: String(error) })
@@ -241,7 +257,7 @@ export async function recordGameCompletion(
   }
 }
 
-// Update the syncPlayerHistoryAndUpdateScore function to record the game if score is provided
+// Update the syncPlayerHistoryAndUpdateScore function to use enhanced game tracking
 export async function syncPlayerHistoryAndUpdateScore(
   userId: string,
   username: string,
@@ -250,6 +266,7 @@ export async function syncPlayerHistoryAndUpdateScore(
   gameMode?: GameMode,
   difficulty?: string,
   itemCount?: number,
+  duration?: number,
 ): Promise<boolean> {
   try {
     logScoreAction("SYNC_HISTORY_START", userId, username)
@@ -269,7 +286,7 @@ export async function syncPlayerHistoryAndUpdateScore(
 
     // If a game score was provided, record the completed game
     if (gameScore !== undefined && gameMode && difficulty) {
-      await recordGameCompletion(userId, username, gameScore, itemCount || 0, gameMode, difficulty)
+      await recordGameCompletion(userId, username, gameScore, itemCount || 0, gameMode, difficulty, duration)
     }
 
     // Calculate score from history
@@ -287,5 +304,34 @@ export async function syncPlayerHistoryAndUpdateScore(
     logScoreAction("SYNC_HISTORY_ERROR", userId, username, { error: String(error) })
     console.error("Error syncing player history and updating score:", error)
     return false
+  }
+}
+
+// Get comprehensive user statistics including games played
+export async function getUserComprehensiveStats(userId: string): Promise<{
+  accountScore: AccountScore | null
+  gamesPlayed: number
+  gameStats: any
+} | null> {
+  try {
+    if (!userId) return null
+
+    // Get account score
+    const accountScore = await kv.get<AccountScore>(`user:${userId}:accountScore`)
+
+    // Get games played count
+    const gamesPlayed = await getUserGamesPlayedCount(userId)
+
+    // Get detailed game stats
+    const gameStats = await kv.get(`user-stats:${userId}`)
+
+    return {
+      accountScore,
+      gamesPlayed,
+      gameStats,
+    }
+  } catch (error) {
+    console.error("Error getting comprehensive user stats:", error)
+    return null
   }
 }

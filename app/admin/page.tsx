@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Trophy, Users, Database, Trash2, AlertTriangle, RefreshCw } from "lucide-react"
+import { ArrowLeft, Trophy, Users, Database, Trash2, AlertTriangle, RefreshCw, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
@@ -24,6 +24,7 @@ import { UserScoreFix } from "@/components/admin/user-score-fix"
 import { FixMissingScores } from "@/components/admin/fix-missing-scores"
 import { ScoreSyncDiagnostics } from "@/components/admin/score-sync-diagnostics"
 import { AchievementMigration } from "@/components/admin/achievement-migration"
+import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard"
 
 export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -202,6 +203,10 @@ export default function AdminPage() {
               <Trophy className="w-4 h-4 mr-2" />
               Achievements
             </TabsTrigger>
+            <TabsTrigger value="analytics">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Analytics
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="leaderboard">
@@ -370,6 +375,23 @@ export default function AdminPage() {
                 ) : (
                   <div className="text-center py-6 text-muted-foreground">
                     Please enter your admin password to access achievement migration
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="analytics">
+            <Card>
+              <CardHeader>
+                <CardTitle>Game Analytics Dashboard</CardTitle>
+                <CardDescription>Comprehensive insights into game participation and player behavior</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {password ? (
+                  <AnalyticsDashboard adminPassword={password} />
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    Please enter your admin password to access analytics
                   </div>
                 )}
               </CardContent>

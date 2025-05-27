@@ -1,6 +1,7 @@
 import { kv } from "@vercel/kv"
 import type { LeaderboardEntry, AccountScore, GameMode, Difficulty } from "./types"
 import { nanoid } from "nanoid"
+import { getUserGamesPlayedCount } from "./game-tracking"
 
 const LEADERBOARD_KEY = "movie-game:leaderboard"
 const LEADERBOARD_CACHE_KEY = "movie-game:leaderboard-cache"
@@ -57,17 +58,29 @@ export async function getLeaderboardData(): Promise<LeaderboardEntry[]> {
       rev: true,
     })
 
-    // Update the cache with fresh data
-    await kv.set(LEADERBOARD_CACHE_KEY, { timestamp: Date.now(), data: leaderboardData || [] }, { ex: getCacheTTL() })
+    // Ensure all entries have games played data
+    const enrichedData = await Promise.all(
+      (leaderboardData || []).map(async (entry) => {
+        // If entry doesn't have gamesPlayed or it's 0, try to get it from game tracking
+        if (!entry.gamesPlayed && entry.userId) {
+          const gamesPlayed = await getUserGamesPlayedCount(entry.userId)
+          return { ...entry, gamesPlayed }
+        }
+        return entry
+      }),
+    )
 
-    return leaderboardData || []
+    // Update the cache with fresh data
+    await kv.set(LEADERBOARD_CACHE_KEY, { timestamp: Date.now(), data: enrichedData }, { ex: getCacheTTL() })
+
+    return enrichedData
   } catch (error) {
     console.error("Error fetching leaderboard data:", error)
     return []
   }
 }
 
-// Modify the addLeaderboardEntry function to use safeParseJSON and handle games played
+// Enhanced addLeaderboardEntry function with accurate games played tracking
 export async function addLeaderboardEntry(
   playerName: string,
   score: AccountScore,
@@ -85,6 +98,12 @@ export async function addLeaderboardEntry(
     if (!normalizedPlayerName) {
       logLeaderboardAction("ADD_ENTRY_ERROR", userId, playerName, { error: "Empty player name after normalization" })
       return false
+    }
+
+    // Get accurate games played count from game tracking system
+    let gamesPlayed = 0
+    if (userId) {
+      gamesPlayed = await getUserGamesPlayedCount(userId)
     }
 
     // Get all leaderboard entries to find existing entry from the same player
@@ -121,7 +140,7 @@ export async function addLeaderboardEntry(
       }
     }
 
-    // Create the new entry, preserving the existing ID if found and incrementing games played
+    // Create the new entry with accurate games played count
     const entry: LeaderboardEntry = {
       id: existingEntry?.id || nanoid(),
       userId, // Include userId in the entry
@@ -133,7 +152,7 @@ export async function addLeaderboardEntry(
       rareCount: score.rareCount,
       uncommonCount: score.uncommonCount,
       commonCount: score.commonCount,
-      gamesPlayed: (existingEntry?.gamesPlayed || 0) + 1, // Increment games played
+      gamesPlayed: gamesPlayed, // Use accurate count from game tracking
       timestamp: new Date().toISOString(),
       avatarUrl: avatarUrl,
       gameMode: gameMode,
@@ -173,7 +192,7 @@ export async function addLeaderboardEntry(
   }
 }
 
-// Update the updateLeaderboardWithTotalPoints function to use safeParseJSON and preserve games played
+// Enhanced updateLeaderboardWithTotalPoints function with accurate games played tracking
 export async function updateLeaderboardWithTotalPoints(
   playerName: string,
   accountScore: AccountScore,
@@ -197,6 +216,12 @@ export async function updateLeaderboardWithTotalPoints(
       })
       console.error("Empty player name after normalization")
       return false
+    }
+
+    // Get accurate games played count from game tracking system
+    let gamesPlayed = 0
+    if (userId) {
+      gamesPlayed = await getUserGamesPlayedCount(userId)
     }
 
     // Get all leaderboard entries to find existing entry
@@ -228,13 +253,13 @@ export async function updateLeaderboardWithTotalPoints(
       }
     }
 
-    // If the player exists and their score hasn't changed, do nothing
-    if (existingEntry && existingEntry.score === accountScore.points) {
-      logLeaderboardAction("UPDATE_POINTS_SKIP", userId, playerName, { reason: "Score unchanged" })
+    // If the player exists and their score hasn't changed, still update games played if needed
+    if (existingEntry && existingEntry.score === accountScore.points && existingEntry.gamesPlayed === gamesPlayed) {
+      logLeaderboardAction("UPDATE_POINTS_SKIP", userId, playerName, { reason: "Score and games played unchanged" })
       return true
     }
 
-    // Create or update the entry, preserving games played count
+    // Create or update the entry with accurate games played count
     const entry: LeaderboardEntry = {
       id: existingEntry?.id || nanoid(),
       userId: userId || existingEntry?.userId, // Use provided userId or keep existing
@@ -246,7 +271,7 @@ export async function updateLeaderboardWithTotalPoints(
       rareCount: accountScore.rareCount || 0,
       uncommonCount: accountScore.uncommonCount || 0,
       commonCount: accountScore.commonCount || 0,
-      gamesPlayed: existingEntry?.gamesPlayed || 0, // Preserve existing games played count
+      gamesPlayed: gamesPlayed, // Use accurate count from game tracking
       timestamp: new Date().toISOString(),
       gameMode: "collection", // This represents the total collection score
       difficulty: "all",
@@ -270,7 +295,10 @@ export async function updateLeaderboardWithTotalPoints(
     // Invalidate the cache to ensure the next read gets fresh data
     await kv.del(LEADERBOARD_CACHE_KEY)
 
-    logLeaderboardAction("UPDATE_POINTS_SUCCESS", userId, playerName, { newScore: entry.score })
+    logLeaderboardAction("UPDATE_POINTS_SUCCESS", userId, playerName, {
+      newScore: entry.score,
+      gamesPlayed: entry.gamesPlayed,
+    })
     return true
   } catch (error) {
     logLeaderboardAction("UPDATE_POINTS_ERROR", userId, playerName, { error: String(error) })
@@ -325,5 +353,68 @@ export async function getRedisStats(): Promise<Record<string, any>> {
   } catch (error) {
     console.error("Error getting Redis stats:", error)
     return { error: "Failed to get stats" }
+  }
+}
+
+// Synchronize leaderboard games played counts with game tracking data
+export async function synchronizeLeaderboardGamesPlayed(): Promise<{
+  processed: number
+  updated: number
+  errors: number
+}> {
+  try {
+    logLeaderboardAction("SYNC_GAMES_PLAYED_START")
+
+    let processed = 0
+    let updated = 0
+    let errors = 0
+
+    // Get all leaderboard entries
+    const leaderboardData = await kv.zrange<string[]>(LEADERBOARD_KEY, 0, -1, { rev: true })
+
+    for (const entryRaw of leaderboardData) {
+      try {
+        processed++
+        const entry = safeParseJSON(entryRaw) as LeaderboardEntry
+
+        if (!entry || !entry.userId) {
+          continue
+        }
+
+        // Get accurate games played count
+        const actualGamesPlayed = await getUserGamesPlayedCount(entry.userId)
+
+        // Update if different
+        if (entry.gamesPlayed !== actualGamesPlayed) {
+          // Remove old entry
+          await kv.zrem(LEADERBOARD_KEY, entryRaw)
+
+          // Create updated entry
+          const updatedEntry = { ...entry, gamesPlayed: actualGamesPlayed }
+
+          // Add updated entry
+          await kv.zadd(LEADERBOARD_KEY, { score: updatedEntry.score, member: JSON.stringify(updatedEntry) })
+
+          updated++
+          logLeaderboardAction("SYNC_ENTRY_UPDATED", entry.userId, entry.playerName, {
+            oldGamesPlayed: entry.gamesPlayed,
+            newGamesPlayed: actualGamesPlayed,
+          })
+        }
+      } catch (error) {
+        errors++
+        console.error("Error syncing leaderboard entry:", error)
+      }
+    }
+
+    // Invalidate cache
+    await kv.del(LEADERBOARD_CACHE_KEY)
+
+    logLeaderboardAction("SYNC_GAMES_PLAYED_COMPLETE", undefined, undefined, { processed, updated, errors })
+    return { processed, updated, errors }
+  } catch (error) {
+    logLeaderboardAction("SYNC_GAMES_PLAYED_ERROR", undefined, undefined, { error: String(error) })
+    console.error("Error synchronizing leaderboard games played:", error)
+    return { processed: 0, updated: 0, errors: 1 }
   }
 }
