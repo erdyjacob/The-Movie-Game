@@ -251,12 +251,25 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load most used items
+        // FIRST: Load collection items
+        let currentCollectionItems: PlayerHistoryItem[] = []
         try {
-          // Calculate usage from connections
+          currentCollectionItems = getItemsByRarity(activeType)
+          setCollectionItems(currentCollectionItems)
+        } catch (error) {
+          console.error("Error loading collection items:", error)
+          setCollectionItems([])
+          return // Exit early if we can't load collection
+        }
+
+        // SECOND: Calculate usage from connections using the loaded collection
+        try {
           const connections = loadConnections()
+          console.log(`Loaded ${connections.length} connections for ${activeType}`)
+
           const usageMap = new Map<number, number>()
 
+          // Count usage from connections
           connections.forEach((conn) => {
             if (activeType === "movie") {
               usageMap.set(conn.movieId, (usageMap.get(conn.movieId) || 0) + 1)
@@ -265,34 +278,21 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
             }
           })
 
-          // Convert to mostUsedItems format for compatibility
-          const connectionBasedUsage: PlayerHistoryItem[] = Array.from(usageMap.entries())
-            .map(([id, count]) => {
-              const item = collectionItems.find((item) => item.id === id)
-              return {
-                id,
-                name: item?.name || "",
-                count,
-                image: item?.image,
-                rarity: item?.rarity,
-                type: activeType,
-                timestamp: item?.timestamp || new Date().toISOString(),
-              }
-            })
-            .filter((item) => item.name) // Remove items not found in collection
+          console.log(`Usage map for ${activeType}:`, Array.from(usageMap.entries()).slice(0, 5))
 
+          // Convert to mostUsedItems format using the loaded collection items
+          const connectionBasedUsage: PlayerHistoryItem[] = currentCollectionItems
+            .map((item) => ({
+              ...item,
+              count: usageMap.get(item.id) || 0,
+            }))
+            .filter((item) => item.count > 0) // Only include items that have been used
+
+          console.log(`Found ${connectionBasedUsage.length} used ${activeType}s`)
           setMostUsedItems(connectionBasedUsage)
         } catch (error) {
-          console.error("Error loading most used items:", error)
+          console.error("Error calculating usage from connections:", error)
           setMostUsedItems([])
-        }
-
-        // Load collection items
-        try {
-          setCollectionItems(getItemsByRarity(activeType))
-        } catch (error) {
-          console.error("Error loading collection items:", error)
-          setCollectionItems([])
         }
 
         // Load daily challenges
@@ -304,7 +304,7 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
           setDailyChallenges({})
         }
 
-        // Add this line to sync history to server
+        // Sync history to server
         if (username) {
           await syncHistoryToServer()
         }
@@ -773,7 +773,12 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
           {filteredAndSortedItems.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {filteredAndSortedItems.map((item) => {
-                const usageCount = mostUsedItems.find((usedItem) => usedItem.id === item.id)?.count || 0
+                // Get usage count from connections data
+                const connections = loadConnections()
+                const usageCount = connections.filter((conn) =>
+                  activeType === "movie" ? conn.movieId === item.id : conn.actorId === item.id,
+                ).length
+
                 return (
                   <div key={item.id} className="flex flex-col items-center rounded-lg p-2 border transition-colors">
                     <div className="relative h-32 w-24 mb-2 rounded-md overflow-hidden shadow-sm">
