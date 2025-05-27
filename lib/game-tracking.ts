@@ -134,7 +134,8 @@ export async function recordGameParticipation(
     logGameTracking("RECORD_SUCCESS", userId, username, { gameId, totalGames: newStats.totalGames })
     return gameId
   } catch (error) {
-    logGameTracking("RECORD_ERROR", userId, username, { error: String(error) })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logGameTracking("RECORD_ERROR", userId, username, { error: errorMessage })
     console.error("Error recording game participation:", error)
     return null
   }
@@ -221,7 +222,8 @@ export async function rebuildUserGameStats(userId: string): Promise<UserGameStat
     logGameTracking("REBUILD_STATS_SUCCESS", userId, undefined, { totalGames: stats.totalGames })
     return stats
   } catch (error) {
-    logGameTracking("REBUILD_STATS_ERROR", userId, undefined, { error: String(error) })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logGameTracking("REBUILD_STATS_ERROR", userId, undefined, { error: errorMessage })
     console.error("Error rebuilding user game stats:", error)
     return null
   }
@@ -285,7 +287,8 @@ export async function synchronizeAllGamesPlayedCounts(): Promise<{
     logGameTracking("SYNC_ALL_COMPLETE", undefined, undefined, { processed, updated, errors })
     return { processed, updated, errors }
   } catch (error) {
-    logGameTracking("SYNC_ALL_ERROR", undefined, undefined, { error: String(error) })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logGameTracking("SYNC_ALL_ERROR", undefined, undefined, { error: errorMessage })
     console.error("Error synchronizing all games played counts:", error)
     return { processed: 0, updated: 0, errors: 1 }
   }
@@ -317,7 +320,8 @@ export async function cleanupOldGameRecords(daysToKeep = 365): Promise<number> {
     logGameTracking("CLEANUP_COMPLETE", undefined, undefined, { deletedCount })
     return deletedCount
   } catch (error) {
-    logGameTracking("CLEANUP_ERROR", undefined, undefined, { error: String(error) })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logGameTracking("CLEANUP_ERROR", undefined, undefined, { error: errorMessage })
     console.error("Error cleaning up old game records:", error)
     return 0
   }
