@@ -72,14 +72,19 @@ export interface GameState {
   filters: GameFilters
   isComputerTurn: boolean
   strikes: number
+  // The turn phases now clearly indicate what's expected:
+  // player-pick-actor: Player needs to pick an actor from a movie
+  // player-pick-movie: Player needs to pick a movie an actor was in
+  // computer-pick-actor: Computer picks an actor from a movie
+  // computer-pick-movie: Computer picks a movie an actor was in
   turnPhase: "player-pick-actor" | "player-pick-movie" | "computer-pick-actor" | "computer-pick-movie"
   timeRemaining?: number // For timed mode
-  turnsRemaining?: number // For daily challenge mode
-  maxTurns?: number // Maximum turns allowed (for daily challenge)
+  // Track newly unlocked items
   newUnlocks: {
     actors: GameItem[]
     movies: GameItem[]
   }
+  // Track if daily challenge was completed
   dailyChallengeCompleted?: boolean
 }
 

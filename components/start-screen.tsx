@@ -224,8 +224,8 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                     build your collection.
                   </p>
                   <p>
-                    <strong>Daily Challenge:</strong> Try the special daily challenge mode - unlimited time, but only
-                    one attempt per day.
+                    <strong>Daily Challenge:</strong> Try the special daily challenge mode - 100 turns maximum, 3
+                    strikes, unlimited time, but only one attempt per day.
                   </p>
                   <p>
                     <strong>Leaderboard:</strong> As you play, your collection score increases with each new discovery.
@@ -289,9 +289,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
                     <div className="space-y-2 sm:space-y-3">
                       <h4 className="font-medium text-sm sm:text-base">{dailyChallenge.name}</h4>
 
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        Unlimited time, 3 strikes, 1 attempt per day
-                      </p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">3 strikes, 1 attempt per day</p>
 
                       <AnimatedButton
                         onClick={startDailyChallenge}
@@ -386,7 +384,7 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
             {/* Left: Survey link */}
             <div className="mb-2 sm:mb-0 text-left">
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Having fun?{" "}
+                Report a bug{" "}
                 <Link
                   href="https://forms.gle/ppmQ7XcoX6i4xUEz9"
                   className="text-blue-500 hover:underline"
