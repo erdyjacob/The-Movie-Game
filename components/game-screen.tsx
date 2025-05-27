@@ -45,6 +45,8 @@ interface GameScreenProps {
   difficulty: Difficulty
   gameMode: GameMode
   timeRemaining?: number
+  turnsRemaining?: number
+  maxTurns?: number
   dailyChallenge?: GameItem | null
   dailyChallengeCompleted?: boolean
 }
@@ -66,6 +68,8 @@ export const GameScreen = memo(function GameScreen({
   difficulty,
   gameMode,
   timeRemaining,
+  turnsRemaining,
+  maxTurns,
   dailyChallenge,
   dailyChallengeCompleted,
 }: GameScreenProps) {
@@ -369,6 +373,24 @@ export const GameScreen = memo(function GameScreen({
             </div>
             <div className="w-full bg-gray-800 rounded-full h-2.5">
               <div className="bg-white h-2.5 rounded-full" style={{ width: `${timeProgressPercentage}%` }}></div>
+            </div>
+          </div>
+        )}
+
+        {/* Turn Counter for Daily Challenge Mode */}
+        {gameMode === "dailyChallenge" && turnsRemaining !== undefined && maxTurns !== undefined && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle size={18} />
+              <span className="font-medium">
+                Turns Remaining: {turnsRemaining} / {maxTurns}
+              </span>
+            </div>
+            <div className="w-full bg-gray-800 rounded-full h-2.5">
+              <div
+                className="bg-yellow-500 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${(turnsRemaining / maxTurns) * 100}%` }}
+              ></div>
             </div>
           </div>
         )}

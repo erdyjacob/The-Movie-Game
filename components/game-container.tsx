@@ -31,6 +31,9 @@ import { makeComputerSelection } from "@/lib/computer-selection"
 // Time limit for timed mode in seconds
 const TIME_LIMIT = 120 // 2 minutes
 
+// Turn limit for daily challenge mode
+const DAILY_CHALLENGE_TURN_LIMIT = 100
+
 // Import the saveConnection function at the top of the file
 import { saveConnection } from "@/lib/connection-tracking"
 
@@ -439,12 +442,14 @@ export default function GameContainer() {
           score: 0,
           highScore: gameState.highScore,
           difficulty,
-          gameMode: gameMode, // Set the game mode
+          gameMode: gameMode,
           filters,
           isComputerTurn: false,
           strikes: 0,
-          turnPhase: "player-pick-actor", // Player needs to find an actor from the computer's movie
-          timeRemaining: gameMode === "timed" ? TIME_LIMIT : undefined, // Only set time for timed mode
+          turnPhase: "player-pick-actor",
+          timeRemaining: gameMode === "timed" ? TIME_LIMIT : undefined,
+          turnsRemaining: gameMode === "dailyChallenge" ? DAILY_CHALLENGE_TURN_LIMIT : undefined,
+          maxTurns: gameMode === "dailyChallenge" ? DAILY_CHALLENGE_TURN_LIMIT : undefined,
           newUnlocks: {
             actors: [],
             movies: [],
@@ -512,6 +517,8 @@ export default function GameContainer() {
       strikes: 0,
       turnPhase: "player-pick-actor",
       timeRemaining: TIME_LIMIT,
+      turnsRemaining: undefined,
+      maxTurns: undefined,
       newUnlocks: {
         actors: [],
         movies: [],
@@ -666,6 +673,16 @@ export default function GameContainer() {
           }
         }
 
+        // Calculate remaining turns for daily challenge
+        const newTurnsRemaining =
+          prev.gameMode === "dailyChallenge" && prev.turnsRemaining !== undefined
+            ? prev.turnsRemaining - 1
+            : prev.turnsRemaining
+
+        // Check if we've reached the turn limit in daily challenge mode
+        const turnLimitReached =
+          prev.gameMode === "dailyChallenge" && newTurnsRemaining !== undefined && newTurnsRemaining <= 0
+
         return {
           ...prev,
           currentItem: newItem,
@@ -674,10 +691,26 @@ export default function GameContainer() {
           score: prev.score + 1,
           isComputerTurn: isNextComputerTurn,
           turnPhase: nextTurnPhase,
+          turnsRemaining: newTurnsRemaining,
           newUnlocks,
           dailyChallengeCompleted: prev.dailyChallengeCompleted || isDailyChallenge,
+          status: turnLimitReached ? "gameOver" : prev.status, // End game if turn limit reached
         }
       })
+
+      // If turn limit reached, track the event and return early
+      if (
+        gameState.gameMode === "dailyChallenge" &&
+        gameState.turnsRemaining !== undefined &&
+        gameState.turnsRemaining <= 1
+      ) {
+        track("daily_challenge_turn_limit_reached", {
+          score: gameState.score + 1,
+          turnsUsed: gameState.maxTurns || DAILY_CHALLENGE_TURN_LIMIT,
+          dailyChallengeCompleted: isDailyChallenge,
+        })
+        return
+      }
     },
     [
       gameState.turnPhase,
@@ -689,6 +722,8 @@ export default function GameContainer() {
       gameState.strikes,
       gameState.gameMode,
       gameState.currentItem,
+      gameState.turnsRemaining,
+      gameState.maxTurns,
     ],
   )
 
@@ -749,6 +784,8 @@ export default function GameContainer() {
           difficulty={gameState.difficulty}
           gameMode={gameState.gameMode}
           timeRemaining={gameState.timeRemaining}
+          turnsRemaining={gameState.turnsRemaining}
+          maxTurns={gameState.maxTurns}
           dailyChallenge={dailyChallenge}
           dailyChallengeCompleted={gameState.dailyChallengeCompleted}
         />
