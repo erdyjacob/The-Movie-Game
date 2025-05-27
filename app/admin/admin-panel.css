@@ -1,0 +1,206 @@
+/* Admin Panel Specific Styles */
+.admin-panel {
+  min-height: 100vh;
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+.admin-panel .admin-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .admin-panel .admin-container {
+    padding: 2rem;
+  }
+}
+
+/* Tab Navigation Improvements */
+.admin-panel .admin-tabs-list {
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 2px);
+  padding: 4px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+.admin-panel .admin-tabs-trigger {
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-panel .admin-tabs-trigger[data-state="active"] {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+/* Card Layout Improvements */
+.admin-panel .admin-card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.admin-panel .admin-card:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+/* Testing Suite Specific Styles */
+.testing-suite .metrics-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .testing-suite .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .testing-suite .metrics-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.testing-suite .planned-tools-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .testing-suite .planned-tools-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .testing-suite .planned-tools-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .testing-suite .planned-tools-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Form Improvements */
+.admin-panel .admin-form-section {
+  max-width: 28rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-panel .admin-form-section .form-input {
+  width: 100%;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.admin-panel .admin-form-section .form-input:focus {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+/* Button Improvements */
+.admin-panel .admin-button {
+  transition: all 0.2s ease-in-out;
+  font-weight: 500;
+}
+
+.admin-panel .admin-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+/* Responsive Text */
+.admin-panel .responsive-text {
+  font-size: 0.875rem;
+}
+
+@media (min-width: 768px) {
+  .admin-panel .responsive-text {
+    font-size: 1rem;
+  }
+}
+
+/* Status Indicators */
+.admin-panel .status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: calc(var(--radius) + 2px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.admin-panel .status-indicator.success {
+  background-color: hsl(var(--success) / 0.1);
+  color: hsl(var(--success));
+  border: 1px solid hsl(var(--success) / 0.2);
+}
+
+.admin-panel .status-indicator.warning {
+  background-color: hsl(var(--warning) / 0.1);
+  color: hsl(var(--warning));
+  border: 1px solid hsl(var(--warning) / 0.2);
+}
+
+.admin-panel .status-indicator.error {
+  background-color: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
+  border: 1px solid hsl(var(--destructive) / 0.2);
+}
+
+/* Loading States */
+.admin-panel .loading-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-panel .loading-overlay::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, hsl(var(--muted) / 0.4), transparent);
+  animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .admin-panel .no-print {
+    display: none !important;
+  }
+
+  .admin-panel .admin-card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}

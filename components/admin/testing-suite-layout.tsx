@@ -73,15 +73,17 @@ export function TestingSuiteLayout({ children, adminPassword }: TestingSuiteLayo
 
   if (!adminPassword) {
     return (
-      <Card>
-        <CardContent className="text-center py-8">
-          <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
-          <p className="text-muted-foreground">
-            Please enter your admin password to access the testing and verification suite.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-2xl mx-auto">
+        <Card>
+          <CardContent className="text-center py-12">
+            <AlertTriangle className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
+            <h3 className="text-xl font-semibold mb-3">Authentication Required</h3>
+            <p className="text-muted-foreground text-lg">
+              Please enter your admin password above to access the testing and verification suite.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
@@ -110,7 +112,7 @@ export function TestingSuiteLayout({ children, adminPassword }: TestingSuiteLayo
             {/* Upcoming Testing Tools */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Planned Testing Tools</h3>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {upcomingTools.map((tool, index) => {
                   const IconComponent = tool.icon
                   return (

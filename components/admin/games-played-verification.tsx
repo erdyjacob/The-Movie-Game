@@ -161,7 +161,7 @@ export function GamesPlayedVerification({ adminPassword }: { adminPassword: stri
         <CardDescription>Verify the accuracy and consistency of games played counts across all systems</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
+        <div className="space-y-2 max-w-md">
           <Label htmlFor="password">Admin Password</Label>
           <Input
             id="password"
@@ -169,6 +169,7 @@ export function GamesPlayedVerification({ adminPassword }: { adminPassword: stri
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter admin password"
+            className="w-full"
           />
         </div>
 
@@ -196,7 +197,7 @@ export function GamesPlayedVerification({ adminPassword }: { adminPassword: stri
         {result && (
           <div className="space-y-6">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="tests">Test Results</TabsTrigger>
                 <TabsTrigger value="discrepancies">Discrepancies</TabsTrigger>
@@ -204,7 +205,7 @@ export function GamesPlayedVerification({ adminPassword }: { adminPassword: stri
               </TabsList>
 
               <TabsContent value="overview" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm flex items-center gap-2">
