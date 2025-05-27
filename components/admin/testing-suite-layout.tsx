@@ -1,181 +1,173 @@
 "use client"
 
-import type React from "react"
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Trophy, Users, Database, CheckCircle, Clock, Target, AlertTriangle } from "lucide-react"
+import { CheckCircle, Clock, AlertTriangle, Info } from "lucide-react"
+import type { ReactNode } from "react"
 
 interface TestingSuiteLayoutProps {
-  children: React.ReactNode
   adminPassword: string
+  children: ReactNode
 }
 
-export function TestingSuiteLayout({ children, adminPassword }: TestingSuiteLayoutProps) {
-  const upcomingTools = [
+export function TestingSuiteLayout({ adminPassword, children }: TestingSuiteLayoutProps) {
+  const testingTools = [
     {
-      icon: Trophy,
-      title: "Score Verification",
+      id: "games-played",
+      name: "Games Played Statistics Verification",
+      description: "Verify the accuracy and consistency of games played counts across all systems",
+      status: "active",
+      priority: "high",
+    },
+    {
+      id: "score-verification",
+      name: "Score Verification",
       description: "Comprehensive score calculation and leaderboard accuracy testing",
-      category: "Data Integrity",
-      priority: "High",
+      status: "planned",
+      priority: "medium",
     },
     {
-      icon: Users,
-      title: "User Data Integrity",
-      description: "Validate user profiles, achievements, and account consistency",
-      category: "Data Validation",
-      priority: "Medium",
+      id: "user-data-integrity",
+      name: "User Data Integrity",
+      description: "Validate user profiles, achievements, and historical data consistency",
+      status: "planned",
+      priority: "medium",
     },
     {
-      icon: Database,
-      title: "Performance Testing",
-      description: "Load testing, response time analysis, and system benchmarks",
-      category: "Performance",
-      priority: "Medium",
-    },
-    {
-      icon: CheckCircle,
-      title: "Achievement Verification",
-      description: "Verify achievement unlocks and progression tracking accuracy",
-      category: "Feature Testing",
-      priority: "Low",
-    },
-    {
-      icon: Clock,
-      title: "Real-time Monitoring",
-      description: "Continuous monitoring and alerting for system health",
-      category: "Monitoring",
-      priority: "High",
-    },
-    {
-      icon: Target,
-      title: "API Testing Suite",
-      description: "Automated testing of all API endpoints and responses",
-      category: "Integration",
-      priority: "Medium",
+      id: "performance-testing",
+      name: "Performance Testing",
+      description: "Load testing, response time analysis, and system performance benchmarks",
+      status: "planned",
+      priority: "low",
     },
   ]
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "High":
-        return "destructive"
-      case "Medium":
-        return "secondary"
-      case "Low":
-        return "outline"
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "active":
+        return <CheckCircle className="h-4 w-4 text-green-400" />
+      case "planned":
+        return <Clock className="h-4 w-4 text-yellow-400" />
       default:
-        return "outline"
+        return <AlertTriangle className="h-4 w-4 text-gray-400" />
     }
   }
 
-  if (!adminPassword) {
-    return (
-      <div className="w-full max-w-2xl mx-auto">
-        <Card>
-          <CardContent className="text-center py-12">
-            <AlertTriangle className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
-            <h3 className="text-xl font-semibold mb-3">Authentication Required</h3>
-            <p className="text-muted-foreground text-lg">
-              Please enter your admin password above to access the testing and verification suite.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "active":
+        return <Badge className="bg-green-600 text-white">Active</Badge>
+      case "planned":
+        return <Badge className="bg-yellow-600 text-white">Planned</Badge>
+      default:
+        return <Badge className="bg-gray-600 text-white">Inactive</Badge>
+    }
+  }
+
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return <Badge variant="destructive">High</Badge>
+      case "medium":
+        return <Badge className="bg-yellow-600 text-white">Medium</Badge>
+      case "low":
+        return <Badge variant="secondary">Low</Badge>
+      default:
+        return <Badge variant="outline">Unknown</Badge>
+    }
   }
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-white">
+            <CheckCircle className="h-5 w-5 text-green-400" />
             Testing & Verification Suite
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-gray-400">
             Comprehensive testing tools to verify data integrity, system performance, and feature reliability
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-6">
-            {/* Active Testing Tools */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {testingTools.map((tool) => (
+              <Card key={tool.id} className="bg-gray-700 border-gray-600">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(tool.status)}
+                      <CardTitle className="text-sm text-white">{tool.name}</CardTitle>
+                    </div>
+                    <div className="flex gap-2">
+                      {getStatusBadge(tool.status)}
+                      {getPriorityBadge(tool.priority)}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-xs text-gray-400">{tool.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white">Active Testing Tools</CardTitle>
+          <CardDescription className="text-gray-400">
+            Currently available testing and verification tools
+          </CardDescription>
+        </CardHeader>
+        <CardContent>{children}</CardContent>
+      </Card>
+
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Info className="h-5 w-5 text-blue-400" />
+            Testing Guidelines
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Active Testing Tools</h3>
-              <div className="space-y-4">{children}</div>
+              <h4 className="font-medium text-white mb-2">Before Testing</h4>
+              <ul className="text-sm text-gray-400 space-y-1">
+                <li>• Ensure admin password is entered</li>
+                <li>• Backup critical data if needed</li>
+                <li>• Review test scope and impact</li>
+                <li>• Check system load and timing</li>
+              </ul>
             </div>
-
-            <Separator />
-
-            {/* Upcoming Testing Tools */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Planned Testing Tools</h3>
-              <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {upcomingTools.map((tool, index) => {
-                  const IconComponent = tool.icon
-                  return (
-                    <Card key={index} className="border-dashed hover:border-solid transition-colors">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="rounded-lg bg-muted p-2 mt-1">
-                            <IconComponent className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <h4 className="font-medium text-sm">{tool.title}</h4>
-                              <Badge variant={getPriorityColor(tool.priority)} className="text-xs">
-                                {tool.priority}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-2">{tool.description}</p>
-                            <Badge variant="outline" className="text-xs">
-                              {tool.category}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
+              <h4 className="font-medium text-white mb-2">During Testing</h4>
+              <ul className="text-sm text-gray-400 space-y-1">
+                <li>• Monitor test progress closely</li>
+                <li>• Document any anomalies</li>
+                <li>• Avoid concurrent operations</li>
+                <li>• Be prepared to stop if needed</li>
+              </ul>
             </div>
-
-            {/* Testing Guidelines */}
-            <Separator />
-
             <div>
-              <h3 className="text-lg font-semibold mb-4">Testing Guidelines</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Best Practices</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm space-y-2">
-                    <ul className="space-y-1 text-muted-foreground">
-                      <li>• Run verification tests during low-traffic periods</li>
-                      <li>• Always backup data before running repair operations</li>
-                      <li>• Monitor system performance during testing</li>
-                      <li>• Document any issues found for future reference</li>
-                    </ul>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Safety Measures</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm space-y-2">
-                    <ul className="space-y-1 text-muted-foreground">
-                      <li>• All tests are read-only by default</li>
-                      <li>• Repair operations require explicit confirmation</li>
-                      <li>• Automatic rollback for failed operations</li>
-                      <li>• Comprehensive logging for audit trails</li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
+              <h4 className="font-medium text-white mb-2">After Testing</h4>
+              <ul className="text-sm text-gray-400 space-y-1">
+                <li>• Review all test results</li>
+                <li>• Address identified issues</li>
+                <li>• Update documentation</li>
+                <li>• Schedule follow-up tests</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium text-white mb-2">Best Practices</h4>
+              <ul className="text-sm text-gray-400 space-y-1">
+                <li>• Run tests during low traffic</li>
+                <li>• Test incrementally</li>
+                <li>• Keep detailed logs</li>
+                <li>• Validate repairs thoroughly</li>
+              </ul>
             </div>
           </div>
         </CardContent>
