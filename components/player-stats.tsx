@@ -2,22 +2,23 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   Film,
   User,
-  Trophy,
   BarChart,
-  Star,
-  Target,
-  Calendar,
   X,
   ChevronUp,
   ChevronDown,
   AlertTriangle,
   Trash2,
   UserPlus,
+  Search,
+  ArrowUpDown,
+  Target,
+  Calendar,
 } from "lucide-react"
 import { getMostUsedItems, getItemsByRarity, loadPlayerHistory } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
@@ -55,6 +56,8 @@ interface PlayerStatsProps {
   mode?: "full" | "simple" // Add mode prop with default to full
 }
 
+type SortOption = "rarity" | "most-used" | "alphabetical"
+
 // Helper function to get color for rarity
 function getRarityColor(rarity: string): string {
   switch (rarity) {
@@ -71,12 +74,31 @@ function getRarityColor(rarity: string): string {
   }
 }
 
+// Helper function to get rarity sort order
+function getRaritySortOrder(rarity: string): number {
+  switch (rarity) {
+    case "legendary":
+      return 5
+    case "epic":
+      return 4
+    case "rare":
+      return 3
+    case "uncommon":
+      return 2
+    case "common":
+      return 1
+    default:
+      return 0
+  }
+}
+
 export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps) {
-  const [activeTab, setActiveTab] = useState<"most-used" | "collection" | "challenges">("most-used")
   const [activeType, setActiveType] = useState<"movie" | "actor">("movie")
   const [mostUsedItems, setMostUsedItems] = useState<PlayerHistoryItem[]>([])
   const [collectionItems, setCollectionItems] = useState<PlayerHistoryItem[]>([])
   const [activeRarity, setActiveRarity] = useState<Rarity | "all">("all")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [sortOption, setSortOption] = useState<SortOption>("rarity")
   const [accountScore, setAccountScore] = useState<AccountScore>({
     rank: "F",
     points: 0,
@@ -222,33 +244,33 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     }
   }
 
-  // Load data when component mounts or when tabs change
+  // Load data when component mounts or when type changes
   useEffect(() => {
     const loadData = async () => {
       try {
-        if (activeTab === "most-used") {
-          try {
-            setMostUsedItems(getMostUsedItems(activeType, 20))
-          } catch (error) {
-            console.error("Error loading most used items:", error)
-            setMostUsedItems([])
-          }
-        } else if (activeTab === "collection") {
-          try {
-            setCollectionItems(getItemsByRarity(activeType))
-          } catch (error) {
-            console.error("Error loading collection items:", error)
-            setCollectionItems([])
-          }
-        } else if (activeTab === "challenges") {
-          // Load daily challenges
-          try {
-            const challenges = await getCompletedDailyChallengeItems()
-            setDailyChallenges(challenges || {})
-          } catch (error) {
-            console.error("Error loading daily challenges:", error)
-            setDailyChallenges({})
-          }
+        // Load most used items
+        try {
+          setMostUsedItems(getMostUsedItems(activeType, 100)) // Load more items for sorting
+        } catch (error) {
+          console.error("Error loading most used items:", error)
+          setMostUsedItems([])
+        }
+
+        // Load collection items
+        try {
+          setCollectionItems(getItemsByRarity(activeType))
+        } catch (error) {
+          console.error("Error loading collection items:", error)
+          setCollectionItems([])
+        }
+
+        // Load daily challenges
+        try {
+          const challenges = await getCompletedDailyChallengeItems()
+          setDailyChallenges(challenges || {})
+        } catch (error) {
+          console.error("Error loading daily challenges:", error)
+          setDailyChallenges({})
         }
 
         // Add this line to sync history to server
@@ -268,7 +290,12 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     }
 
     loadData()
-  }, [activeTab, activeType, mode, username, userId])
+  }, [activeType, mode, username, userId])
+
+  // Clear search when switching types
+  useEffect(() => {
+    setSearchTerm("")
+  }, [activeType])
 
   // This function calculates scores but doesn't persist them to the server
   const calculatePlayerAccountScore = async () => {
@@ -358,9 +385,50 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
     }
   }
 
-  // Filter collection items by rarity - add null check
-  const filteredCollectionItems =
-    activeRarity === "all" ? collectionItems : collectionItems.filter((item) => item.rarity === activeRarity)
+  // Filter and sort items
+  const getFilteredAndSortedItems = () => {
+    let items = collectionItems
+
+    // Filter by rarity
+    if (activeRarity !== "all") {
+      items = items.filter((item) => item.rarity === activeRarity)
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      items = items.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    }
+
+    // Sort items
+    switch (sortOption) {
+      case "rarity":
+        items = items.sort((a, b) => {
+          const rarityDiff = getRaritySortOrder(b.rarity || "common") - getRaritySortOrder(a.rarity || "common")
+          if (rarityDiff !== 0) return rarityDiff
+          return a.name.localeCompare(b.name)
+        })
+        break
+      case "most-used":
+        // Create a map of usage counts from mostUsedItems
+        const usageMap = new Map(mostUsedItems.map((item) => [item.id, item.count]))
+        items = items.sort((a, b) => {
+          const countA = usageMap.get(a.id) || 0
+          const countB = usageMap.get(b.id) || 0
+          if (countA !== countB) return countB - countA
+          return a.name.localeCompare(b.name)
+        })
+        break
+      case "alphabetical":
+        items = items.sort((a, b) => a.name.localeCompare(b.name))
+        break
+      default:
+        break
+    }
+
+    return items
+  }
+
+  const filteredAndSortedItems = getFilteredAndSortedItems()
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -384,6 +452,19 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
   // Ensure rank is defined before using it
   const rankDisplay = accountScore?.rank || "F"
   const rankColorClass = getRankColor(rankDisplay)
+
+  const getSortOptionLabel = (option: SortOption) => {
+    switch (option) {
+      case "rarity":
+        return "Sort by Rarity"
+      case "most-used":
+        return "Sort by Most Used"
+      case "alphabetical":
+        return "Sort Alphabetically"
+      default:
+        return "Sort"
+    }
+  }
 
   return (
     <Card className="w-full border-0 rounded-none sm:rounded-lg sm:border">
@@ -548,151 +629,121 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
           </div>
         </div>
 
-        <Tabs
-          defaultValue="most-used"
-          onValueChange={(value) => setActiveTab(value as "most-used" | "collection" | "challenges")}
-        >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-            <div className="overflow-x-auto pb-2 hide-scrollbar w-full sm:w-auto">
-              <TabsList className="w-max min-w-full">
-                <TabsTrigger value="most-used" className="flex items-center gap-1">
-                  <Trophy className="h-4 w-4" />
-                  <span>Most Used</span>
-                </TabsTrigger>
-                <TabsTrigger value="collection" className="flex items-center gap-1">
-                  <Star className="h-4 w-4" />
-                  <span>Pulls</span>
-                </TabsTrigger>
-                <TabsTrigger value="challenges" className="flex items-center gap-1">
-                  <Target className="h-4 w-4" />
-                  <span>Challenges</span>
-                </TabsTrigger>
-              </TabsList>
+        {/* Main Content Section */}
+        <div className="space-y-4">
+          {/* Top Controls Row */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            {/* Left: Movies/Actors Toggle */}
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={activeType === "movie" ? "default" : "outline"}
+                onClick={() => setActiveType("movie")}
+                className="flex items-center gap-1"
+              >
+                <Film className="h-4 w-4" />
+                <span>Movies</span>
+              </Button>
+              <Button
+                size="sm"
+                variant={activeType === "actor" ? "default" : "outline"}
+                onClick={() => setActiveType("actor")}
+                className="flex items-center gap-1"
+              >
+                <User className="h-4 w-4" />
+                <span>Actors</span>
+              </Button>
             </div>
 
-            {activeTab !== "challenges" && (
-              <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-start">
-                <Button
-                  size="sm"
-                  variant={activeType === "movie" ? "default" : "outline"}
-                  onClick={() => setActiveType("movie")}
-                  className="flex items-center gap-1"
-                >
-                  <Film className="h-4 w-4" />
-                  <span>Movies</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant={activeType === "actor" ? "default" : "outline"}
-                  onClick={() => setActiveType("actor")}
-                  className="flex items-center gap-1"
-                >
-                  <User className="h-4 w-4" />
-                  <span>Actors</span>
-                </Button>
+            {/* Right: Search and Sort */}
+            <div className="flex gap-2 w-full sm:w-auto">
+              {/* Search Bar */}
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder={`Search ${activeType}s...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-9"
+                />
               </div>
-            )}
+
+              {/* Sort Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-1 h-9">
+                    <ArrowUpDown className="h-4 w-4" />
+                    <span className="hidden sm:inline">Sort</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setSortOption("rarity")}>Sort by Rarity</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortOption("most-used")}>Sort by Most Used</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortOption("alphabetical")}>Sort Alphabetically</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
-          <TabsContent value="most-used" className="mt-0">
-            {mostUsedItems.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {mostUsedItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-col items-center bg-muted/20 rounded-lg p-2 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="relative h-32 w-24 mb-2 rounded-md overflow-hidden shadow-sm">
-                      {item.image ? (
-                        <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-                      ) : (
-                        <div className="h-full w-full bg-muted flex items-center justify-center">
-                          {activeType === "movie" ? (
-                            <Film size={24} className="text-muted-foreground" />
-                          ) : (
-                            <User size={24} className="text-muted-foreground" />
-                          )}
-                        </div>
-                      )}
-                      {item.rarity && item.rarity !== "common" && (
-                        <RarityOverlay rarity={item.rarity} showLabel={true} />
-                      )}
-                    </div>
-                    <div className="text-center">
-                      <p className="font-medium text-sm truncate max-w-[120px]" title={item.name}>
-                        {item.name}
-                      </p>
-                      <p className="text-xs font-medium">
-                        Used {item.count} time{item.count !== 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No {activeType} usage data found.</p>
-                <p className="text-sm mt-2">Play some games to see your most used {activeType}s.</p>
-              </div>
-            )}
-          </TabsContent>
+          {/* Rarity Filter Buttons - Full Width */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            <Button
+              size="sm"
+              variant={activeRarity === "all" ? "default" : "outline"}
+              onClick={() => setActiveRarity("all")}
+              className="text-xs w-full"
+            >
+              All ({rarityCount.all})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeRarity === "legendary" ? "default" : "outline"}
+              onClick={() => setActiveRarity("legendary")}
+              className="text-xs w-full bg-gradient-to-r from-amber-500 to-amber-700 border-amber-600 hover:from-amber-600 hover:to-amber-800"
+            >
+              Legendary ({rarityCount.legendary})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeRarity === "epic" ? "default" : "outline"}
+              onClick={() => setActiveRarity("epic")}
+              className="text-xs w-full bg-gradient-to-r from-purple-500 to-purple-700 border-purple-600 hover:from-purple-600 hover:to-purple-800"
+            >
+              Epic ({rarityCount.epic})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeRarity === "rare" ? "default" : "outline"}
+              onClick={() => setActiveRarity("rare")}
+              className="text-xs w-full bg-gradient-to-r from-blue-500 to-indigo-700 border-indigo-600 hover:from-blue-600 hover:to-indigo-800"
+            >
+              Rare ({rarityCount.rare})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeRarity === "uncommon" ? "default" : "outline"}
+              onClick={() => setActiveRarity("uncommon")}
+              className="text-xs w-full bg-gradient-to-r from-green-500 to-green-700 border-green-600 hover:from-green-600 hover:to-green-800"
+            >
+              Uncommon ({rarityCount.uncommon})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeRarity === "common" ? "default" : "outline"}
+              onClick={() => setActiveRarity("common")}
+              className="text-xs w-full"
+            >
+              Common ({rarityCount.common})
+            </Button>
+          </div>
 
-          <TabsContent value="collection" className="mt-0">
-            {/* Rarity filter buttons */}
-            <div className="flex flex-wrap gap-2 mb-4 justify-center">
-              <Button
-                size="sm"
-                variant={activeRarity === "all" ? "default" : "outline"}
-                onClick={() => setActiveRarity("all")}
-                className="text-xs"
-              >
-                All ({rarityCount.all})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeRarity === "legendary" ? "default" : "outline"}
-                onClick={() => setActiveRarity("legendary")}
-                className="text-xs bg-gradient-to-r from-amber-500 to-amber-700 border-amber-600 hover:from-amber-600 hover:to-amber-800"
-              >
-                Legendary ({rarityCount.legendary})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeRarity === "epic" ? "default" : "outline"}
-                onClick={() => setActiveRarity("epic")}
-                className="text-xs bg-gradient-to-r from-purple-500 to-purple-700 border-purple-600 hover:from-purple-600 hover:to-purple-800"
-              >
-                Epic ({rarityCount.epic})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeRarity === "rare" ? "default" : "outline"}
-                onClick={() => setActiveRarity("rare")}
-                className="text-xs bg-gradient-to-r from-blue-500 to-indigo-700 border-indigo-600 hover:from-blue-600 hover:to-indigo-800"
-              >
-                Rare ({rarityCount.rare})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeRarity === "uncommon" ? "default" : "outline"}
-                onClick={() => setActiveRarity("uncommon")}
-                className="text-xs bg-gradient-to-r from-green-500 to-green-700 border-green-600 hover:from-green-600 hover:to-green-800"
-              >
-                Uncommon ({rarityCount.uncommon})
-              </Button>
-              <Button
-                size="sm"
-                variant={activeRarity === "common" ? "default" : "outline"}
-                onClick={() => setActiveRarity("common")}
-                className="text-xs"
-              >
-                Common ({rarityCount.common})
-              </Button>
-            </div>
-
-            {filteredCollectionItems.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {filteredCollectionItems.map((item) => (
+          {/* Items Grid */}
+          {filteredAndSortedItems.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {filteredAndSortedItems.map((item) => {
+                const usageCount = mostUsedItems.find((usedItem) => usedItem.id === item.id)?.count || 0
+                return (
                   <div key={item.id} className="flex flex-col items-center rounded-lg p-2 border transition-colors">
                     <div className="relative h-32 w-24 mb-2 rounded-md overflow-hidden shadow-sm">
                       {item.image ? (
@@ -715,34 +766,47 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
                         {item.name}
                       </p>
                       <p className="text-xs font-medium">
-                        Found {item.count} time{item.count !== 1 ? "s" : ""}
+                        {usageCount > 0 ? `Used ${usageCount} time${usageCount !== 1 ? "s" : ""}` : "Never used"}
                       </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>
-                  No {activeRarity !== "all" ? getRarityDisplayName(activeRarity as Rarity) : ""} {activeType}s found.
-                </p>
-                <p className="text-sm mt-2">Play more games to discover new {activeType} pulls.</p>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="challenges" className="mt-0">
-            <div className="mb-4 text-center">
-              <h3 className="text-lg font-medium flex items-center justify-center gap-2">
-                <Target className="h-5 w-5 text-red-500" />
-                <span>Daily Challenges Completed</span>
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Find the daily challenge item in your games to earn bonus points!
-              </p>
+                )
+              })}
             </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              {searchTerm ? (
+                <>
+                  <p>
+                    No {activeRarity !== "all" ? getRarityDisplayName(activeRarity as Rarity) : ""} {activeType}s found
+                    matching "{searchTerm}".
+                  </p>
+                  <p className="text-sm mt-2">Try a different search term or rarity filter.</p>
+                </>
+              ) : (
+                <>
+                  <p>
+                    No {activeRarity !== "all" ? getRarityDisplayName(activeRarity as Rarity) : ""} {activeType}s found.
+                  </p>
+                  <p className="text-sm mt-2">Play more games to discover new {activeType} pulls.</p>
+                </>
+              )}
+            </div>
+          )}
 
-            {Object.keys(dailyChallenges).length > 0 ? (
+          {/* Daily Challenges Section */}
+          {Object.keys(dailyChallenges).length > 0 && (
+            <div className="mt-8 pt-6 border-t">
+              <div className="mb-4 text-center">
+                <h3 className="text-lg font-medium flex items-center justify-center gap-2">
+                  <Target className="h-5 w-5 text-red-500" />
+                  <span>Daily Challenges Completed</span>
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Find the daily challenge item in your games to earn bonus points!
+                </p>
+              </div>
+
               <div className="space-y-6">
                 {Object.entries(dailyChallenges)
                   .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime())
@@ -792,14 +856,10 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
                     </div>
                   ))}
               </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No daily challenges completed yet.</p>
-                <p className="text-sm mt-2">Complete daily challenges to see them here.</p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+            </div>
+          )}
+        </div>
+
         {/* Account Button - conditionally show Create or Delete based on username existence */}
         <div className="mt-8 pt-4 border-t">
           {username ? (

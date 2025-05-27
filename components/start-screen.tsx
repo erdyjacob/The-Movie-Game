@@ -4,13 +4,12 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Loader2, ChevronDown, ChevronUp, Target, Calendar, Film, User, BarChart, Network } from "lucide-react"
 import type { Difficulty, GameFilters, GameItem } from "@/lib/types"
 import PlayerStats from "./player-stats"
 import Image from "next/image"
 import { getDailyChallenge } from "@/lib/daily-challenge"
-import Link from "next/link"
 import { useMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import ConnectionWebButton from "./connection-web-button"
@@ -378,38 +377,6 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col pt-2 pb-4 sm:pb-6">
-          {/* Footer with survey link and TMDB attribution */}
-          <div className="w-full flex flex-col sm:flex-row sm:justify-between items-center mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
-            {/* Left: Survey link */}
-            <div className="mb-2 sm:mb-0 text-left">
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Report a bug{" "}
-                <Link
-                  href="https://forms.gle/ppmQ7XcoX6i4xUEz9"
-                  className="text-blue-500 hover:underline"
-                  target="_blank"
-                >
-                  Take our survey
-                </Link>
-              </p>
-            </div>
-
-            {/* Right: TMDB attribution */}
-            <div className="flex items-center">
-              <span className="text-xs sm:text-sm text-muted-foreground mr-2">Data provided by</span>
-              <Link href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">
-                <Image
-                  src="/images/tmdb-logo.svg"
-                  alt="TMDB Logo"
-                  width={70}
-                  height={13}
-                  className="h-3.5 sm:h-4.5 w-auto"
-                />
-              </Link>
-            </div>
-          </div>
-        </CardFooter>
 
         {/* Add the stats dialog outside the main component structure */}
         {statsOpen && (

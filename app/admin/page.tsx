@@ -203,7 +203,7 @@ export default function AdminPage() {
         </Card>
 
         <Tabs defaultValue="leaderboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-6 bg-gray-800 border-gray-700">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 mb-6 bg-gray-800 border-gray-700">
             <TabsTrigger
               value="leaderboard"
               className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white"

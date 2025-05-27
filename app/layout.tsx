@@ -8,6 +8,7 @@ import { Analytics } from "@vercel/analytics/react"
 import { Suspense } from "react"
 import TestDataLoader from "@/test-data-loader"
 import { UserProvider } from "@/contexts/user-context"
+import Footer from "@/components/footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/images/TheMovieGamefavicon.svg",
   },
-    generator: 'v0.dev'
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
@@ -27,11 +28,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${inter.className} min-h-screen flex flex-col`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <UserProvider>
             <Suspense>
-              {children}
+              <main className="flex-1">{children}</main>
+              <Footer />
               <TestDataLoader />
               <SpeedInsights />
               <Analytics />
