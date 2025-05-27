@@ -53,10 +53,6 @@ export default function LeaderboardPage() {
           <LeaderboardData />
         </Suspense>
       </main>
-
-      <footer className="border-t py-4 text-center text-sm text-muted-foreground">
-        <div className="container">The Movie Game &copy; {new Date().getFullYear()}</div>
-      </footer>
     </div>
   )
 }
