@@ -20,7 +20,7 @@ import {
   Target,
   Calendar,
 } from "lucide-react"
-import { getMostUsedItems, getItemsByRarity, loadPlayerHistory } from "@/lib/player-history"
+import { getItemsByRarity, loadPlayerHistory } from "@/lib/player-history"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
 import Link from "next/link"
@@ -46,6 +46,9 @@ import { loadAchievements, saveAchievements, checkAchievements } from "@/lib/ach
 
 // Add the import for the rank calculator
 import { calculateAccountScore, getRankColor } from "@/lib/rank-calculator"
+
+// Add import for connection tracking at the top of the file:
+import { loadConnections } from "@/lib/connection-tracking"
 
 // Updated realistic numbers that look more calculated/measured
 const TOTAL_COLLECTIBLE_MOVIES = 9847
@@ -250,7 +253,35 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
       try {
         // Load most used items
         try {
-          setMostUsedItems(getMostUsedItems(activeType, 100)) // Load more items for sorting
+          // Calculate usage from connections
+          const connections = loadConnections()
+          const usageMap = new Map<number, number>()
+
+          connections.forEach((conn) => {
+            if (activeType === "movie") {
+              usageMap.set(conn.movieId, (usageMap.get(conn.movieId) || 0) + 1)
+            } else {
+              usageMap.set(conn.actorId, (usageMap.get(conn.actorId) || 0) + 1)
+            }
+          })
+
+          // Convert to mostUsedItems format for compatibility
+          const connectionBasedUsage: PlayerHistoryItem[] = Array.from(usageMap.entries())
+            .map(([id, count]) => {
+              const item = collectionItems.find((item) => item.id === id)
+              return {
+                id,
+                name: item?.name || "",
+                count,
+                image: item?.image,
+                rarity: item?.rarity,
+                type: activeType,
+                timestamp: item?.timestamp || new Date().toISOString(),
+              }
+            })
+            .filter((item) => item.name) // Remove items not found in collection
+
+          setMostUsedItems(connectionBasedUsage)
         } catch (error) {
           console.error("Error loading most used items:", error)
           setMostUsedItems([])
