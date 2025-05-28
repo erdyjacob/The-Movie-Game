@@ -27,7 +27,7 @@ export default function LeaderboardPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b bg-card">
-        <div className="container flex flex-col items-center justify-center py-6 px-4">
+        <div className="w-full flex flex-col items-center justify-center py-6 px-4">
           {/* Hero Section - same as start screen */}
           <div className="text-center mb-4">
             <div className="w-80 h-20 relative mx-auto mb-3">
