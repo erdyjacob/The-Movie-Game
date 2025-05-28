@@ -37,7 +37,7 @@ export function LeaderboardTable({ data }: LeaderboardTableProps) {
                   <td className="p-4 align-middle text-right">{entry.score.toLocaleString()}</td>
                   <td className="p-4 align-middle text-center">
                     <span className="inline-flex items-center justify-center rounded-md bg-muted px-2 py-1 text-xs font-medium">
-                      {entry.gamesPlayed || 0}
+                      {typeof entry.gamesPlayed === "number" ? entry.gamesPlayed : 0}
                     </span>
                   </td>
                   <td className="p-4 align-middle text-center">

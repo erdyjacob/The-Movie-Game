@@ -58,15 +58,16 @@ export async function getLeaderboardData(): Promise<LeaderboardEntry[]> {
       rev: true,
     })
 
-    // Ensure all entries have games played data
+    // Ensure all entries have accurate games played data using the same method as user management
     const enrichedData = await Promise.all(
       (leaderboardData || []).map(async (entry) => {
-        // If entry doesn't have gamesPlayed or it's 0, try to get it from game tracking
-        if (!entry.gamesPlayed && entry.userId) {
+        // Always get fresh games played count from the authoritative source
+        if (entry.userId) {
           const gamesPlayed = await getUserGamesPlayedCount(entry.userId)
           return { ...entry, gamesPlayed }
         }
-        return entry
+        // For entries without userId, keep existing count or default to 0
+        return { ...entry, gamesPlayed: entry.gamesPlayed || 0 }
       }),
     )
 
@@ -101,10 +102,11 @@ export async function addLeaderboardEntry(
     }
 
     // Get accurate games played count from game tracking system
-    let gamesPlayed = 0
-    if (userId) {
-      gamesPlayed = await getUserGamesPlayedCount(userId)
-    }
+    // Remove the getUserGamesPlayedCount call since we'll fetch this dynamically
+    // let gamesPlayed = 0
+    // if (userId) {
+    //   gamesPlayed = await getUserGamesPlayedCount(userId)
+    // }
 
     // Get all leaderboard entries to find existing entry from the same player
     const existingEntries = await kv.zrange<string[]>(LEADERBOARD_KEY, 0, -1, { rev: true })
@@ -140,10 +142,10 @@ export async function addLeaderboardEntry(
       }
     }
 
-    // Create the new entry with accurate games played count
+    // Create the new entry without gamesPlayed field - it will be fetched dynamically
     const entry: LeaderboardEntry = {
       id: existingEntry?.id || nanoid(),
-      userId, // Include userId in the entry
+      userId, // Include userId for dynamic games played lookup
       playerName: normalizedPlayerName,
       score: score.points,
       rank: score.rank,
@@ -152,7 +154,7 @@ export async function addLeaderboardEntry(
       rareCount: score.rareCount,
       uncommonCount: score.uncommonCount,
       commonCount: score.commonCount,
-      gamesPlayed: gamesPlayed, // Use accurate count from game tracking
+      // gamesPlayed will be populated dynamically in getLeaderboardData()
       timestamp: new Date().toISOString(),
       avatarUrl: avatarUrl,
       gameMode: gameMode,
@@ -182,7 +184,6 @@ export async function addLeaderboardEntry(
 
     logLeaderboardAction("ADD_ENTRY_SUCCESS", userId, playerName, {
       score: score.points,
-      gamesPlayed: entry.gamesPlayed,
     })
     return true
   } catch (error) {
@@ -219,10 +220,11 @@ export async function updateLeaderboardWithTotalPoints(
     }
 
     // Get accurate games played count from game tracking system
-    let gamesPlayed = 0
-    if (userId) {
-      gamesPlayed = await getUserGamesPlayedCount(userId)
-    }
+    // Remove the getUserGamesPlayedCount call since we'll fetch this dynamically
+    // let gamesPlayed = 0
+    // if (userId) {
+    //   gamesPlayed = await getUserGamesPlayedCount(userId)
+    // }
 
     // Get all leaderboard entries to find existing entry
     const existingEntries = await kv.zrange<string[]>(LEADERBOARD_KEY, 0, -1, { rev: true })
@@ -253,13 +255,7 @@ export async function updateLeaderboardWithTotalPoints(
       }
     }
 
-    // If the player exists and their score hasn't changed, still update games played if needed
-    if (existingEntry && existingEntry.score === accountScore.points && existingEntry.gamesPlayed === gamesPlayed) {
-      logLeaderboardAction("UPDATE_POINTS_SKIP", userId, playerName, { reason: "Score and games played unchanged" })
-      return true
-    }
-
-    // Create or update the entry with accurate games played count
+    // Create or update the entry without gamesPlayed field - it will be fetched dynamically
     const entry: LeaderboardEntry = {
       id: existingEntry?.id || nanoid(),
       userId: userId || existingEntry?.userId, // Use provided userId or keep existing
@@ -271,10 +267,21 @@ export async function updateLeaderboardWithTotalPoints(
       rareCount: accountScore.rareCount || 0,
       uncommonCount: accountScore.uncommonCount || 0,
       commonCount: accountScore.commonCount || 0,
-      gamesPlayed: gamesPlayed, // Use accurate count from game tracking
+      // gamesPlayed will be populated dynamically in getLeaderboardData()
       timestamp: new Date().toISOString(),
       gameMode: "collection", // This represents the total collection score
       difficulty: "all",
+    }
+
+    let gamesPlayed = 0
+    if (userId) {
+      gamesPlayed = await getUserGamesPlayedCount(userId)
+    }
+
+    // If the player exists and their score hasn't changed, still update games played if needed
+    if (existingEntry && existingEntry.score === accountScore.points && existingEntry.gamesPlayed === gamesPlayed) {
+      logLeaderboardAction("UPDATE_POINTS_SKIP", userId, playerName, { reason: "Score and games played unchanged" })
+      return true
     }
 
     // If this is an update, remove the old entry first to avoid duplicates

@@ -290,7 +290,7 @@ export default function ConnectionWeb() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         {/* Rarity filter */}
         <FilterControls filterRarity={filterRarity} onFilterChange={setFilterRarity} />
 
