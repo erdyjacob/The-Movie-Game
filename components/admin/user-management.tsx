@@ -16,12 +16,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Search, Trash2, AlertTriangle } from "lucide-react"
+import { Search, Trash2, AlertTriangle, GamepadIcon } from "lucide-react"
 
 interface User {
   userId: string
   username: string
   score: number | null
+  gamesPlayed: number
 }
 
 interface PaginationInfo {
@@ -161,6 +162,21 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
     return score.toLocaleString()
   }
 
+  // Format games played count
+  const formatGamesPlayed = (gamesPlayed: number) => {
+    if (gamesPlayed === 0) return "0"
+    return gamesPlayed.toLocaleString()
+  }
+
+  // Get activity level indicator
+  const getActivityLevel = (gamesPlayed: number) => {
+    if (gamesPlayed === 0) return { level: "inactive", color: "text-gray-400" }
+    if (gamesPlayed < 5) return { level: "low", color: "text-yellow-600" }
+    if (gamesPlayed < 20) return { level: "moderate", color: "text-blue-600" }
+    if (gamesPlayed < 50) return { level: "active", color: "text-green-600" }
+    return { level: "very active", color: "text-purple-600" }
+  }
+
   useEffect(() => {
     if (adminPassword) {
       fetchUsers()
@@ -202,34 +218,51 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
                 <TableHead>Username</TableHead>
                 <TableHead>User ID</TableHead>
                 <TableHead>Score</TableHead>
+                <TableHead className="text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <GamepadIcon className="h-4 w-4" />
+                    <span>Games Played</span>
+                  </div>
+                </TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
                     {isLoading ? "Loading users..." : "No users found"}
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((user) => (
-                  <TableRow key={user.userId}>
-                    <TableCell className="font-medium">
-                      {user.username || <span className="text-muted-foreground italic">Unknown</span>}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{user.userId}</TableCell>
-                    <TableCell className={user.score ? "font-semibold text-amber-500" : "text-muted-foreground"}>
-                      {formatScore(user.score)}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(user)}>
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                users.map((user) => {
+                  const activityLevel = getActivityLevel(user.gamesPlayed)
+                  return (
+                    <TableRow key={user.userId}>
+                      <TableCell className="font-medium">
+                        {user.username || <span className="text-muted-foreground italic">Unknown</span>}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{user.userId}</TableCell>
+                      <TableCell className={user.score ? "font-semibold text-amber-500" : "text-muted-foreground"}>
+                        {formatScore(user.score)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={`font-semibold ${activityLevel.color}`}>
+                            {formatGamesPlayed(user.gamesPlayed)}
+                          </span>
+                          <span className={`text-xs ${activityLevel.color} capitalize`}>{activityLevel.level}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(user)}>
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
@@ -273,6 +306,12 @@ export function UserManagement({ adminPassword }: UserManagementProps) {
               Are you sure you want to delete the user{" "}
               {userToDelete?.username ? `"${userToDelete.username}"` : `with ID "${userToDelete?.userId}"`}? This action
               cannot be undone.
+              {userToDelete?.gamesPlayed && userToDelete.gamesPlayed > 0 && (
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
+                  <strong>Warning:</strong> This user has played {formatGamesPlayed(userToDelete.gamesPlayed)} games.
+                  Deleting will remove all their game history.
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
 
