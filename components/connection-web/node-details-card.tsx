@@ -47,7 +47,7 @@ export function NodeDetailsCard({ node, links }: NodeDetailsCardProps) {
         </div>
       </div>
       <div className="mt-2">
-        <p className="text-sm">Used {node.count} times</p>
+        <p className="text-sm">Discovered {node.count} times</p>
         <p className="text-sm mt-1">Connected to {connectionCount} items</p>
       </div>
     </Card>

@@ -1,10 +1,10 @@
 import { Suspense } from "react"
-import { Logo } from "@/components/ui/logo"
 import { LeaderboardTable } from "@/components/leaderboard-table"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Home } from "lucide-react"
 import { getLeaderboardData, getLeaderboardLastUpdated } from "@/lib/leaderboard"
+import Image from "next/image"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0 // We're handling caching in our getLeaderboardData function
@@ -27,10 +27,13 @@ export default function LeaderboardPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b bg-card">
-        <div className="container flex items-center justify-center h-16 px-4">
-          <div className="flex items-center gap-2">
-            <Logo className="h-8 w-8" />
-            <h1 className="text-xl font-bold">The Movie Game</h1>
+        <div className="container flex flex-col items-center justify-center py-6 px-4">
+          {/* Hero Section - same as start screen */}
+          <div className="text-center mb-4">
+            <div className="w-80 h-20 relative mx-auto mb-3">
+              <Image src="/images/TheMovieGame.svg" alt="The Movie Game" fill className="object-contain" priority />
+            </div>
+            <p className="text-muted-foreground">Name an actor from the movie or a movie the actor was in!</p>
           </div>
         </div>
       </header>

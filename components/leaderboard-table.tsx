@@ -15,14 +15,13 @@ export function LeaderboardTable({ data }: LeaderboardTableProps) {
               <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground w-[60px]">Rank</th>
               <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Player</th>
               <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Score</th>
-              <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground w-[80px]">Games</th>
               <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground w-[100px]">Rank</th>
             </tr>
           </thead>
           <tbody className="[&_tr:last-child]:border-0">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                <td colSpan={4} className="p-4 text-center text-muted-foreground">
                   No leaderboard entries yet
                 </td>
               </tr>
@@ -35,11 +34,6 @@ export function LeaderboardTable({ data }: LeaderboardTableProps) {
                   <td className="p-4 align-middle font-medium">#{index + 1}</td>
                   <td className="p-4 align-middle">{entry.playerName}</td>
                   <td className="p-4 align-middle text-right">{entry.score.toLocaleString()}</td>
-                  <td className="p-4 align-middle text-center">
-                    <span className="inline-flex items-center justify-center rounded-md bg-muted px-2 py-1 text-xs font-medium">
-                      {typeof entry.gamesPlayed === "number" ? entry.gamesPlayed : 0}
-                    </span>
-                  </td>
                   <td className="p-4 align-middle text-center">
                     <span
                       className={`inline-flex items-center justify-center rounded-md border px-3 py-1 text-sm font-bold shadow-sm ${getRankColor(entry.rank)} ${getRankBorderColor(entry.rank)}`}

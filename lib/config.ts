@@ -34,22 +34,28 @@ export const GAME = {
   PREFETCH_BATCH_SIZE: 5,
 }
 
-// Rank Configuration
+// Rank Configuration - Updated with more challenging thresholds
 export const RANK = {
   THRESHOLDS: {
-    SS: 10000,
-    "S+": 7500,
-    S: 5000,
-    "A+": 3000,
-    A: 2000,
-    "B+": 1500,
-    B: 1000,
-    "C+": 750,
-    C: 500,
-    "D+": 300,
-    D: 200,
-    "F+": 100,
-    F: 0,
+    SS: 50000, // 5x harder
+    "S+": 35000, // 4.7x harder
+    S: 25000, // 5x harder
+    "S-": 18000, // new tier
+    "A+": 12000, // 4x harder
+    A: 8000, // 4x harder
+    "A-": 6000, // new tier
+    "B+": 4500, // 3x harder
+    B: 3000, // 3x harder
+    "B-": 2200, // new tier
+    "C+": 1600, // 2.1x harder
+    C: 1200, // 2.4x harder
+    "C-": 900, // new tier
+    "D+": 650, // 2.2x harder
+    D: 450, // 2.3x harder
+    "D-": 300, // new tier
+    "F+": 150, // 1.5x harder
+    F: 50, // new tier
+    "F-": 0, // new bottom tier
   },
 }
 
