@@ -38,6 +38,7 @@ import { AchievementMigration } from "@/components/admin/achievement-migration"
 import { TestingSuiteLayout } from "@/components/admin/testing-suite-layout"
 import { GamesPlayedVerification } from "@/components/admin/games-played-verification"
 import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard"
+import { SyncRefresh } from "@/components/admin/sync-refresh"
 
 export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -254,6 +255,13 @@ export default function AdminPage() {
               <span className="hidden sm:inline">Testing</span>
               <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 text-white rounded">New</span>
             </TabsTrigger>
+            <TabsTrigger
+              value="sync-refresh"
+              className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span className="hidden sm:inline">Sync & Refresh</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="leaderboard">
@@ -461,6 +469,10 @@ export default function AdminPage() {
             <TestingSuiteLayout adminPassword={password}>
               <GamesPlayedVerification adminPassword={password} />
             </TestingSuiteLayout>
+          </TabsContent>
+
+          <TabsContent value="sync-refresh">
+            <SyncRefresh adminPassword={password} />
           </TabsContent>
         </Tabs>
       </div>

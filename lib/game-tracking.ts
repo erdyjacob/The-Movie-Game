@@ -63,19 +63,35 @@ export async function recordGameParticipation(
   difficulty: Difficulty,
   duration?: number,
 ): Promise<string | null> {
+  const startTime = Date.now()
+
   try {
-    logGameTracking("RECORD_START", userId, username, { score, gameMode, difficulty })
+    logGameTracking("RECORD_START", userId, username, {
+      score,
+      gameMode,
+      difficulty,
+      timestamp: startTime,
+    })
 
     if (!userId || !username) {
-      logGameTracking("RECORD_ERROR", userId, username, { error: "Missing user information" })
+      logGameTracking("RECORD_ERROR", userId, username, {
+        error: "Missing user information",
+        hasUserId: !!userId,
+        hasUsername: !!username,
+      })
       return null
     }
 
-    // Generate unique game ID
+    // Generate unique game ID with additional validation
     const gameId = await generateGameId()
+    if (!gameId) {
+      logGameTracking("RECORD_ERROR", userId, username, { error: "Failed to generate game ID" })
+      return null
+    }
+
     const timestamp = Date.now()
 
-    // Create game record
+    // Create game record with validation
     const gameRecord: GameRecord = {
       gameId,
       userId,
@@ -88,57 +104,114 @@ export async function recordGameParticipation(
       duration,
     }
 
-    // Use pipeline for atomic operations
-    const pipeline = kv.pipeline()
-
-    // Store individual game record
-    pipeline.set(`game:${gameId}`, gameRecord, { ex: 60 * 60 * 24 * 365 }) // Keep for 1 year
-
-    // Add to user's game list
-    const userGamesKey = `${USER_GAMES_KEY_PREFIX}${userId}`
-    pipeline.lpush(userGamesKey, gameId)
-    pipeline.expire(userGamesKey, 60 * 60 * 24 * 365) // Keep for 1 year
-
-    // Add to global games list (for analytics)
-    pipeline.lpush(GLOBAL_GAMES_KEY, gameId)
-    pipeline.ltrim(GLOBAL_GAMES_KEY, 0, 9999) // Keep last 10k games
-
-    // Update user's game count cache
-    const userStatsKey = `user-stats:${userId}`
-    const existingStats = await kv.get<UserGameStats>(userStatsKey)
-
-    const newStats: UserGameStats = {
-      totalGames: (existingStats?.totalGames || 0) + 1,
-      totalScore: (existingStats?.totalScore || 0) + score,
-      averageScore: 0, // Will be calculated below
-      bestScore: Math.max(existingStats?.bestScore || 0, score),
-      lastPlayed: timestamp,
-      gamesByMode: {
-        ...existingStats?.gamesByMode,
-        [gameMode]: (existingStats?.gamesByMode?.[gameMode] || 0) + 1,
-      } as Record<GameMode, number>,
-      gamesByDifficulty: {
-        ...existingStats?.gamesByDifficulty,
-        [difficulty]: (existingStats?.gamesByDifficulty?.[difficulty] || 0) + 1,
-      } as Record<Difficulty, number>,
+    // Validate game record before storing
+    if (!gameRecord.gameId || !gameRecord.userId || !gameRecord.username) {
+      logGameTracking("RECORD_ERROR", userId, username, {
+        error: "Invalid game record",
+        gameRecord: JSON.stringify(gameRecord),
+      })
+      return null
     }
 
-    // Calculate average score
-    newStats.averageScore = Math.round(newStats.totalScore / newStats.totalGames)
+    // Use pipeline for atomic operations with error handling
+    const pipeline = kv.pipeline()
 
-    pipeline.set(userStatsKey, newStats, { ex: 60 * 60 * 24 * 30 }) // Keep for 30 days
+    // Store individual game record with extended TTL
+    pipeline.set(`game:${gameId}`, gameRecord, { ex: 60 * 60 * 24 * 365 })
 
-    // Execute all operations
-    await pipeline.exec()
+    // Add to user's game list with error recovery
+    const userGamesKey = `${USER_GAMES_KEY_PREFIX}${userId}`
+    pipeline.lpush(userGamesKey, gameId)
+    pipeline.expire(userGamesKey, 60 * 60 * 24 * 365)
 
-    logGameTracking("RECORD_SUCCESS", userId, username, { gameId, totalGames: newStats.totalGames })
+    // Add to global games list with size management
+    pipeline.lpush(GLOBAL_GAMES_KEY, gameId)
+    pipeline.ltrim(GLOBAL_GAMES_KEY, 0, 9999)
+
+    // Execute pipeline with error handling
+    const pipelineResults = await pipeline.exec()
+
+    // Verify pipeline execution
+    if (!pipelineResults || pipelineResults.some((result) => result[0] !== null)) {
+      logGameTracking("RECORD_ERROR", userId, username, {
+        error: "Pipeline execution failed",
+        results: pipelineResults,
+      })
+      return null
+    }
+
+    // Update user stats with retry logic
+    try {
+      await updateUserStatsAfterGame(userId, score, gameMode, difficulty, timestamp)
+    } catch (statsError) {
+      logGameTracking("RECORD_WARNING", userId, username, {
+        warning: "Stats update failed but game recorded",
+        error: statsError instanceof Error ? statsError.message : String(statsError),
+      })
+      // Don't fail the entire operation if stats update fails
+    }
+
+    const endTime = Date.now()
+    logGameTracking("RECORD_SUCCESS", userId, username, {
+      gameId,
+      duration: endTime - startTime,
+      timestamp: endTime,
+    })
+
     return gameId
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logGameTracking("RECORD_ERROR", userId, username, { error: errorMessage })
+    const endTime = Date.now()
+
+    logGameTracking("RECORD_ERROR", userId, username, {
+      error: errorMessage,
+      duration: endTime - startTime,
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+
     console.error("Error recording game participation:", error)
     return null
   }
+}
+
+// Add new helper function for updating user stats
+async function updateUserStatsAfterGame(
+  userId: string,
+  score: number,
+  gameMode: GameMode,
+  difficulty: Difficulty,
+  timestamp: number,
+): Promise<void> {
+  const userStatsKey = `user-stats:${userId}`
+  const existingStats = await kv.get<UserGameStats>(userStatsKey)
+
+  const newStats: UserGameStats = {
+    totalGames: (existingStats?.totalGames || 0) + 1,
+    totalScore: (existingStats?.totalScore || 0) + score,
+    averageScore: 0, // Will be calculated below
+    bestScore: Math.max(existingStats?.bestScore || 0, score),
+    lastPlayed: timestamp,
+    gamesByMode: {
+      ...existingStats?.gamesByMode,
+      [gameMode]: (existingStats?.gamesByMode?.[gameMode] || 0) + 1,
+    } as Record<GameMode, number>,
+    gamesByDifficulty: {
+      ...existingStats?.gamesByDifficulty,
+      [difficulty]: (existingStats?.gamesByDifficulty?.[difficulty] || 0) + 1,
+    } as Record<Difficulty, number>,
+  }
+
+  // Calculate average score
+  newStats.averageScore = Math.round(newStats.totalScore / newStats.totalGames)
+
+  // Store with extended TTL and error handling
+  await kv.set(userStatsKey, newStats, { ex: 60 * 60 * 24 * 30 })
+
+  logGameTracking("STATS_UPDATED", userId, undefined, {
+    totalGames: newStats.totalGames,
+    newScore: score,
+    averageScore: newStats.averageScore,
+  })
 }
 
 // Get user's game statistics
@@ -167,9 +240,18 @@ export async function rebuildUserGameStats(userId: string): Promise<UserGameStat
     logGameTracking("REBUILD_STATS_START", userId)
 
     const userGamesKey = `${USER_GAMES_KEY_PREFIX}${userId}`
-    const gameIds = await kv.lrange(userGamesKey, 0, -1)
 
-    if (!gameIds || gameIds.length === 0) {
+    // Safe list range retrieval
+    let gameIds: any[] = []
+    try {
+      const result = await kv.lrange(userGamesKey, 0, -1)
+      gameIds = Array.isArray(result) ? result : []
+    } catch (error) {
+      console.error(`Error getting game list for user ${userId}:`, error)
+      gameIds = []
+    }
+
+    if (gameIds.length === 0) {
       logGameTracking("REBUILD_STATS_NO_GAMES", userId)
       return {
         totalGames: 0,
@@ -182,26 +264,37 @@ export async function rebuildUserGameStats(userId: string): Promise<UserGameStat
       }
     }
 
-    // Fetch all game records
+    // Fetch all game records with proper error handling
     const gameRecords: GameRecord[] = []
     for (const gameId of gameIds) {
       try {
-        const record = await kv.get<GameRecord>(`game:${gameId}`)
-        if (record) {
+        // Ensure gameId is a string
+        const gameIdString = String(gameId)
+        let record: GameRecord | null = null
+
+        try {
+          record = await kv.get<GameRecord>(`game:${gameIdString}`)
+        } catch (error) {
+          console.error(`Error fetching game record ${gameIdString}:`, error)
+          continue
+        }
+
+        if (record && typeof record === "object" && record.gameId) {
           gameRecords.push(record)
         }
       } catch (error) {
-        console.error(`Error fetching game record ${gameId}:`, error)
+        console.error(`Error processing game record ${gameId}:`, error)
+        logGameTracking("REBUILD_STATS_GAME_ERROR", userId, undefined, { gameId, error: String(error) })
       }
     }
 
-    // Calculate statistics
+    // Calculate statistics with validation
     const stats: UserGameStats = {
       totalGames: gameRecords.length,
-      totalScore: gameRecords.reduce((sum, game) => sum + game.score, 0),
+      totalScore: gameRecords.reduce((sum, game) => sum + (game.score || 0), 0),
       averageScore: 0,
-      bestScore: gameRecords.reduce((max, game) => Math.max(max, game.score), 0),
-      lastPlayed: gameRecords.reduce((latest, game) => Math.max(latest, game.timestamp), 0),
+      bestScore: gameRecords.reduce((max, game) => Math.max(max, game.score || 0), 0),
+      lastPlayed: gameRecords.reduce((latest, game) => Math.max(latest, game.timestamp || 0), 0),
       gamesByMode: {} as Record<GameMode, number>,
       gamesByDifficulty: {} as Record<Difficulty, number>,
     }
@@ -209,17 +302,29 @@ export async function rebuildUserGameStats(userId: string): Promise<UserGameStat
     // Calculate average
     stats.averageScore = stats.totalGames > 0 ? Math.round(stats.totalScore / stats.totalGames) : 0
 
-    // Count by mode and difficulty
+    // Count by mode and difficulty with validation
     gameRecords.forEach((game) => {
-      stats.gamesByMode[game.gameMode] = (stats.gamesByMode[game.gameMode] || 0) + 1
-      stats.gamesByDifficulty[game.difficulty] = (stats.gamesByDifficulty[game.difficulty] || 0) + 1
+      if (game.gameMode) {
+        stats.gamesByMode[game.gameMode] = (stats.gamesByMode[game.gameMode] || 0) + 1
+      }
+      if (game.difficulty) {
+        stats.gamesByDifficulty[game.difficulty] = (stats.gamesByDifficulty[game.difficulty] || 0) + 1
+      }
     })
 
     // Cache the rebuilt stats
     const userStatsKey = `user-stats:${userId}`
-    await kv.set(userStatsKey, stats, { ex: 60 * 60 * 24 * 30 })
+    try {
+      await kv.set(userStatsKey, stats, { ex: 60 * 60 * 24 * 30 })
+    } catch (error) {
+      console.error(`Error caching stats for user ${userId}:`, error)
+    }
 
-    logGameTracking("REBUILD_STATS_SUCCESS", userId, undefined, { totalGames: stats.totalGames })
+    logGameTracking("REBUILD_STATS_SUCCESS", userId, undefined, {
+      totalGames: stats.totalGames,
+      gameRecordsFound: gameRecords.length,
+      gameIdsProcessed: gameIds.length,
+    })
     return stats
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
@@ -236,16 +341,19 @@ export async function getUserGamesPlayedCount(userId: string): Promise<number> {
 
     // Try to get from cached stats first
     const stats = await getUserGameStats(userId)
-    if (stats) {
+    if (stats && typeof stats.totalGames === "number") {
       return stats.totalGames
     }
 
-    // Fallback: count games directly
+    // Fallback: count games directly with proper error handling
     const userGamesKey = `${USER_GAMES_KEY_PREFIX}${userId}`
     const gameCount = await kv.llen(userGamesKey)
-    return gameCount || 0
+
+    // Ensure we return a number
+    return typeof gameCount === "number" ? gameCount : 0
   } catch (error) {
     console.error("Error getting user games played count:", error)
+    logGameTracking("GET_GAMES_COUNT_ERROR", userId, undefined, { error: String(error) })
     return 0
   }
 }
@@ -263,24 +371,42 @@ export async function synchronizeAllGamesPlayedCounts(): Promise<{
     let updated = 0
     let errors = 0
 
-    // Get all user game keys
+    // Get all user game keys with proper error handling
     const pattern = `${USER_GAMES_KEY_PREFIX}*`
-    const keys = await kv.keys(pattern)
+    let keys: any[] = []
+
+    try {
+      const result = await kv.keys(pattern)
+      keys = Array.isArray(result) ? result : []
+    } catch (error) {
+      console.error("Error getting user game keys:", error)
+      return { processed: 0, updated: 0, errors: 1 }
+    }
 
     for (const key of keys) {
       try {
         processed++
-        const userId = key.replace(USER_GAMES_KEY_PREFIX, "")
+        // Ensure key is a string and extract userId properly
+        const keyString = String(key)
+        const userId = keyString.replace(USER_GAMES_KEY_PREFIX, "")
+
+        if (!userId) {
+          errors++
+          continue
+        }
 
         // Rebuild stats for this user
         const stats = await rebuildUserGameStats(userId)
         if (stats) {
           updated++
           logGameTracking("SYNC_USER_SUCCESS", userId, undefined, { gamesPlayed: stats.totalGames })
+        } else {
+          errors++
         }
       } catch (error) {
         errors++
         console.error(`Error syncing user ${key}:`, error)
+        logGameTracking("SYNC_USER_ERROR", undefined, undefined, { key, error: String(error) })
       }
     }
 
