@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { UsernameSetup } from "@/components/username-setup"
+import { performVersionCheck, type VersionCheckResult } from "@/lib/version-check"
+import { VersionMigrationToast } from "@/components/version-migration-toast"
 
 interface UserContextType {
   username: string | null
@@ -21,9 +23,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isUsernameSetupVisible, setIsUsernameSetupVisible] = useState(false)
+  const [versionCheckResult, setVersionCheckResult] = useState<VersionCheckResult | null>(null)
 
   useEffect(() => {
-    // Load user data from localStorage on initial render
+    // Perform version check first
+    const result = performVersionCheck()
+    setVersionCheckResult(result)
+
+    if (result.wasCleared) {
+      console.log("🧹 localStorage cleared due to version update")
+      // Since localStorage was cleared, no need to check for stored user data
+      setIsLoading(false)
+      return
+    }
+
+    // Load user data from localStorage on initial render (only if not cleared)
     const storedUsername = localStorage.getItem("movieGameUsername")
     const storedUserId = localStorage.getItem("movieGameUserId")
 
@@ -77,6 +91,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
     >
       {children}
       {isUsernameSetupVisible && <UsernameSetup onComplete={handleSetupComplete} onCancel={hideUsernameSetup} />}
+      {versionCheckResult && (
+        <VersionMigrationToast
+          wasCleared={versionCheckResult.wasCleared}
+          previousVersion={versionCheckResult.previousVersion}
+          onDismiss={() => setVersionCheckResult(null)}
+        />
+      )}
     </UserContext.Provider>
   )
 }

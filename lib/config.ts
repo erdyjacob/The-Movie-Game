@@ -11,6 +11,9 @@ export const API = {
   MAX_REQUESTS_PER_SECOND: 4, // TMDB allows 4 requests per second
 }
 
+// App Version for localStorage migration
+export const APP_VERSION = "2.0.0" // Clean slate version with enhanced tracking
+
 // Cache Configuration
 export const CACHE = {
   TTL: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
