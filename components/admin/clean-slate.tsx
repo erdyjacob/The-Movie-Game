@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
@@ -11,6 +10,7 @@ export function CleanSlate() {
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
   const router = useRouter()
 
   const handleCleanSlate = async (e: React.FormEvent) => {
@@ -24,6 +24,9 @@ export function CleanSlate() {
     try {
       setIsLoading(true)
       setError(null)
+      setDebugInfo(null)
+
+      console.log("Sending clean slate request...")
 
       const response = await fetch("/api/admin/clean-slate", {
         method: "POST",
@@ -33,10 +36,19 @@ export function CleanSlate() {
         body: JSON.stringify({ password, confirmText }),
       })
 
+      console.log("Response status:", response.status)
+      console.log("Response headers:", Object.fromEntries(response.headers.entries()))
+
       const data = await response.json()
+      console.log("Response data:", data)
 
       if (!response.ok) {
-        throw new Error(data.message || "Clean slate operation failed")
+        setDebugInfo({
+          status: response.status,
+          statusText: response.statusText,
+          data: data,
+        })
+        throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       setResult(data)
@@ -46,7 +58,13 @@ export function CleanSlate() {
         router.refresh()
       }, 3000)
     } catch (err: any) {
+      console.error("Clean slate error:", err)
       setError(err.message || "An error occurred during the clean slate operation")
+      setDebugInfo((prev) => ({
+        ...prev,
+        clientError: err.message,
+        timestamp: new Date().toISOString(),
+      }))
     } finally {
       setIsLoading(false)
     }
@@ -102,17 +120,31 @@ export function CleanSlate() {
         </button>
       </form>
 
-      {error && <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md">{error}</div>}
+      {error && (
+        <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md">
+          <p className="font-bold">Error:</p>
+          <p>{error}</p>
+        </div>
+      )}
+
+      {debugInfo && (
+        <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-md">
+          <p className="font-bold">Debug Information:</p>
+          <pre className="text-xs mt-2 overflow-auto">{JSON.stringify(debugInfo, null, 2)}</pre>
+        </div>
+      )}
 
       {result && (
         <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md">
           <p className="font-bold">Operation Successful!</p>
           <p>Message: {result.message}</p>
-          <p>
-            Total keys deleted:{" "}
-            {result.details &&
-              Object.values(result.details).reduce((a: any, b: any) => a + (typeof b === "number" ? b : 0), 0)}
-          </p>
+          <p>Total keys deleted: {result.totalKeysDeleted}</p>
+          {result.details && (
+            <details className="mt-2">
+              <summary className="cursor-pointer font-medium">View Details</summary>
+              <pre className="text-xs mt-2 overflow-auto">{JSON.stringify(result.details, null, 2)}</pre>
+            </details>
+          )}
           <p className="mt-2 text-sm">Refreshing page in 3 seconds...</p>
         </div>
       )}
