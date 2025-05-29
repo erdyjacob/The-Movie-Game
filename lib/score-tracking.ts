@@ -2,6 +2,7 @@ import { kv } from "@vercel/kv"
 import type { AccountScore, PlayerHistory, GameMode } from "./types"
 import { updateLeaderboardWithTotalPoints } from "./leaderboard"
 import { recordGameParticipation, getUserGamesPlayedCount } from "./game-tracking"
+import { calculateRank } from "./rank-calculator"
 
 // At the top of the file, add a logging utility function:
 function logScoreAction(action: string, userId?: string, username?: string, details?: any) {
@@ -92,26 +93,8 @@ export async function calculateScoreFromHistory(
     // Add bonus points for daily challenges
     const totalPoints = points + dailyChallengesCompleted * 50
 
-    // Determine rank
-    let rank = "F"
-    if (totalPoints >= 10000) rank = "SS"
-    else if (totalPoints >= 7500) rank = "S+"
-    else if (totalPoints >= 5000) rank = "S"
-    else if (totalPoints >= 4000) rank = "S-"
-    else if (totalPoints >= 3000) rank = "A+"
-    else if (totalPoints >= 2000) rank = "A"
-    else if (totalPoints >= 1500) rank = "A-"
-    else if (totalPoints >= 1200) rank = "B+"
-    else if (totalPoints >= 900) rank = "B"
-    else if (totalPoints >= 750) rank = "B-"
-    else if (totalPoints >= 600) rank = "C+"
-    else if (totalPoints >= 450) rank = "C"
-    else if (totalPoints >= 350) rank = "C-"
-    else if (totalPoints >= 250) rank = "D+"
-    else if (totalPoints >= 200) rank = "D"
-    else if (totalPoints >= 150) rank = "D-"
-    else if (totalPoints >= 100) rank = "F+"
-    else if (totalPoints >= 50) rank = "F"
+    // Determine rank using the centralized rank calculator
+    const rank = calculateRank(totalPoints)
 
     // Calculate percentages
     const TOTAL_COLLECTIBLE_MOVIES = 10000

@@ -1,10 +1,26 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { syncPlayerHistoryAndUpdateScore } from "@/lib/score-tracking"
+import { recordEnhancedGameCompletion } from "@/lib/enhanced-score-tracking"
 import type { PlayerHistory } from "@/lib/types"
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, username, playerHistory, gameScore, gameMode, difficulty } = await request.json()
+    const {
+      userId,
+      username,
+      playerHistory,
+      gameScore,
+      gameMode,
+      difficulty,
+      gameItems = [],
+      gameEndReason = "completed",
+      strikes = 0,
+      timingData = {
+        connectionTimes: [],
+        finalMinuteItems: 0,
+      },
+      duration,
+    } = await request.json()
 
     if (!userId || !username || !playerHistory) {
       return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 })
@@ -20,6 +36,27 @@ export async function POST(request: NextRequest) {
     // Calculate item count from history
     const itemCount = playerHistory.movies?.length + playerHistory.actors?.length
 
+    // Record enhanced game data
+    if (gameScore !== undefined) {
+      await recordEnhancedGameCompletion(
+        userId,
+        username,
+        {
+          score: gameScore,
+          itemCount,
+          gameMode,
+          difficulty,
+          duration,
+          gameItems,
+          gameEndReason,
+          strikes,
+          timingData,
+        },
+        playerHistory as PlayerHistory,
+      )
+    }
+
+    // Continue with regular sync
     const success = await syncPlayerHistoryAndUpdateScore(
       userId,
       username,

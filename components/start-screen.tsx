@@ -14,6 +14,7 @@ import { useMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import ConnectionWebButton from "./connection-web-button"
 import { LeaderboardPreview } from "./leaderboard-preview"
+import ResetBanner from "./reset-banner"
 
 // Custom animated button component
 const AnimatedButton = ({
@@ -185,6 +186,9 @@ export default function StartScreen({ onStart, highScore, loading = false }: Sta
 
   return (
     <>
+      {/* Reset Banner */}
+      <ResetBanner />
+
       {/* Header/Hero Section */}
       <div className="text-center mb-10">
         {/* SVG Logo instead of text title - exact copy from game-container.tsx */}

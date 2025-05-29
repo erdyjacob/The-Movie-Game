@@ -53,7 +53,23 @@ export default function GameOverScreen({
     // Automatically sync score if user is logged in
     if (username && userId) {
       console.log(`[GameOver] Syncing score for ${username}: ${score}`)
-      syncScore(score, gameMode, difficulty)
+
+      // Calculate game end reason
+      const gameEndReason = history.length > 0 ? "completed" : "quit"
+
+      // Collect enhanced data
+      const enhancedData = {
+        gameItems: history,
+        gameEndReason,
+        strikes: 0, // Get from game state if available
+        timingData: {
+          connectionTimes: [], // Would need to be tracked during gameplay
+          finalMinuteItems: 0, // Would need to be tracked during gameplay
+        },
+        duration: history.length > 0 ? history.length * 15 : 0, // Rough estimate based on moves
+      }
+
+      syncScore(score, gameMode, difficulty, enhancedData)
         .then((success) => {
           if (success) {
             console.log("[GameOver] Score sync successful")
@@ -67,7 +83,7 @@ export default function GameOverScreen({
     } else {
       console.log("[GameOver] User not logged in, skipping score sync")
     }
-  }, [username, userId, score, gameMode, difficulty, syncScore])
+  }, [username, userId, score, gameMode, difficulty, history, syncScore])
 
   useEffect(() => {
     // Update longest chain if this game's chain is longer than the stored one

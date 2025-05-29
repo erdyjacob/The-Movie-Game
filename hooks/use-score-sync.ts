@@ -12,7 +12,21 @@ export function useScoreSync() {
   const { username, userId } = useUser()
 
   const syncScore = useCallback(
-    async (score: number, gameMode: GameMode, difficulty: string) => {
+    async (
+      score: number,
+      gameMode: GameMode,
+      difficulty: string,
+      enhancedData?: {
+        gameItems?: any[]
+        gameEndReason?: string
+        strikes?: number
+        timingData?: {
+          connectionTimes: number[]
+          finalMinuteItems?: number
+        }
+        duration?: number
+      },
+    ) => {
       // Reset states
       setSyncError(null)
       setSyncSuccess(false)
@@ -41,9 +55,15 @@ export function useScoreSync() {
             userId,
             username,
             playerHistory,
-            gameScore: score, // Include the game score for tracking
+            gameScore: score,
             gameMode,
             difficulty,
+            // Include enhanced data if available
+            ...(enhancedData?.gameItems && { gameItems: enhancedData.gameItems }),
+            ...(enhancedData?.gameEndReason && { gameEndReason: enhancedData.gameEndReason }),
+            ...(enhancedData?.strikes !== undefined && { strikes: enhancedData.strikes }),
+            ...(enhancedData?.timingData && { timingData: enhancedData.timingData }),
+            ...(enhancedData?.duration !== undefined && { duration: enhancedData.duration }),
           }),
         })
 
