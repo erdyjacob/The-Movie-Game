@@ -126,23 +126,22 @@
   }
 }
 
-/* Marquee animation for scrolling banner */
-@keyframes marquee {
+/* Improved marquee animation for immediate visibility */
+@keyframes marquee-fast {
   0% {
-    transform: translateX(100%);
+    transform: translateX(0%);
   }
   100% {
-    transform: translateX(-100%);
+    transform: translateX(-50%);
   }
 }
 
-.animate-marquee {
-  animation: marquee 40s linear infinite;
+.animate-marquee-fast {
+  animation: marquee-fast 20s linear infinite;
   display: inline-block;
-  padding-left: 20%;
 }
 
 /* Pause animation on hover */
-.animate-marquee:hover {
+.animate-marquee-fast:hover {
   animation-play-state: paused;
 }
