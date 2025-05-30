@@ -13,6 +13,7 @@ import { GraphControls } from "./connection-web/graph-controls"
 import { FilterControls } from "./connection-web/filter-controls"
 import { NodeDetailsCard } from "./connection-web/node-details-card"
 import type { Node, GraphLink } from "@/lib/types"
+import { PopcornLoader } from "./popcorn-loader"
 
 export default function ConnectionWeb() {
   const router = useRouter()
@@ -312,7 +313,7 @@ export default function ConnectionWeb() {
       <div className="relative flex-1 border rounded-lg overflow-hidden">
         {loading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+            <PopcornLoader />
             {backgroundFetchActive && (
               <div className="mt-4 text-center">
                 <p className="text-sm text-muted-foreground">
