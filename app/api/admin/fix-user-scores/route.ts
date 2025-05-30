@@ -1,6 +1,7 @@
 import { kv } from "@vercel/kv"
 import { type NextRequest, NextResponse } from "next/server"
 import { updateLeaderboardWithTotalPoints } from "@/lib/leaderboard"
+import { calculateAccountScore } from "@/lib/rank-calculator"
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,16 +38,7 @@ export async function POST(request: NextRequest) {
           const movies = Array.isArray(playerHistory.movies) ? playerHistory.movies : []
           const actors = Array.isArray(playerHistory.actors) ? playerHistory.actors : []
 
-          // Calculate rarity counts
-          const rarityPoints = {
-            legendary: 1000,
-            epic: 500,
-            rare: 250,
-            uncommon: 100,
-            common: 50,
-          }
-
-          let totalPoints = 0
+          // Count items by rarity
           let legendaryCount = 0
           let epicCount = 0
           let rareCount = 0
@@ -56,27 +48,21 @@ export async function POST(request: NextRequest) {
           // Count movies by rarity
           movies.forEach((movie: any) => {
             if (!movie.rarity) return
-
             switch (movie.rarity) {
               case "legendary":
                 legendaryCount++
-                totalPoints += rarityPoints.legendary
                 break
               case "epic":
                 epicCount++
-                totalPoints += rarityPoints.epic
                 break
               case "rare":
                 rareCount++
-                totalPoints += rarityPoints.rare
                 break
               case "uncommon":
                 uncommonCount++
-                totalPoints += rarityPoints.uncommon
                 break
               case "common":
                 commonCount++
-                totalPoints += rarityPoints.common
                 break
             }
           })
@@ -84,46 +70,39 @@ export async function POST(request: NextRequest) {
           // Count actors by rarity
           actors.forEach((actor: any) => {
             if (!actor.rarity) return
-
             switch (actor.rarity) {
               case "legendary":
                 legendaryCount++
-                totalPoints += rarityPoints.legendary
                 break
               case "epic":
                 epicCount++
-                totalPoints += rarityPoints.epic
                 break
               case "rare":
                 rareCount++
-                totalPoints += rarityPoints.rare
                 break
               case "uncommon":
                 uncommonCount++
-                totalPoints += rarityPoints.uncommon
                 break
               case "common":
                 commonCount++
-                totalPoints += rarityPoints.common
                 break
             }
           })
 
-          // Create account score object
-          const accountScore = {
-            points: totalPoints,
-            rank: calculateRank(totalPoints),
+          // Use the standardized calculation function
+          const accountScore = calculateAccountScore(
             legendaryCount,
             epicCount,
             rareCount,
             uncommonCount,
             commonCount,
-            totalItems: movies.length + actors.length,
-            dailyChallengesCompleted: 0, // Default value
-          }
+            0, // dailyChallengesCompleted - default to 0
+            movies.length,
+            actors.length,
+          )
 
           // Store the score
-          await kv.set(`user:${userId}:score`, totalPoints)
+          await kv.set(`user:${userId}:score`, accountScore.points)
 
           // Store the full account score
           await kv.set(`user:${userId}:accountScore`, accountScore)
@@ -132,15 +111,15 @@ export async function POST(request: NextRequest) {
           if (userData && typeof userData === "object") {
             await kv.set(`user:${userId}`, {
               ...userData,
-              score: totalPoints,
+              score: accountScore.points,
               accountScore,
             })
           }
 
-          // Update leaderboard
-          await updateLeaderboardWithTotalPoints(username as string, accountScore)
+          // Update leaderboard WITH userId parameter
+          await updateLeaderboardWithTotalPoints(username as string, accountScore, userId)
 
-          score = totalPoints
+          score = accountScore.points
           results.scoresFixed++
           results.leaderboardUpdates++
         } else if (userData && typeof userData === "object" && "score" in userData) {
@@ -150,9 +129,9 @@ export async function POST(request: NextRequest) {
           // Ensure score is stored in dedicated key
           await kv.set(`user:${userId}:score`, score)
 
-          // Update leaderboard if account score exists
+          // Update leaderboard if account score exists WITH userId parameter
           if ("accountScore" in userData && typeof userData.accountScore === "object") {
-            await updateLeaderboardWithTotalPoints(username as string, userData.accountScore)
+            await updateLeaderboardWithTotalPoints(username as string, userData.accountScore, userId)
             results.leaderboardUpdates++
           }
 
@@ -171,27 +150,4 @@ export async function POST(request: NextRequest) {
     console.error("Error fixing user scores:", error)
     return NextResponse.json({ message: "Error fixing user scores", error: String(error) }, { status: 500 })
   }
-}
-
-// Helper function to calculate rank based on points
-function calculateRank(points: number): string {
-  if (points >= 50000) return "SS"
-  if (points >= 40000) return "S+"
-  if (points >= 30000) return "S"
-  if (points >= 25000) return "S-"
-  if (points >= 20000) return "A+"
-  if (points >= 15000) return "A"
-  if (points >= 12000) return "A-"
-  if (points >= 10000) return "B+"
-  if (points >= 8000) return "B"
-  if (points >= 6000) return "B-"
-  if (points >= 5000) return "C+"
-  if (points >= 4000) return "C"
-  if (points >= 3000) return "C-"
-  if (points >= 2000) return "D+"
-  if (points >= 1000) return "D"
-  if (points >= 500) return "D-"
-  if (points >= 250) return "F+"
-  if (points >= 100) return "F"
-  return "F-"
 }
