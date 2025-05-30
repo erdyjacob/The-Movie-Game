@@ -599,6 +599,20 @@ export default function GameContainer() {
         saveConnection(movieItem.id, actorItem.id, movieItem.name, actorItem.name)
       }
 
+      // Check for 100 point limit in daily challenge mode
+      if (gameState.gameMode === "dailyChallenge" && gameState.score + 1 >= 100) {
+        // Add the new item to history and update score
+        setGameState((prev) => ({
+          ...prev,
+          currentItem: newItem,
+          history: [...prev.history, newItem],
+          usedIds: newUsedIds,
+          score: prev.score + 1,
+          status: "gameOver", // End the game at 100 points
+        }))
+        return
+      }
+
       // Check if this is the daily challenge item
       let isDailyChallenge = false
       if (dailyChallenge && !gameState.dailyChallengeCompleted) {

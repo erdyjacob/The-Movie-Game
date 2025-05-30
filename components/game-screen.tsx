@@ -8,7 +8,7 @@ import type { GameItem, ItemType, GameFilters, Difficulty, GameMode } from "@/li
 import { useMobile } from "@/hooks/use-mobile"
 import LiveGamePath from "./live-game-path"
 import { validateAnswer } from "@/lib/answer-validation"
-import { AlertTriangle, Clock, Info } from "lucide-react"
+import { AlertTriangle, Clock, Info, Target } from "lucide-react"
 import Image from "next/image"
 import { searchActorsByMovie, searchMoviesByActor } from "@/lib/tmdb-api"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -391,6 +391,32 @@ export const GameScreen = memo(function GameScreen({
                 className="bg-yellow-500 h-2.5 rounded-full transition-all duration-300"
                 style={{ width: `${(turnsRemaining / maxTurns) * 100}%` }}
               ></div>
+            </div>
+          </div>
+        )}
+
+        {/* Daily Challenge Target Display */}
+        {gameMode === "dailyChallenge" && dailyChallenge && (
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="h-5 w-5 text-red-400" />
+              <span className="font-medium text-red-400">Daily Challenge Target:</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {dailyChallenge.image && (
+                <div className="relative w-12 h-16 rounded overflow-hidden flex-shrink-0">
+                  <Image
+                    src={dailyChallenge.image || "/placeholder.svg"}
+                    alt={dailyChallenge.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
+              <div>
+                <p className="font-medium text-white">{dailyChallenge.name}</p>
+                <p className="text-sm text-gray-300">Find this {dailyChallenge.type} to complete the challenge!</p>
+              </div>
             </div>
           </div>
         )}
