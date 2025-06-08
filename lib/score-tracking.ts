@@ -3,7 +3,7 @@ import type { AccountScore, PlayerHistory, GameMode } from "./types"
 import { updateLeaderboardWithTotalPoints } from "./leaderboard"
 import { recordGameParticipation, getUserGamesPlayedCount } from "./game-tracking"
 import { calculateRank } from "./rank-calculator"
-import { checkAchievements, loadAchievements, saveAchievements } from "./achievements"
+import { checkAchievementsAsync, loadAchievements, saveAchievements } from "./achievements"
 
 // At the top of the file, add a logging utility function:
 function logScoreAction(action: string, userId?: string, username?: string, details?: any) {
@@ -174,7 +174,7 @@ export async function updateUserScore(userId: string, username: string, accountS
     // Check achievements after score and leaderboard updates
     try {
       const currentAchievements = loadAchievements()
-      const { achievements: updatedAchievements, newlyUnlocked } = await checkAchievements(
+      const { achievements: updatedAchievements, newlyUnlocked } = await checkAchievementsAsync(
         currentAchievements,
         accountScore,
         leaderboardRank,

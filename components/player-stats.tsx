@@ -377,39 +377,44 @@ export default function PlayerStats({ onClose, mode = "full" }: PlayerStatsProps
         }
       }
 
-      // Load and check achievements
-      const currentAchievements = loadAchievements()
-      const { achievements: updatedAchievements, newlyUnlocked } = checkAchievements(
-        currentAchievements,
-        newAccountScore,
-        leaderboardRank || 0,
-      )
+      // Load and check achievements - Fixed to handle synchronous call
+      try {
+        const currentAchievements = loadAchievements()
+        const { achievements: updatedAchievements, newlyUnlocked } = checkAchievements(
+          currentAchievements,
+          newAccountScore,
+          leaderboardRank || 0,
+          // Don't pass userId for client-side calls to keep it synchronous
+        )
 
-      setAchievements(updatedAchievements)
-      saveAchievements(updatedAchievements)
+        setAchievements(updatedAchievements)
+        saveAchievements(updatedAchievements)
 
-      // Show notification for newly unlocked achievements
-      if (newlyUnlocked.length > 0) {
-        setNewAchievement(newlyUnlocked[0]) // Show first newly unlocked achievement
-      }
-
-      // Sync achievements to server if user has account
-      if (username && userId) {
-        try {
-          await fetch("/api/achievements/sync", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              userId,
-              username,
-              achievements: updatedAchievements,
-            }),
-          })
-        } catch (error) {
-          console.error("Error syncing achievements:", error)
+        // Show notification for newly unlocked achievements
+        if (newlyUnlocked && newlyUnlocked.length > 0) {
+          setNewAchievement(newlyUnlocked[0]) // Show first newly unlocked achievement
         }
+
+        // Sync achievements to server if user has account
+        if (username && userId) {
+          try {
+            await fetch("/api/achievements/sync", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                userId,
+                username,
+                achievements: updatedAchievements,
+              }),
+            })
+          } catch (error) {
+            console.error("Error syncing achievements:", error)
+          }
+        }
+      } catch (error) {
+        console.error("Error checking achievements:", error)
       }
     } catch (error) {
       console.error("Error calculating account score:", error)

@@ -103,7 +103,154 @@ export function initializeAchievements(): Achievement[] {
   }))
 }
 
-export async function checkAchievements(
+// Synchronous version for client-side use
+export function checkAchievements(
+  achievements: Achievement[],
+  accountScore: AccountScore,
+  leaderboardRank: number | null,
+): { achievements: Achievement[]; newlyUnlocked: Achievement[] } {
+  const updated = [...achievements]
+  const newlyUnlocked: Achievement[] = []
+
+  // Check 25k Club
+  const achievement25k = updated.find((a) => a.id === "25k_club")
+  if (achievement25k) {
+    achievement25k.progress = Math.min(accountScore.points, achievement25k.requirement)
+    if (accountScore.points >= achievement25k.requirement && !achievement25k.unlocked) {
+      achievement25k.unlocked = true
+      achievement25k.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievement25k)
+    }
+  }
+
+  // Check 50k Club
+  const achievement50k = updated.find((a) => a.id === "50k_club")
+  if (achievement50k) {
+    achievement50k.progress = Math.min(accountScore.points, achievement50k.requirement)
+    if (accountScore.points >= achievement50k.requirement && !achievement50k.unlocked) {
+      achievement50k.unlocked = true
+      achievement50k.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievement50k)
+    }
+  }
+
+  // Check 100k Club
+  const achievement100k = updated.find((a) => a.id === "100k_club")
+  if (achievement100k) {
+    achievement100k.progress = Math.min(accountScore.points, achievement100k.requirement)
+    if (accountScore.points >= achievement100k.requirement && !achievement100k.unlocked) {
+      achievement100k.unlocked = true
+      achievement100k.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievement100k)
+    }
+  }
+
+  // Check Top Dog
+  const achievementTopDog = updated.find((a) => a.id === "top_dog")
+  if (achievementTopDog && leaderboardRank !== null) {
+    achievementTopDog.progress = leaderboardRank === 1 ? 1 : 0
+    if (leaderboardRank === 1 && !achievementTopDog.unlocked) {
+      achievementTopDog.unlocked = true
+      achievementTopDog.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementTopDog)
+    }
+  }
+
+  // Check Treasure Hunter
+  const achievementTreasureHunter = updated.find((a) => a.id === "treasure_hunter")
+  if (achievementTreasureHunter) {
+    achievementTreasureHunter.progress = Math.min(accountScore.legendaryCount, achievementTreasureHunter.requirement)
+    if (accountScore.legendaryCount >= achievementTreasureHunter.requirement && !achievementTreasureHunter.unlocked) {
+      achievementTreasureHunter.unlocked = true
+      achievementTreasureHunter.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementTreasureHunter)
+    }
+  }
+
+  // Check Networker
+  const achievementNetworker = updated.find((a) => a.id === "networker")
+  if (achievementNetworker) {
+    // Get the most connected node from the connection web
+    const mostConnections = getMostConnectedNodeCount()
+    achievementNetworker.progress = Math.min(mostConnections, achievementNetworker.requirement)
+
+    if (mostConnections >= achievementNetworker.requirement && !achievementNetworker.unlocked) {
+      achievementNetworker.unlocked = true
+      achievementNetworker.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementNetworker)
+    }
+  }
+
+  // Check Fully Cranked (Jason Statham usage)
+  const achievementFullyCranked = updated.find((a) => a.id === "fully_cranked")
+  if (achievementFullyCranked) {
+    const jasonStathamUsage = getJasonStathamUsageCount()
+    achievementFullyCranked.progress = Math.min(jasonStathamUsage, achievementFullyCranked.requirement)
+    if (jasonStathamUsage >= achievementFullyCranked.requirement && !achievementFullyCranked.unlocked) {
+      achievementFullyCranked.unlocked = true
+      achievementFullyCranked.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementFullyCranked)
+    }
+  }
+
+  // Check Power User (games completed) - Use legacy localStorage for client-side
+  const achievementPowerUser = updated.find((a) => a.id === "power_user")
+  if (achievementPowerUser) {
+    const gamesCompleted = getCompletedGamesCountLegacy()
+    achievementPowerUser.progress = Math.min(gamesCompleted, achievementPowerUser.requirement)
+    if (gamesCompleted >= achievementPowerUser.requirement && !achievementPowerUser.unlocked) {
+      achievementPowerUser.unlocked = true
+      achievementPowerUser.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementPowerUser)
+    }
+  }
+
+  // Check Power User II (unique days played)
+  const achievementPowerUserII = updated.find((a) => a.id === "power_user_ii")
+  if (achievementPowerUserII) {
+    const uniqueDaysPlayed = getUniqueDaysPlayedCount()
+    achievementPowerUserII.progress = Math.min(uniqueDaysPlayed, achievementPowerUserII.requirement)
+    if (uniqueDaysPlayed >= achievementPowerUserII.requirement && !achievementPowerUserII.unlocked) {
+      achievementPowerUserII.unlocked = true
+      achievementPowerUserII.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementPowerUserII)
+    }
+  }
+
+  // Check Treasure Hunter II
+  const achievementTreasureHunterII = updated.find((a) => a.id === "treasure_hunter_ii")
+  if (achievementTreasureHunterII) {
+    achievementTreasureHunterII.progress = Math.min(
+      accountScore.legendaryCount,
+      achievementTreasureHunterII.requirement,
+    )
+    if (
+      accountScore.legendaryCount >= achievementTreasureHunterII.requirement &&
+      !achievementTreasureHunterII.unlocked
+    ) {
+      achievementTreasureHunterII.unlocked = true
+      achievementTreasureHunterII.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementTreasureHunterII)
+    }
+  }
+
+  // Check Collector (collection percentage)
+  const achievementCollector = updated.find((a) => a.id === "collector")
+  if (achievementCollector) {
+    const collectionPercentage = accountScore.totalPercentage || 0
+    achievementCollector.progress = Math.min(collectionPercentage, achievementCollector.requirement)
+    if (collectionPercentage >= achievementCollector.requirement && !achievementCollector.unlocked) {
+      achievementCollector.unlocked = true
+      achievementCollector.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievementCollector)
+    }
+  }
+
+  return { achievements: updated, newlyUnlocked }
+}
+
+// Async version for server-side use with Redis access
+export async function checkAchievementsAsync(
   achievements: Achievement[],
   accountScore: AccountScore,
   leaderboardRank: number | null,
@@ -193,7 +340,7 @@ export async function checkAchievements(
     }
   }
 
-  // Check Power User (games completed) - Fixed to use Redis-based game tracking
+  // Check Power User (games completed) - Use Redis-based tracking for server-side
   const achievementPowerUser = updated.find((a) => a.id === "power_user")
   if (achievementPowerUser) {
     const gamesCompleted = userId ? await getUserGamesPlayedCount(userId) : getCompletedGamesCountLegacy()
