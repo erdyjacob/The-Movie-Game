@@ -3,12 +3,7 @@
 import type { TMDBMovie, TMDBActor, Difficulty, GameFilters } from "@/lib/types"
 import { API, GAME } from "./config"
 import { getCachedItem, setCachedItem, initializeCache, clearExpiredCache } from "./redis-cache"
-import {
-  filterMovie,
-  isAnimatedMovie as checkAnimatedMovie,
-  isTooNicheActor as checkTooNicheActor,
-  isTooNicheMovie as checkTooNicheMovie,
-} from "./filters"
+import { filterMovie, isAnimatedMovie as checkAnimatedMovie, isTooNicheActor as checkTooNicheActor } from "./filters"
 
 const API_KEY = process.env.TMDB_API_KEY
 const BASE_URL = API.BASE_URL
@@ -524,7 +519,7 @@ function addToRecentActorTypes(actor: TMDBActor) {
 // Update the getRandomMovie function to avoid recently used movies
 export async function getRandomMovie(
   difficulty: Difficulty = "medium",
-  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: false },
+  filters: GameFilters = { includeAnimated: false, includeSequels: true, includeForeign: false },
 ): Promise<TMDBMovie> {
   try {
     const thresholds = getMovieDifficultyThresholds(difficulty)
@@ -597,8 +592,35 @@ export async function getRandomMovie(
 
     console.log(`Fetched ${movies.length} movies before filtering`)
 
-    // Use the unified filter function
-    movies = movies.filter((movie) => filterMovie(movie, filters, recentlyUsedMovieIds, recentlyUsedFranchises))
+    // For animated movies, fetch cast data to check for popular actors
+    const animatedMovies = movies.filter((movie) => checkAnimatedMovie(movie))
+    const movieCastMap: Record<number, TMDBActor[]> = {}
+
+    if (animatedMovies.length > 0 && filters.includeAnimated) {
+      // Fetch cast data for animated movies
+      const castPromises = animatedMovies.map(async (movie) => {
+        try {
+          const creditsData = await cachedFetch(
+            `${BASE_URL}/movie/${movie.id}/credits?api_key=${API_KEY}&language=en-US`,
+            { cache: "no-store" },
+          )
+          if (creditsData && creditsData.cast) {
+            movieCastMap[movie.id] = creditsData.cast
+          }
+        } catch (error) {
+          console.error(`Error fetching cast for movie ${movie.id}:`, error)
+        }
+      })
+
+      // Wait for all cast data to be fetched
+      await Promise.allSettled(castPromises)
+    }
+
+    // Use the unified filter function with cast data for animated movies
+    movies = movies.filter((movie) => {
+      const cast = movieCastMap[movie.id]
+      return filterMovie(movie, filters, recentlyUsedMovieIds, recentlyUsedFranchises, cast)
+    })
 
     // Apply difficulty filters
     movies = movies.filter((movie: TMDBMovie) => {
@@ -877,7 +899,7 @@ export async function searchActorsByMovie(movieId: number): Promise<TMDBActor[]>
 // Search for movies that an actor has appeared in
 export async function searchMoviesByActor(
   actorId: number,
-  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: false },
+  filters: GameFilters = { includeAnimated: false, includeSequels: true, includeForeign: false },
 ): Promise<TMDBMovie[]> {
   try {
     let data
@@ -904,7 +926,7 @@ export async function searchMoviesByActor(
     let movies = data.cast || []
 
     // Filter out extremely niche movies first
-    movies = movies.filter((movie: TMDBMovie) => !checkTooNicheMovie(movie))
+    movies = movies.filter((movie: TMDBMovie) => !isTooNicheMovie(movie))
 
     // Apply filters if needed
     movies = movies.filter((movie) => {

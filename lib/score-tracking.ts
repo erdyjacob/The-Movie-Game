@@ -3,6 +3,7 @@ import type { AccountScore, PlayerHistory, GameMode } from "./types"
 import { updateLeaderboardWithTotalPoints } from "./leaderboard"
 import { recordGameParticipation, getUserGamesPlayedCount } from "./game-tracking"
 import { calculateRank } from "./rank-calculator"
+import { checkAchievements, loadAchievements, saveAchievements } from "./achievements"
 
 // At the top of the file, add a logging utility function:
 function logScoreAction(action: string, userId?: string, username?: string, details?: any) {
@@ -130,7 +131,7 @@ export async function calculateScoreFromHistory(
   }
 }
 
-// Update the updateUserScore function to include logging:
+// Update the updateUserScore function to include achievement checking:
 export async function updateUserScore(userId: string, username: string, accountScore: AccountScore): Promise<boolean> {
   try {
     logScoreAction("UPDATE_START", userId, username, { score: accountScore.points })
@@ -165,7 +166,35 @@ export async function updateUserScore(userId: string, username: string, accountS
     await pipeline.exec()
 
     // Update the leaderboard - pass userId to ensure proper identification
-    await updateLeaderboardWithTotalPoints(username, accountScore, userId)
+    const leaderboardResult = await updateLeaderboardWithTotalPoints(username, accountScore, userId)
+
+    // Get the user's current leaderboard rank for achievement checking
+    const leaderboardRank = await getUserLeaderboardRank(username)
+
+    // Check achievements after score and leaderboard updates
+    try {
+      const currentAchievements = loadAchievements()
+      const { achievements: updatedAchievements, newlyUnlocked } = await checkAchievements(
+        currentAchievements,
+        accountScore,
+        leaderboardRank,
+        userId,
+      )
+
+      // Save updated achievements
+      saveAchievements(updatedAchievements)
+
+      // Log newly unlocked achievements
+      if (newlyUnlocked.length > 0) {
+        logScoreAction("ACHIEVEMENTS_UNLOCKED", userId, username, {
+          count: newlyUnlocked.length,
+          achievements: newlyUnlocked.map((a) => a.name),
+        })
+      }
+    } catch (achievementError) {
+      console.error("Error checking achievements:", achievementError)
+      // Don't fail the score update if achievement checking fails
+    }
 
     logScoreAction("UPDATE_SUCCESS", userId, username, { score: accountScore.points })
     return true
@@ -173,6 +202,24 @@ export async function updateUserScore(userId: string, username: string, accountS
     logScoreAction("UPDATE_ERROR", userId, username, { error: String(error) })
     console.error("Error updating user score:", error)
     return false
+  }
+}
+
+// Helper function to get user's leaderboard rank
+async function getUserLeaderboardRank(username: string): Promise<number | null> {
+  try {
+    const leaderboard = await kv.zrevrange("movie-game:leaderboard", 0, -1, { withScores: true })
+
+    for (let i = 0; i < leaderboard.length; i += 2) {
+      if (leaderboard[i] === username) {
+        return Math.floor(i / 2) + 1 // Convert index to rank (1-based)
+      }
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error getting user leaderboard rank:", error)
+    return null
   }
 }
 
@@ -281,7 +328,7 @@ export async function syncPlayerHistoryAndUpdateScore(
 
     logScoreAction("SCORE_CALCULATED", userId, username, { score: accountScore.points, rank: accountScore.rank })
 
-    // Update user score in all places
+    // Update user score in all places (this will also check achievements)
     return await updateUserScore(userId, username, accountScore)
   } catch (error) {
     logScoreAction("SYNC_HISTORY_ERROR", userId, username, { error: String(error) })

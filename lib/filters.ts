@@ -11,6 +11,10 @@ const MIN_MOVIE_VOTE_COUNT = 100
 const MIN_ACTOR_POPULARITY = 1.0
 const MIN_ACTOR_KNOWN_FOR_COUNT = 2
 
+// Minimum number of popular actors required for animated movies
+const MIN_POPULAR_ACTORS_FOR_ANIMATION = 4
+const POPULAR_ACTOR_THRESHOLD = 20.0 // Popularity threshold for "very popular" actors
+
 // Function to check if a movie is likely a sequel based on its title
 export function isLikelySequel(movie: TMDBMovie): boolean {
   // Check if the movie belongs to a collection
@@ -85,6 +89,18 @@ export function isAnimatedMovie(movie: TMDBMovie): boolean {
   return false
 }
 
+// Function to check if an animated movie has enough popular actors
+export function hasEnoughPopularActors(movie: TMDBMovie, cast: TMDBActor[]): boolean {
+  if (!isAnimatedMovie(movie)) return true // Not an animated movie, so this check doesn't apply
+
+  // Count how many "very popular" actors are in the cast
+  const popularActorsCount = cast.filter(
+    (actor) => actor.popularity && actor.popularity >= POPULAR_ACTOR_THRESHOLD,
+  ).length
+
+  return popularActorsCount >= MIN_POPULAR_ACTORS_FOR_ANIMATION
+}
+
 // Function to check if a movie is too niche (extremely low popularity or vote count)
 export function isTooNicheMovie(movie: TMDBMovie): boolean {
   const popularity = movie.popularity || 0
@@ -136,9 +152,10 @@ export function isRecentlyUsedFranchise(movie: TMDBMovie, recentlyUsedFranchises
 // Main filter function for movies
 export function filterMovie(
   movie: TMDBMovie,
-  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: false },
+  filters: GameFilters = { includeAnimated: false, includeSequels: true, includeForeign: false },
   recentlyUsedMovieIds: number[],
   recentlyUsedFranchises: string[],
+  cast?: TMDBActor[], // Optional cast parameter for checking popular actors in animated movies
 ): boolean {
   // Ensure movie is not null or undefined
   if (!movie) {
@@ -157,6 +174,11 @@ export function filterMovie(
 
   // Filter out animated movies if needed
   if (!filters.includeAnimated && isAnimatedMovie(movie)) {
+    return false
+  }
+
+  // If it's an animated movie and we have cast data, check if it has enough popular actors
+  if (isAnimatedMovie(movie) && cast && !hasEnoughPopularActors(movie, cast)) {
     return false
   }
 
@@ -186,11 +208,15 @@ export function filterMovie(
 // Apply filters to a list of movies
 export function applyMovieFilters(
   movies: TMDBMovie[],
-  filters: GameFilters = { includeAnimated: true, includeSequels: true, includeForeign: false },
+  filters: GameFilters = { includeAnimated: false, includeSequels: true, includeForeign: false },
   recentlyUsedMovieIds: number[],
   recentlyUsedFranchises: string[],
+  cast?: Record<number, TMDBActor[]>, // Optional map of movie ID to cast for checking popular actors
 ): TMDBMovie[] {
-  return movies.filter((movie) => filterMovie(movie, filters, recentlyUsedMovieIds, recentlyUsedFranchises))
+  return movies.filter((movie) => {
+    const movieCast = cast ? cast[movie.id] : undefined
+    return filterMovie(movie, filters, recentlyUsedMovieIds, recentlyUsedFranchises, movieCast)
+  })
 }
 
 // Apply filters to a list of actors

@@ -12,6 +12,17 @@ interface AchievementsSectionProps {
 export function AchievementsSection({ achievements }: AchievementsSectionProps) {
   const [isOpen, setIsOpen] = useState(false)
 
+  // Safety check for undefined achievements
+  if (!achievements || !Array.isArray(achievements)) {
+    return (
+      <div>
+        <div className="h-10 flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-400">Achievements (Loading...)</span>
+        </div>
+      </div>
+    )
+  }
+
   const unlockedCount = achievements.filter((a) => a.unlocked).length
   const totalCount = achievements.length
 

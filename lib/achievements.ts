@@ -1,6 +1,7 @@
 import type { Achievement, AccountScore } from "./types"
 import { loadConnections } from "./connection-tracking"
 import { loadPlayerHistory } from "./player-history"
+import { getUserGamesPlayedCount } from "./game-tracking"
 
 export const ACHIEVEMENTS: Omit<Achievement, "progress" | "unlocked" | "unlockedAt">[] = [
   {
@@ -17,6 +18,14 @@ export const ACHIEVEMENTS: Omit<Achievement, "progress" | "unlocked" | "unlocked
     description: "Reach a collection score of 50,000",
     requirement: 50000,
     rarity: "epic",
+    category: "milestone",
+  },
+  {
+    id: "25k_club",
+    name: "25,000 Club",
+    description: "Reach a collection score of 25,000",
+    requirement: 25000,
+    rarity: "rare",
     category: "milestone",
   },
   {
@@ -94,13 +103,25 @@ export function initializeAchievements(): Achievement[] {
   }))
 }
 
-export function checkAchievements(
+export async function checkAchievements(
   achievements: Achievement[],
   accountScore: AccountScore,
   leaderboardRank: number | null,
-): { achievements: Achievement[]; newlyUnlocked: Achievement[] } {
+  userId?: string,
+): Promise<{ achievements: Achievement[]; newlyUnlocked: Achievement[] }> {
   const updated = [...achievements]
   const newlyUnlocked: Achievement[] = []
+
+  // Check 25k Club
+  const achievement25k = updated.find((a) => a.id === "25k_club")
+  if (achievement25k) {
+    achievement25k.progress = Math.min(accountScore.points, achievement25k.requirement)
+    if (accountScore.points >= achievement25k.requirement && !achievement25k.unlocked) {
+      achievement25k.unlocked = true
+      achievement25k.unlockedAt = new Date().toISOString()
+      newlyUnlocked.push(achievement25k)
+    }
+  }
 
   // Check 50k Club
   const achievement50k = updated.find((a) => a.id === "50k_club")
@@ -172,10 +193,10 @@ export function checkAchievements(
     }
   }
 
-  // Check Power User (games completed)
+  // Check Power User (games completed) - Fixed to use Redis-based game tracking
   const achievementPowerUser = updated.find((a) => a.id === "power_user")
   if (achievementPowerUser) {
-    const gamesCompleted = getCompletedGamesCount()
+    const gamesCompleted = userId ? await getUserGamesPlayedCount(userId) : getCompletedGamesCountLegacy()
     achievementPowerUser.progress = Math.min(gamesCompleted, achievementPowerUser.requirement)
     if (gamesCompleted >= achievementPowerUser.requirement && !achievementPowerUser.unlocked) {
       achievementPowerUser.unlocked = true
@@ -357,8 +378,8 @@ function getJasonStathamUsageCount(): number {
   }
 }
 
-// Helper function to get completed games count
-function getCompletedGamesCount(): number {
+// Legacy function for backward compatibility (fallback to localStorage)
+function getCompletedGamesCountLegacy(): number {
   try {
     const completedGames = localStorage.getItem("movieGameCompletedGames")
     if (!completedGames) return 0
