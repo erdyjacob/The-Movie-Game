@@ -30,6 +30,51 @@ interface GameOverScreenProps {
   difficulty?: string // Make optional for backward compatibility
 }
 
+// Helper function to record completed game in localStorage for achievement tracking
+function recordCompletedGameLocally(score: number, gameMode: GameMode, difficulty: string, itemCount: number) {
+  try {
+    const gameRecord = {
+      timestamp: Date.now(),
+      score,
+      gameMode,
+      difficulty,
+      itemCount,
+      id: `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    }
+
+    // Get existing completed games
+    const existingGames = localStorage.getItem("movieGameCompletedGames")
+    let completedGames = []
+
+    if (existingGames) {
+      try {
+        completedGames = JSON.parse(existingGames)
+        if (!Array.isArray(completedGames)) {
+          completedGames = []
+        }
+      } catch (error) {
+        console.error("Error parsing existing completed games:", error)
+        completedGames = []
+      }
+    }
+
+    // Add the new game
+    completedGames.push(gameRecord)
+
+    // Keep only the most recent 100 games to prevent localStorage bloat
+    if (completedGames.length > 100) {
+      completedGames = completedGames.slice(-100)
+    }
+
+    // Save back to localStorage
+    localStorage.setItem("movieGameCompletedGames", JSON.stringify(completedGames))
+
+    console.log(`[GameOver] Recorded completed game locally. Total games: ${completedGames.length}`)
+  } catch (error) {
+    console.error("Error recording completed game locally:", error)
+  }
+}
+
 export default function GameOverScreen({
   history,
   score,
@@ -47,6 +92,13 @@ export default function GameOverScreen({
   const isEstablishedPlayer = history.length > 1
 
   const { syncScore, isSyncing, syncError, syncSuccess } = useScoreSync()
+
+  // Record completed game locally for achievement tracking
+  useEffect(() => {
+    // Record this completed game in localStorage for achievement tracking
+    // This ensures the "Power User" achievement works for all players
+    recordCompletedGameLocally(score, gameMode, difficulty, history.length)
+  }, [score, gameMode, difficulty, history.length])
 
   // Add this effect to sync score when the game over screen appears
   useEffect(() => {
