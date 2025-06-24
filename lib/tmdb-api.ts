@@ -517,6 +517,7 @@ function addToRecentActorTypes(actor: TMDBActor) {
 }
 
 // Update the getRandomMovie function to avoid recently used movies
+// Note: Animated movies are permanently excluded from the game due to difficulty
 export async function getRandomMovie(
   difficulty: Difficulty = "medium",
   filters: GameFilters = { includeAnimated: false, includeSequels: true, includeForeign: false },
@@ -896,6 +897,7 @@ export async function searchActorsByMovie(movieId: number): Promise<TMDBActor[]>
   }
 }
 
+// Note: Animated movies are permanently excluded from the game due to difficulty
 // Search for movies that an actor has appeared in
 export async function searchMoviesByActor(
   actorId: number,

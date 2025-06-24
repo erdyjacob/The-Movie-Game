@@ -23,7 +23,8 @@ export default function ResetBanner() {
           >
             discord.gg/m83p5e4W
           </a>{" "}
-          • New features include enhanced tracking, improved leaderboards, and better progression! 🎬
+          • New features include enhanced tracking, improved leaderboards, better progression, and animated movies have
+          been removed to improve game balance! 🎬
         </span>
         {/* Duplicate for seamless loop */}
         <span className="inline-block px-4 text-sm font-medium ml-8">
@@ -37,7 +38,8 @@ export default function ResetBanner() {
           >
             discord.gg/m83p5e4W
           </a>{" "}
-          • New features include enhanced tracking, improved leaderboards, and better progression! 🎬
+          • New features include enhanced tracking, improved leaderboards, better progression, and animated movies have
+          been removed to improve game balance! 🎬
         </span>
       </div>
 

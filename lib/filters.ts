@@ -149,6 +149,7 @@ export function isRecentlyUsedFranchise(movie: TMDBMovie, recentlyUsedFranchises
   return recentlyUsedFranchises.some((franchise) => title.includes(franchise))
 }
 
+// Note: Animated movies are permanently excluded from the game
 // Main filter function for movies
 export function filterMovie(
   movie: TMDBMovie,
