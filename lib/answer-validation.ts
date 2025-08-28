@@ -98,13 +98,14 @@ export async function getAvailableActorsForMovie(
   }
 }
 
-// Get available movies for an actor
+// Get available movies for an actor - animated movies are automatically excluded
 export async function getAvailableMoviesForActor(
   actorId: number,
   usedIds: Set<number>,
   filters: GameFilters,
 ): Promise<{ movies: any[]; error?: ValidationError }> {
   try {
+    // searchMoviesByActor now automatically excludes animated movies
     const movies = await searchMoviesByActor(actorId, filters)
 
     // Filter out already used movies
@@ -190,7 +191,7 @@ export function generateNotFoundErrorMessage(search: string, expectedType: ItemT
   }
 }
 
-// Main validation function - single source of truth for all validations
+// Main validation function - animated movies are automatically excluded from results
 export async function validateAnswer(
   search: string,
   currentItem: GameItem,
@@ -250,8 +251,7 @@ export async function validateAnswer(
         }
       }
     } else {
-      // Validate movie answer
-      // Get available movies for this actor
+      // Validate movie answer - animated movies are automatically excluded by searchMoviesByActor
       const { movies, error } = await getAvailableMoviesForActor(currentItem.id, usedIds, filters)
 
       if (error) {

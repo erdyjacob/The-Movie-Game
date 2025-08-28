@@ -517,7 +517,7 @@ function addToRecentActorTypes(actor: TMDBActor) {
 }
 
 // Update the getRandomMovie function to avoid recently used movies
-// Note: Animated movies are permanently excluded from the game due to difficulty
+// Note: Animated movies are permanently excluded from the game
 export async function getRandomMovie(
   difficulty: Difficulty = "medium",
   filters: GameFilters = { includeAnimated: false, includeSequels: true, includeForeign: false },
@@ -541,16 +541,11 @@ export async function getRandomMovie(
       sortBy = sortOptions[Math.floor(Math.random() * sortOptions.length)]
     }
 
-    // Build the API URL
-    let apiUrl = `${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=${sortBy}&page=${page}&vote_count.gte=${API.MIN_MOVIE_VOTE_COUNT}`
-
-    // If we're excluding animated movies, add a filter
-    if (!filters.includeAnimated) {
-      apiUrl += `&without_genres=${API.ANIMATION_GENRE_ID}`
-    }
+    // Build the API URL - ALWAYS exclude animated movies
+    let apiUrl = `${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=${sortBy}&page=${page}&vote_count.gte=${API.MIN_MOVIE_VOTE_COUNT}&without_genres=${ANIMATION_GENRE_ID}`
 
     // Always exclude documentaries
-    apiUrl += `&without_genres=${API.DOCUMENTARY_GENRE_ID}`
+    apiUrl += `&without_genres=${DOCUMENTARY_GENRE_ID}`
 
     // If we're excluding foreign films, add a filter for English language only
     if (!filters.includeForeign) {
@@ -593,34 +588,9 @@ export async function getRandomMovie(
 
     console.log(`Fetched ${movies.length} movies before filtering`)
 
-    // For animated movies, fetch cast data to check for popular actors
-    const animatedMovies = movies.filter((movie) => checkAnimatedMovie(movie))
-    const movieCastMap: Record<number, TMDBActor[]> = {}
-
-    if (animatedMovies.length > 0 && filters.includeAnimated) {
-      // Fetch cast data for animated movies
-      const castPromises = animatedMovies.map(async (movie) => {
-        try {
-          const creditsData = await cachedFetch(
-            `${BASE_URL}/movie/${movie.id}/credits?api_key=${API_KEY}&language=en-US`,
-            { cache: "no-store" },
-          )
-          if (creditsData && creditsData.cast) {
-            movieCastMap[movie.id] = creditsData.cast
-          }
-        } catch (error) {
-          console.error(`Error fetching cast for movie ${movie.id}:`, error)
-        }
-      })
-
-      // Wait for all cast data to be fetched
-      await Promise.allSettled(castPromises)
-    }
-
-    // Use the unified filter function with cast data for animated movies
+    // Use the unified filter function - animated movies are already excluded by API call
     movies = movies.filter((movie) => {
-      const cast = movieCastMap[movie.id]
-      return filterMovie(movie, filters, recentlyUsedMovieIds, recentlyUsedFranchises, cast)
+      return filterMovie(movie, { ...filters, includeAnimated: false }, recentlyUsedMovieIds, recentlyUsedFranchises)
     })
 
     // Apply difficulty filters
@@ -653,22 +623,20 @@ export async function getRandomMovie(
     // If no movies match the criteria, try again with just the essential filters
     if (movies.length === 0) {
       console.log("No movies matched all criteria, using basic filters only")
-      movies = data.results.filter((movie) => filterMovie(movie, filters, recentlyUsedMovieIds, []))
+      movies = data.results.filter((movie) =>
+        filterMovie(movie, { ...filters, includeAnimated: false }, recentlyUsedMovieIds, []),
+      )
     }
 
     // If still no movies, make one more API call with different parameters
     if (movies.length === 0) {
       console.log("No movies matched even basic filters, making another API call")
 
-      // Try a different API endpoint with more strict filtering
-      let fallbackUrl = `${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=vote_count.desc&page=${Math.floor(Math.random() * 5) + 1}&vote_count.gte=${API.MIN_MOVIE_VOTE_COUNT}`
-
-      if (!filters.includeAnimated) {
-        fallbackUrl += `&without_genres=${API.ANIMATION_GENRE_ID}`
-      }
+      // Try a different API endpoint with more strict filtering - ALWAYS exclude animated movies
+      let fallbackUrl = `${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=vote_count.desc&page=${Math.floor(Math.random() * 5) + 1}&vote_count.gte=${API.MIN_MOVIE_VOTE_COUNT}&without_genres=${ANIMATION_GENRE_ID}`
 
       // Always exclude documentaries
-      fallbackUrl += `&without_genres=${API.DOCUMENTARY_GENRE_ID}`
+      fallbackUrl += `&without_genres=${DOCUMENTARY_GENRE_ID}`
 
       if (!filters.includeForeign) {
         fallbackUrl += `&with_original_language=en`
@@ -678,7 +646,9 @@ export async function getRandomMovie(
         const fallbackData = await cachedFetch(fallbackUrl, { cache: "no-store" })
 
         if (fallbackData && fallbackData.results && Array.isArray(fallbackData.results)) {
-          movies = fallbackData.results.filter((movie) => filterMovie(movie, filters, recentlyUsedMovieIds, []))
+          movies = fallbackData.results.filter((movie) =>
+            filterMovie(movie, { ...filters, includeAnimated: false }, recentlyUsedMovieIds, []),
+          )
         } else {
           console.error("Fallback API call returned invalid data:", fallbackData)
           throw new Error("Fallback API call returned invalid data")
@@ -897,8 +867,7 @@ export async function searchActorsByMovie(movieId: number): Promise<TMDBActor[]>
   }
 }
 
-// Note: Animated movies are permanently excluded from the game due to difficulty
-// Search for movies that an actor has appeared in
+// Search for movies that an actor has appeared in - ALWAYS exclude animated movies
 export async function searchMoviesByActor(
   actorId: number,
   filters: GameFilters = { includeAnimated: false, includeSequels: true, includeForeign: false },
@@ -930,10 +899,10 @@ export async function searchMoviesByActor(
     // Filter out extremely niche movies first
     movies = movies.filter((movie: TMDBMovie) => !isTooNicheMovie(movie))
 
-    // Apply filters if needed
+    // Apply filters - ALWAYS exclude animated movies regardless of filters parameter
     movies = movies.filter((movie) => {
-      // Filter out animated movies if needed
-      if (!filters.includeAnimated && checkAnimatedMovie(movie)) {
+      // ALWAYS filter out animated movies
+      if (checkAnimatedMovie(movie)) {
         return false
       }
 

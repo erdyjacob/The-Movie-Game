@@ -1,56 +1,43 @@
 "use client"
 
-import { X } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 export default function ResetBanner() {
   const [isVisible, setIsVisible] = useState(true)
 
+  // Hide banner after 30 seconds or when clicked
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(false)
+    }, 30000) // 30 seconds
+
+    return () => clearTimeout(timer)
+  }, [])
+
   if (!isVisible) return null
 
   return (
-    <div className="relative bg-gradient-to-r from-purple-600 to-violet-600 text-white py-2 overflow-hidden rounded-lg">
-      {/* Scrolling text with immediate visibility */}
-      <div className="whitespace-nowrap animate-marquee-fast">
-        <span className="inline-block px-4 text-sm font-medium">
-          🎬 Beta Reset Notice: We've cleared all accounts to implement major improvements to the game system. Thank you
-          for your understanding! For more information and updates, join our Discord community:
+    <div
+      className="w-full bg-gradient-to-r from-purple-600 via-purple-700 to-purple-600 text-white py-2 mb-4 cursor-pointer overflow-hidden relative"
+      onClick={() => setIsVisible(false)}
+    >
+      <div className="animate-scroll whitespace-nowrap">
+        <span className="inline-block px-4">
+          🎬 Game Update: All accounts from the beta have been cleared to ensure fair play. Thank you for your
+          understanding! Animated movies have also been removed from the game for better balance. Join our Discord for
+          updates and community discussions:{" "}
           <a
-            href="https://discord.gg/m83p5e4W"
+            href="https://discord.gg/BKEaRwNgbJ"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-purple-200 ml-1 font-semibold"
+            className="underline hover:text-purple-200"
+            onClick={(e) => e.stopPropagation()}
           >
-            discord.gg/m83p5e4W
+            discord.gg/BKEaRwNgbJ
           </a>{" "}
-          • New features include enhanced tracking, improved leaderboards, better progression, and animated movies have
-          been removed to improve game balance! 🎬
-        </span>
-        {/* Duplicate for seamless loop */}
-        <span className="inline-block px-4 text-sm font-medium ml-8">
-          🎬 Beta Reset Notice: We've cleared all accounts to implement major improvements to the game system. Thank you
-          for your understanding! For more information and updates, join our Discord community:
-          <a
-            href="https://discord.gg/m83p5e4W"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-purple-200 ml-1 font-semibold"
-          >
-            discord.gg/m83p5e4W
-          </a>{" "}
-          • New features include enhanced tracking, improved leaderboards, better progression, and animated movies have
-          been removed to improve game balance! 🎬
+          🎮
         </span>
       </div>
-
-      {/* Close button */}
-      <button
-        onClick={() => setIsVisible(false)}
-        className="absolute right-2 top-1/2 transform -translate-y-1/2 hover:bg-white/20 rounded-full p-1 transition-colors"
-        aria-label="Close banner"
-      >
-        <X size={16} />
-      </button>
     </div>
   )
 }

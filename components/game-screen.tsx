@@ -356,7 +356,7 @@ export const GameScreen = memo(function GameScreen({
       : 100
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-[#0f172a] text-white pt-4 pb-8 px-4">
+    <div className="flex flex-col items-center min-h-screen bg-[#0f172a] text-white pt-4 px-4 pb-[16] bg-transparent">
       {/* Main Game Container */}
       <div className="w-full max-w-3xl bg-[#0a0f1c] rounded-lg p-8 shadow-xl">
         {/* Score Display */}

@@ -723,19 +723,15 @@ export default function GameContainer() {
   const onStart = startGame
 
   return (
-    <div className="w-full max-w-3xl">
+    <div className="w-full">
       {/* Header with logo when not on start screen */}
       {gameState.status !== "start" && (
-        <div className="text-center mb-10">
+        <div className="text-center mb-[0]">
           {/* SVG Logo instead of text title */}
           <div className="w-80 h-20 relative mx-auto mb-3">
             <Image src="/images/TheMovieGame.svg" alt="The Movie Game" fill className="object-contain" priority />
           </div>
-          <p className="text-muted-foreground">
-            {gameState.gameMode === "dailyChallenge"
-              ? "Daily Challenge: Unlimited time, three strikes, find the daily target!"
-              : "Name an actor from the movie or a movie the actor was in!"}
-          </p>
+          
         </div>
       )}
 
